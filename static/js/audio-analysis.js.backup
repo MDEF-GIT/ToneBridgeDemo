@@ -1,0 +1,3350 @@
+console.log('🎯 ToneBridge audio-analysis.js loaded');
+/**
+ * ToneBridge Audio Analysis Frontend
+ * Real-time pitch tracking and overlay visualization
+ */
+
+// Use API_BASE from window if available, otherwise default to current origin
+const API_BASE = window.API_BASE || "";
+
+// DOM Elements - Initialize after DOM is ready
+let $wav, $tg, $btnAnalyze, $btnMic, $btnReset, $btnClearChart, $status, $btnPlayRef, $btnPlayRec, $savedFiles, $btnSaveReference, $semitoneMin, $semitoneMax, $btnUpdateRange;
+let $btnPitchTest, $btnStopPitchTest, $pitchTestStatus, $freqRangeDisplay, $btnClearRange, $btnDeleteSaved, $btnReplayPractice;
+
+function initializeElements() {
+    $wav = document.getElementById('wav');
+    $tg = document.getElementById('tg');
+    $btnAnalyze = document.getElementById('btnAnalyze');
+    $btnMic = document.getElementById('btnUnifiedRecord'); // 🎯 실제 템플릿의 통합 녹음 버튼 사용
+    $btnReset = document.getElementById('btnReset');
+    $btnClearChart = document.getElementById('btnClearChart');
+    $status = document.getElementById('status');
+    $btnPlayRef = document.getElementById('btnPlayRef');
+    $btnPlayRec = document.getElementById('btnPlayRec');
+    $savedFiles = document.getElementById('savedFiles');
+    $btnSaveReference = document.getElementById('btnSaveReference');
+    $semitoneMin = document.getElementById('semitoneMin');
+    $semitoneMax = document.getElementById('semitoneMax');
+    $btnUpdateRange = document.getElementById('btnUpdateRange');
+    $btnPitchTest = document.getElementById('btnPitchTest');
+    $btnStopPitchTest = document.getElementById('btnStopPitchTest');
+    $pitchTestStatus = document.getElementById('pitchTestStatus');
+    $freqRangeDisplay = document.getElementById('freqRangeDisplay');
+    $btnClearRange = document.getElementById('btnClearRange');
+    $btnDeleteSaved = document.getElementById('btnDeleteSaved');
+    $btnReplayPractice = document.getElementById('btnReplayPractice');
+    $btnTwoPointPractice = document.getElementById('btnTwoPointPractice');
+    
+    console.log('DOM elements found:', {
+        wav: !!$wav,
+        tg: !!$tg,
+        btnAnalyze: !!$btnAnalyze,
+        btnMic: !!$btnMic, // 이제 btnUnifiedRecord를 가리킴
+        btnReset: !!$btnReset,
+        btnClearChart: !!$btnClearChart,
+        status: !!$status,
+        btnPlayRef: !!$btnPlayRef,
+        btnPlayRec: !!$btnPlayRec,
+        savedFiles: !!$savedFiles,
+        btnSaveReference: !!$btnSaveReference,
+        semitoneMin: !!$semitoneMin,
+        semitoneMax: !!$semitoneMax,
+        btnUpdateRange: !!$btnUpdateRange,
+        btnPitchTest: !!$btnPitchTest,
+        btnStopPitchTest: !!$btnStopPitchTest,
+        pitchTestStatus: !!$pitchTestStatus,
+        freqRangeDisplay: !!$freqRangeDisplay,
+        btnClearRange: !!$btnClearRange,
+        btnDeleteSaved: !!$btnDeleteSaved,
+        btnReplayPractice: !!$btnReplayPractice
+    });
+    
+    if (!$wav) console.error('WAV input not found');
+    if (!$tg) console.error('TextGrid input not found'); 
+    if (!$btnAnalyze) console.error('Analyze button not found');
+    
+    // 🎯 Pitch Test 이벤트 핸들러 설정
+    setupPitchTestHandlers();
+    
+    // 🎯 범위 해제 버튼 핸들러
+    if ($btnClearRange) {
+        $btnClearRange.onclick = () => {
+            clearPitchRange();
+            pitchRange = null;
+            targetPitch = null;
+            updatePitchTestButtons();
+            
+            if ($pitchTestStatus) {
+                $pitchTestStatus.textContent = "차트를 클릭하고 드래그해서 연습 범위를 설정하거나 한 점을 클릭해서 목표 음높이를 설정하세요";
+                $pitchTestStatus.className = "text-center text-danger small fw-bold";
+            }
+            
+            console.log("🎯 음높이 범위 및 목표 해제됨");
+        };
+    }
+    
+    // 🎯 초기 Hz 범위 표시
+    updateFrequencyRangeDisplay(-6, 12);
+}
+
+// Analysis State
+let refCurve = [];
+let refSyll = [];
+let refStats = {meanF0: 0, maxF0: 0, duration: 0};
+let liveStats = {meanF0: 0, maxF0: 0};
+let spectrogramData = [];
+let liveBuffer = [];
+let started = false;
+let refMedian = 200; // Reference median for semitone calculation
+
+// Audio Processing Configuration - optimized for pitch tracking
+const cfg = {
+    sampleRate: 16000,
+    frameMs: 32,   // Longer frame for better low pitch detection
+    hopMs: 8       // Smaller hop for smoother tracking
+};
+
+let audioCtx, micNode, procNode;
+let tLive = 0;
+let sylCuts = [];
+
+// Audio playback variables
+let refAudioBlob = null;
+let recordedAudioBlob = null;
+let selectedGender = null;
+let detectedReferenceGender = null;
+let learningMethod = null;
+let learnerGender = null;
+let progressStep = 0;
+let currentlyPlaying = null;
+let mediaRecorder = null;
+
+// Pitch Test variables
+let pitchTestActive = false;
+let targetPitch = null; // Target semitone value
+let pitchTestBuffer = [];
+let chartFrozen = false; // 🎯 차트 고정 상태 (음높이 테스트 중)
+let originalScales = null; // 🎯 음높이 테스트 시작 전 원본 차트 스케일
+let pitchTestLine = null; // Chart reference line
+let pitchTestStream = null;
+let pitchTestAudioCtx = null;
+let pitchTestProcNode = null;
+let recordedChunks = [];
+
+// Range selection variables
+let isSelecting = false;
+let rangeStart = null;
+let rangeEnd = null;
+let currentLiveHz = 0; // 실시간 Hz 값
+let pitchRange = null; // {min, max} 범위 저장
+
+// EdTech Learning Progress Variables
+let learningProgress = 0;
+let pronunciationScore = 0;
+let startTime = 0; // 🎯 오디오 시작 시간
+let totalSteps = 4; // 파일준비, 분석, 연습, 결과확인
+
+// Update EdTech Progress Elements
+function updateLearningProgress(step, score = null) {
+    learningProgress = Math.min(step / totalSteps * 100, 100);
+    const progressBar = document.getElementById('progressBar');
+    const scoreElement = document.getElementById('pronunciationScore');
+    
+    if (progressBar) {
+        progressBar.style.width = `${learningProgress}%`;
+        progressBar.setAttribute('aria-valuenow', learningProgress);
+    }
+    
+    if (score !== null) {
+        pronunciationScore = score;
+        if (scoreElement) {
+            scoreElement.textContent = `${score}점`;
+            scoreElement.className = `h5 ${score >= 80 ? 'text-success' : score >= 60 ? 'text-warning' : 'text-danger'}`;
+        }
+    }
+}
+
+// Calculate pronunciation similarity score
+function calculatePronunciationScore() {
+    if (refCurve.length === 0 || liveBuffer.length === 0) return 0;
+    
+    let similarity = 0;
+    let count = 0;
+    
+    // Compare pitch patterns
+    const minLength = Math.min(refCurve.length, liveBuffer.length);
+    for (let i = 0; i < minLength; i += 10) { // Sample every 10th point for efficiency
+        if (refCurve[i] && liveBuffer[i] && refCurve[i].f0 > 0 && liveBuffer[i].f0 > 0) {
+            const refPitch = refCurve[i].f0;
+            const livePitch = liveBuffer[i].f0;
+            const diff = Math.abs(refPitch - livePitch) / refPitch;
+            similarity += Math.max(0, 1 - diff);
+            count++;
+        }
+    }
+    
+    return count > 0 ? Math.round((similarity / count) * 100) : 0;
+}
+
+// Update button states
+function updateButtons() {
+    const hasWav = $wav && $wav.files && $wav.files.length > 0;
+    const hasTextGrid = $tg && $tg.files && $tg.files.length > 0;
+    const hasRefData = refCurve.length > 0 && refSyll.length > 0;
+    const hasRecording = recordedAudioBlob !== null;
+    const canSave = hasWav && hasTextGrid;
+    
+    console.log('Updating buttons:', {
+        hasWav,
+        hasTextGrid,
+        hasRefData,
+        hasRecording,
+        wavFiles: $wav ? $wav.files.length : 0,
+        tgFiles: $tg ? $tg.files.length : 0
+    });
+    
+    if ($btnAnalyze) {
+        // 🎯 학습 방법별 우선 조건 확인
+        if (learningMethod === 'sentence') {
+            // 문장억양연습: 분석 버튼 활성화
+            $btnAnalyze.disabled = !(hasWav && hasTextGrid);
+        } else if (learningMethod === 'pitch') {
+            // 음높이 학습: 분석 버튼 비활성화
+            $btnAnalyze.disabled = true;
+        } else {
+            // 미선택: WAV + TextGrid 파일이 있으면 활성화
+            $btnAnalyze.disabled = !(hasWav && hasTextGrid);
+        }
+        console.log('Analyze button disabled:', $btnAnalyze.disabled, '(학습방법:', learningMethod + ')');
+    }
+    
+    if ($btnMic) {
+        // 🎯 학습 방법별 우선 조건 확인
+        if (learningMethod === 'pitch') {
+            // 음높이 학습: 녹음 버튼 활성화
+            $btnMic.disabled = false;
+        } else if (learningMethod === 'sentence') {
+            // 문장억양연습: 항상 활성화 (간단하게)
+            $btnMic.disabled = false;
+        } else {
+            // 미선택: 분석 버튼만 활성화
+            $btnMic.disabled = !(hasWav && hasTextGrid); // 파일 있으면 활성화
+        }
+        console.log('Record button disabled:', $btnMic.disabled, '(학습방법:', learningMethod + ')');
+    }
+    
+    if ($btnPlayRef) {
+        $btnPlayRef.disabled = !hasWav;
+    }
+    
+    if ($btnPlayRec) {
+        $btnPlayRec.disabled = !hasRecording;
+    }
+    
+    if ($btnSaveReference) {
+        $btnSaveReference.disabled = !canSave;
+    }
+    
+    // 🎯 피치 테스트 버튼 상태 업데이트
+    updatePitchTestButtons();
+    
+    // Update EdTech status message with learning context
+    if ($status) {
+        if (!hasWav && !hasTextGrid) {
+            $status.textContent = "📱 휴대폰을 가로보기로 하시면 그래프를 한눈에 볼 수 있습니다.";
+            updateLearningProgress(0);
+        } else if (!hasWav) {
+            $status.textContent = "🎵 표준 억양 WAV 파일을 선택해 주세요.";
+            updateLearningProgress(0.5);
+        } else if (!hasTextGrid) {
+            $status.textContent = "📝 음절 구분 TextGrid 파일을 선택해 주세요.";
+            updateLearningProgress(0.5);
+        } else if (!hasRefData) {
+            $status.textContent = "✅ 학습 자료 준비 완료! 이제 '모델 음성 분석' 버튼을 클릭하여 표준 억양 패턴을 분석하세요.";
+            updateLearningProgress(1);
+        } else if (!started) {
+            $status.textContent = "🎯 분석 완료! '억양 연습 시작' 버튼을 클릭하여 실제 억양 연습을 시작하세요.";
+            updateLearningProgress(2);
+        } else {
+            $status.textContent = "🎤 억양 연습 중... 표준 억양과 비교하며 연습해보세요!";
+            updateLearningProgress(3);
+        }
+    }
+}
+
+// Initialize all event handlers after DOM is ready
+function setupEventHandlers() {
+    // File upload handlers
+    if ($wav) {
+        $wav.addEventListener('change', function(e) {
+            console.log('WAV file changed:', e.target.files);
+            updateButtons();
+            if (e.target.files.length > 0) {
+                updateLearningProgress(0.5);
+            }
+        });
+    } else {
+        console.error('Cannot add WAV listener - element not found');
+    }
+    
+    if ($tg) {
+        $tg.addEventListener('change', function(e) {
+            console.log('TextGrid file changed:', e.target.files);
+            updateButtons();
+            if (e.target.files.length > 0) {
+                updateLearningProgress(1);
+            }
+        });
+    } else {
+        console.error('Cannot add TextGrid listener - element not found');
+    }
+
+    // Button click handlers
+    if ($btnAnalyze) {
+        $btnAnalyze.onclick = function() {
+            const analyzeAsync = async () => {
+                try {
+                    console.log("🚀 분석 시작 - 안전한 오류 처리 적용");
+                    // 🧹 분석 시작 전 완전한 데이터 초기화
+                    console.log("🧹 새로운 분석 시작 - 이전 데이터 완전 초기화");
+                
+                // 차트 데이터 초기화
+                if (chart) {
+                    chart.data.datasets[0].data = [];  // Reference data
+                    chart.data.datasets[1].data = [];  // Live data  
+                    chart.data.datasets[2].data = [];  // Intensity data
+                    if (chart.data.datasets[3]) chart.data.datasets[3].data = [];
+                    if (chart.data.datasets[4]) chart.data.datasets[4].data = [];
+                }
+                
+                // 분석 데이터 초기화
+                refCurve = [];
+                refSyll = [];
+                refStats = {meanF0: 0, maxF0: 0, duration: 0};
+                
+                // 음절 표시 완전 제거 
+                if (chart && chart.options.plugins && chart.options.plugins.annotation) {
+                    chart.options.plugins.annotation.annotations = {};
+                    chart.update('none');
+                    console.log("🧹 음절 표시 초기화 완료");
+                }
+                
+                // 파일 검증
+                if (!$wav.files[0] || !$tg.files[0]) {
+                    throw new Error("WAV 파일과 TextGrid 파일을 모두 선택해주세요.");
+                }
+                
+                console.log("📁 파일 확인:", {
+                    wav: $wav.files[0].name,
+                    textgrid: $tg.files[0].name
+                });
+                
+                const fd = new FormData();
+                fd.append("wav", $wav.files[0]);
+                fd.append("textgrid", $tg.files[0]);
+            
+            // Add sentence text if provided
+            const sentenceText = document.getElementById('sentence-text');
+            if (sentenceText && sentenceText.value.trim()) {
+                fd.append("sentence", sentenceText.value.trim());
+            }
+            
+                $status.textContent = "🔄 참조 데이터 분석 중...";
+                $btnAnalyze.disabled = true;
+                
+                console.log("📡 서버로 분석 요청 전송...");
+                
+                const resp = await fetch(`${API_BASE}/analyze_ref?t=${Date.now()}&_=${Math.random()}`, {
+                    method: "POST",
+                    body: fd,
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                console.log("📡 서버 응답 상태:", resp.status, resp.statusText);
+                
+                if (!resp.ok) {
+                    const errorText = await resp.text();
+                    console.error('🚨 서버 응답 오류:', errorText);
+                    throw new Error(`서버 오류 (${resp.status}): ${errorText}`);
+                }
+                
+                const js = await resp.json();
+                console.log("📄 서버 응답 데이터:", js);
+                console.log("🎯 응답 구조 확인:", {
+                    curve: js.curve ? js.curve.length : 'undefined',
+                    syllables: js.syllables ? js.syllables.length : 'undefined', 
+                    syllable_analysis: js.syllable_analysis ? js.syllable_analysis.length : 'undefined',
+                    stats: js.stats ? 'exists' : 'undefined'
+                });
+                
+                // Process reference data
+                refCurve = js.curve.map(p => ({
+                    t: p.t,
+                    f0: p.f0,
+                    semitone: p.semitone || 0,  // Include semitone for charting
+                    int: normInt(p.dB)
+                }));
+                
+                // 🎯 스펙트로그램 배경 처리 (사용자 요청)
+                spectrogramData = js.spectrogram || [];
+                console.log("🎯 응답 데이터 확인:", {
+                    curve_length: js.curve ? js.curve.length : 0,
+                    curve_data: js.curve,
+                    spectrogram_exists: !!js.spectrogram,
+                    spectrogram_length: spectrogramData.length
+                });
+                
+                if (spectrogramData.length > 0) {
+                    console.log(`🎯 스펙트로그램 데이터 수신: ${spectrogramData.length}개 시점`);
+                    // 스펙트로그램 플러그인 즉시 등록
+                    Chart.register({
+                        id: 'spectrogramBackground',
+                        beforeDraw: function(chartInstance, args, options) {
+                            renderSpectrogramOnCanvas(chartInstance, spectrogramData);
+                        }
+                    });
+                } else {
+                    console.log("🎯 스펙트로그램 데이터 없음");
+                }
+                
+                refSyll = js.syllables;
+                refStats = js.stats;
+                refMedian = js.stats.sentence_median || 200; // Set reference median for semitone calculation
+                console.log("🎯 Reference median set to:", refMedian);
+                
+                // 🎯 성별 감지 및 자동 정규화 적용
+                detectedReferenceGender = js.stats.detected_gender || (refMedian > 175 ? 'female' : 'male');
+                
+                // 학습자 성별이 이미 선택된 경우 자동 정규화 적용
+                if (learnerGender && learnerGender !== detectedReferenceGender) {
+                    console.log(`🎯 자동 성별 정규화: ${detectedReferenceGender} → ${learnerGender}`);
+                    analyzeReferenceWithGender(learnerGender);
+                    return;
+                }
+                
+                // Calculate optimal range based on semitone data
+                const semitoneValues = refCurve.map(p => p.semitone);
+                const optimalRange = calculateOptimalRange(semitoneValues);
+                console.log("🎯 Suggested range:", optimalRange);
+                
+                // Update chart range
+                updateChartRange(optimalRange.min, optimalRange.max);
+                
+                // 🎯🎯🎯 CRITICAL: Update Chart.js with reference data  
+                console.log("🎯 refCurve 확인:", refCurve ? refCurve.length : "undefined", "points");
+                console.log("🎯 chart 객체 확인:", typeof chart, chart ? "exists" : "undefined");
+                
+                if (refCurve && refCurve.length > 0) {
+                    console.log("🎯 Updating chart with reference data:", refCurve.length, "points");
+                    console.log("🎯 Sample refCurve data:", refCurve.slice(0, 3));
+                    
+                    // Update chart data - 올바른 형식으로 변환
+                    const chartData = refCurve.map(p => ({x: p.t, y: p.semitone || 0}));
+                    chart.data.datasets[0].data = chartData;
+                    console.log("🎯 Chart data updated:", chart.data.datasets[0].data.length, "points");
+                    console.log("🎯 Sample chart data:", chartData.slice(0, 3));
+                } else {
+                    console.error("🎯 refCurve is empty or undefined:", refCurve);
+                }
+                
+                // Add syllable annotations
+                try {
+                    console.log("🎯 Adding syllable annotations:", refSyll.length, "syllables");
+                    addSyllableAnnotations(refSyll);
+                    console.log("🎯 Syllable annotations added successfully!");
+                } catch (annotError) {
+                    console.error("🎯 Annotation error:", annotError);
+                }
+                
+                // Force chart update
+                try {
+                    chart.update();
+                    console.log("🎯 Chart updated successfully!");
+                } catch (updateError) {
+                    console.error("🎯 Chart update error:", updateError);
+                }
+                
+                // 🎯 녹음 가이드 업데이트
+                const guideElement = document.getElementById('guide-text');
+                const recordingGuide = document.getElementById('recording-guide');
+                if (guideElement && refSyll && refSyll.length > 0) {
+                    const syllableText = refSyll.map(s => s.label).join('');
+                    guideElement.textContent = syllableText;
+                    recordingGuide.style.display = 'block';
+                }
+                
+                // Update syllable analysis table
+                if (js.syllable_analysis) {
+                    updateSyllableAnalysisTable(js.syllable_analysis);
+                }
+                
+                $status.textContent = `🎯 표준 음성 분석 완료! 길이: ${refStats.duration.toFixed(2)}초, 음절: ${refSyll.length}개`;
+                
+                // Update learning progress - analysis completed
+                updateLearningProgress(2);
+                
+                // Save session data
+                await saveSessionData({
+                    type: 'reference_analysis',
+                    stats: refStats,
+                    syllable_count: refSyll.length,
+                    timestamp: new Date().toISOString()
+                });
+                
+                updateButtons();
+                
+            } catch (error) {
+                console.error('🚨 Analysis error:', error);
+                console.error('🚨 Error details:', error.stack);
+                $status.textContent = "❌ 분석 실패: " + (error.message || "알 수 없는 오류");
+                
+                // 오류 상세 정보 추가 로그
+                try {
+                    if (error.response) {
+                        console.error('🚨 Response status:', error.response.status);
+                        const responseText = await error.response.text();
+                        console.error('🚨 Response text:', responseText);
+                    }
+                } catch (responseError) {
+                    console.error('🚨 Response error handling failed:', responseError);
+                }
+            } finally {
+                $btnAnalyze.disabled = false;
+                updateButtons();
+            }
+            };
+            
+            // 🛡️ 안전한 Promise 처리 - unhandledrejection 방지
+            analyzeAsync().then(function() {
+                console.log("✅ 분석 완료");
+            }).catch(function(error) {
+                console.error('🚨 안전하게 처리된 오류:', error);
+                $status.textContent = "❌ 분석 실패: " + (error.message || "알 수 없는 오류");
+            });
+        };
+    }
+
+    // Microphone button handler
+    if ($btnMic) {
+        $btnMic.onclick = async () => {
+            // 🎯 음높이 학습인 경우 참조 음성 체크 생략
+            if (learningMethod !== 'pitch' && !refCurve.length) {
+                alert('먼저 참조 음성을 분석해주세요.');
+                return;
+            }
+            
+            // If recording, stop it
+            if (started) {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+                
+                if (procNode) {
+                    procNode.disconnect();
+                    procNode = null;
+                }
+                
+                if (audioCtx) {
+                    audioCtx.close();
+                    audioCtx = null;
+                }
+                
+                started = false;
+                $btnMic.innerHTML = '<i class="fas fa-microphone me-2"></i> 억양 연습 시작';
+                $btnMic.classList.remove('btn-danger');
+                $btnMic.classList.add('btn-success');
+                
+                // Calculate pronunciation score
+                const score = calculatePronunciationScore();
+                updateLearningProgress(4, score);
+                
+                $status.textContent = `🎉 억양 연습 완료! 억양 점수: ${score}점 - ${score >= 80 ? '우수합니다!' : score >= 60 ? '좋습니다! 더 연습해보세요.' : '더 연습이 필요합니다.'}`;
+                
+                updateButtons();
+                return;
+            }
+            
+            try {
+                $status.textContent = "마이크 권한을 요청 중...";
+                
+                // 🎯 사용 가능한 마이크 장치 확인
+                console.log("🎤 마이크 장치 확인 중...");
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                
+                console.log(`🎤 발견된 마이크 장치 ${audioInputs.length}개:`);
+                audioInputs.forEach((device, index) => {
+                    console.log(`  ${index + 1}. ${device.label || `마이크 ${index + 1}`} (ID: ${device.deviceId.slice(0, 20)}...)`);
+                });
+                
+                // USB 마이크 우선 선택
+                let selectedDeviceId = null;
+                const usbMic = audioInputs.find(device => 
+                    device.label.toLowerCase().includes('usb') || 
+                    device.label.toLowerCase().includes('external')
+                );
+                
+                if (usbMic) {
+                    selectedDeviceId = usbMic.deviceId;
+                    console.log("🎤 USB 마이크 선택:", usbMic.label);
+                    $status.textContent = `USB 마이크 연결 중: ${usbMic.label}`;
+                } else {
+                    console.log("🎤 USB 마이크를 찾을 수 없어 기본 마이크 사용");
+                    $status.textContent = "기본 마이크로 연결 중...";
+                }
+                
+                const constraints = {
+                    audio: {
+                        sampleRate: cfg.sampleRate,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                };
+                
+                // 특정 장치 ID가 있으면 추가
+                if (selectedDeviceId) {
+                    constraints.audio.deviceId = { exact: selectedDeviceId };
+                }
+                
+                console.log("🎤 마이크 접근 요청:", constraints);
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // 실제 사용 중인 장치 확인
+                const tracks = stream.getAudioTracks();
+                if (tracks.length > 0) {
+                    const settings = tracks[0].getSettings();
+                    console.log("🎤 실제 사용 중인 마이크:", tracks[0].label);
+                    console.log("🎤 마이크 설정:", settings);
+                    $status.textContent = `마이크 연결됨: ${tracks[0].label}`;
+                }
+                
+                // Setup MediaRecorder for audio recording
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    recordedAudioBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    console.log('Recording saved, size:', recordedAudioBlob.size, 'bytes');
+                    updateButtons();
+                };
+                
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: cfg.sampleRate
+                });
+                
+                // AudioContext 재개 (Chrome 정책)
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                    console.log("🎤 AudioContext 재개됨");
+                }
+                
+                const src = audioCtx.createMediaStreamSource(stream);
+                const bufSize = 4096; // 더 큰 버퍼로 안정성 향상
+                const frameSize = Math.round(cfg.sampleRate * (cfg.frameMs / 1000));
+                const hopSize = Math.round(cfg.sampleRate * (cfg.hopMs / 1000));
+                
+                console.log(`🎤 오디오 설정: bufSize=${bufSize}, frameSize=${frameSize}, hopSize=${hopSize}`);
+                
+                const proc = audioCtx.createScriptProcessor(bufSize, 1, 1);
+                
+                const ring = new Float32Array(frameSize * 2);
+                let ringPos = 0, accTime = 0;
+                
+                // 연결 전에 로그 확인
+                console.log("🎤 오디오 노드 연결 중...");
+                src.connect(proc);
+                proc.connect(audioCtx.destination);
+                console.log("🎤 오디오 노드 연결 완료");
+                
+                // Start recording
+                mediaRecorder.start();
+                
+                started = true;
+                sylCuts = [];
+                tLive = 0;
+                liveBuffer = [];
+                
+                // 음절 추적 초기화
+                currentSyllableIndex = 0;
+                syllableStartTime = 0;
+                
+                $status.textContent = "🎤 실시간 음성 분석 중... 참조 음성과 동일한 내용을 발화해 주세요.";
+                $btnMic.innerHTML = '<i class="fas fa-stop me-1"></i> 녹음 중지';
+                $btnMic.classList.remove('btn-success');
+                $btnMic.classList.add('btn-danger');
+                $btnMic.disabled = false;
+                
+                // 오디오 처리 핸들러 설정
+                console.log("🎤 오디오 처리 핸들러 설정 중...");
+                
+                proc.onaudioprocess = (e) => {
+                    try {
+                        if (!e || !e.inputBuffer) {
+                            console.error("🎤 입력 버퍼가 없습니다!");
+                            return;
+                        }
+                        
+                        const ch = e.inputBuffer.getChannelData(0);
+                        if (!ch || ch.length === 0) {
+                            console.error("🎤 채널 데이터가 없습니다!");
+                            return;
+                        }
+                        
+                        // 🎯 오디오 입력 레벨 확인
+                        let maxLevel = 0;
+                        for (let i = 0; i < ch.length; i++) {
+                            maxLevel = Math.max(maxLevel, Math.abs(ch[i]));
+                        }
+                        
+                        // 주기적으로만 로그 (너무 많은 로그 방지)
+                        if (Math.random() < 0.1) { // 10%만 로그
+                            console.log(`🎤 오디오 레벨: ${(maxLevel * 100).toFixed(1)}%`);
+                        }
+                        
+                        // 너무 작은 신호는 무시
+                        if (maxLevel < 0.001) {
+                            return;
+                        }
+                        
+                        // Fill ring buffer
+                        for (let i = 0; i < ch.length; i++) {
+                            ring[ringPos % ring.length] = ch[i];
+                            ringPos++;
+                        }
+                        
+                        accTime += ch.length / audioCtx.sampleRate;
+                        
+                        // 🚀 실시간 처리: 더 자주 프레임 처리 (지연 최소화)
+                        while (accTime >= (cfg.hopMs / 1000 / 2)) { // 2배 빠른 처리
+                            accTime -= (cfg.hopMs / 1000 / 2);
+                            
+                            const frame = new Float32Array(frameSize);
+                            const start = (ringPos - frameSize + ring.length) % ring.length;
+                            
+                            for (let j = 0; j < frameSize; j++) {
+                                frame[j] = ring[(start + j) % ring.length];
+                            }
+                            
+                            // Analyze frame
+                            // 🎯 프레임 데이터를 백엔드 Praat 분석으로 전송 (더 정확함)
+                            if (frame.length > 0) {
+                                sendFrameToBackend(frame, audioCtx.sampleRate);
+                            }
+                            
+                            // 🔥 기존 JavaScript YIN 대신 백엔드 Praat 사용
+                            // const f0 = yinPitch(frame, audioCtx.sampleRate);
+                            // const dB = frameEnergy(frame);
+                            
+                            // // 유효한 피치만 처리
+                            // if (f0 > 0 && f0 < 1000) { // 1000Hz 이하만 유효
+                                // 🎯 현재 Y축 단위에 맞게 변환
+                                let yValue;
+                                if (currentYAxisUnit === 'qtone') {
+                                    yValue = f0ToQt(f0);
+                                } else {
+                                    yValue = f0ToSemitone(f0, refMedian);
+                                }
+                                
+                                const intN = normInt(dB);
+                                
+                                tLive += (cfg.hopMs / 1000);
+                                liveBuffer.push({x: tLive, y: yValue, int: intN});
+                                
+                                // Syllable tracking
+                                vadSyllableTracker(dB, tLive);
+                                
+                                // Time warp and render (음절별 동기화)  
+                                const warped = syllableBasedTimeWarp(liveBuffer);
+                                
+                                // 차트 업데이트
+                                chart.data.datasets[1].data = warped.map(p => ({x: p.x, y: p.y}));
+                                chart.data.datasets[2].data = warped.map(p => ({x: p.x, y: p.int}));
+                                // 🚀 초고속 차트 업데이트 (애니메이션 완전 비활성화)
+                                chart.update('none'); // 이미 최적화됨
+                                
+                                // 🚀 로그 최소화 (성능 향상)
+                                if (Math.random() < 0.01) { // 1%만 로그 (성능 최적화)
+                                    let unitLabel = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+                                    console.log(`🎤 ${f0.toFixed(0)}Hz→${yValue.toFixed(1)}${unitLabel}`);
+                                }
+                            }
+                            
+                            // 버퍼 크기 제한 (메모리 절약)
+                            if (liveBuffer.length > 1000) {
+                                liveBuffer = liveBuffer.slice(-500);
+                            }
+                        }
+                        
+                    } catch (error) {
+                        console.error("🎤 오디오 처리 오류:", error);
+                    }
+                };
+                
+                console.log("🎤 오디오 처리 핸들러 설정 완료");
+                
+                procNode = proc;
+                
+            } catch (e) {
+                console.error('🎤 마이크 오류:', e);
+                
+                let errorMsg = "마이크 접근 실패: ";
+                if (e.name === 'NotAllowedError') {
+                    errorMsg += "브라우저에서 마이크 권한을 허용해 주세요.";
+                } else if (e.name === 'NotFoundError') {
+                    errorMsg += "마이크를 찾을 수 없습니다. USB 마이크가 연결되어 있는지 확인하세요.";
+                } else if (e.name === 'NotReadableError') {
+                    errorMsg += "마이크가 다른 앱에서 사용 중일 수 있습니다.";
+                } else if (e.name === 'OverconstrainedError') {
+                    errorMsg += "USB 마이크가 지원되지 않는 설정입니다. 기본 마이크로 다시 시도합니다.";
+                    
+                    // USB 마이크 설정이 실패하면 기본 마이크로 재시도
+                    try {
+                        console.log("🎤 기본 마이크로 재시도...");
+                        const basicStream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                sampleRate: cfg.sampleRate,
+                                channelCount: 1,
+                                echoCancellation: false,
+                                noiseSuppression: false,
+                                autoGainControl: false
+                            }
+                        });
+                        
+                        // 성공하면 스트림 처리 계속
+                        console.log("🎤 기본 마이크 연결 성공!");
+                        $status.textContent = "기본 마이크로 연결되었습니다.";
+                        
+                        // 여기서 원래 스트림 처리 코드를 계속 실행해야 함
+                        // 하지만 코드 중복을 피하기 위해 별도 함수로 분리하는 것이 좋음
+                        
+                        return; // 재시도 성공 시 에러 처리 중단
+                    } catch (retryError) {
+                        errorMsg += " 기본 마이크도 접근할 수 없습니다.";
+                    }
+                } else {
+                    errorMsg += e.message;
+                }
+                
+                $status.textContent = errorMsg;
+                started = false;
+                $btnMic.innerHTML = '<i class="fas fa-microphone me-1"></i> 마이크 녹음';
+                $btnMic.classList.remove('btn-danger');
+                $btnMic.classList.add('btn-success');
+                updateButtons();
+            }
+        };
+    }
+
+    // Chart Clear button handler
+    if ($btnClearChart) {
+        $btnClearChart.onclick = () => {
+            console.log("🎯 차트 초기화 시작...");
+            
+            // Clear chart data only
+            chart.data.datasets[0].data = [];  // Reference data
+            chart.data.datasets[1].data = [];  // Live data
+            chart.data.datasets[2].data = [];  // Intensity data
+            
+            // Clear pitch test data if exists
+            if (chart.data.datasets[3]) {
+                chart.data.datasets[3].data = [];
+            }
+            // Clear red point data (음높이 테스트 전용)
+            if (chart.data.datasets[4]) {
+                chart.data.datasets[4].data = [];
+            }
+            
+            // Clear current pitch line annotation
+            if (chart.options.plugins.annotation && chart.options.plugins.annotation.annotations.currentPitchLine) {
+                delete chart.options.plugins.annotation.annotations.currentPitchLine;
+            }
+            
+            // 🧹 모든 annotation 완전 제거 (안전한 방식)
+            if (chart && chart.options && chart.options.plugins && chart.options.plugins.annotation) {
+                chart.options.plugins.annotation.annotations = {};
+                chart.update('none');
+                console.log("🧹 차트 초기화 - 음절 표시 제거 완료");
+            }
+            
+            // 🎯 피치 테스트 상태 초기화
+            targetPitch = null;
+            pitchTestLine = null;
+            
+            // Reset analysis data
+            refCurve = [];
+            refSyll = [];
+            refStats = {meanF0: 0, maxF0: 0, duration: 0};
+            liveBuffer = [];
+            
+            // Update chart
+            chart.update();
+            console.log("🎯 차트 초기화 완료!");
+            
+            // Update status
+            $status.textContent = "차트가 초기화되었습니다. 새로운 분석을 시작하세요.";
+            
+            // Update buttons
+            updateButtons();
+            updatePitchTestButtons();
+            
+            // 피치 테스트 상태 메시지 초기화
+            if ($pitchTestStatus) {
+                $pitchTestStatus.textContent = "차트에서 연습할 음높이를 클릭하세요";
+                $pitchTestStatus.className = "text-center text-danger small fw-bold";
+            }
+        };
+    }
+
+    // Range update button handler
+    if ($btnUpdateRange) {
+        $btnUpdateRange.onclick = () => {
+            const minVal = parseFloat($semitoneMin.value);
+            const maxVal = parseFloat($semitoneMax.value);
+            if (minVal < maxVal) {
+                updateChartRange(minVal, maxVal);
+            } else {
+                alert('최소값은 최대값보다 작아야 합니다.');
+            }
+        };
+    }
+
+    // Reset button handler  
+    if ($btnReset) {
+        $btnReset.onclick = () => {
+            // Stop recording if in progress
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+            
+            if (procNode) {
+                try {
+                    procNode.disconnect();
+                } catch (e) {
+                    console.error('Error disconnecting processor:', e);
+                }
+            }
+            
+            if (audioCtx) {
+                try {
+                    audioCtx.close();
+                } catch (e) {
+                    console.error('Error closing audio context:', e);
+                }
+            }
+            
+            // Stop any playing audio
+            stopAllAudio();
+            
+            // Reset audio data
+            refAudioBlob = null;
+            recordedAudioBlob = null;
+            recordedChunks = [];
+            
+            liveBuffer = [];
+            sylCuts = [];
+            started = false;
+            tLive = 0;
+            liveStats = {meanF0: 0, maxF0: 0};
+            
+            // Reset microphone button
+            if ($btnMic) {
+                $btnMic.innerHTML = '<i class="fas fa-microphone me-1"></i> 마이크 녹음';
+                $btnMic.classList.remove('btn-danger');
+                $btnMic.classList.add('btn-success');
+            }
+            
+            chart.data.datasets[1].data = [];
+            chart.data.datasets[2].data = [];
+            
+            // Clear syllable annotations
+            if (chart.options.plugins.annotation) {
+                chart.options.plugins.annotation.annotations = {};
+            }
+            
+            chart.update();
+            
+            $status.textContent = "초기화 완료. 새로운 분석을 시작할 수 있습니다.";
+            
+            updateButtons();
+        };
+    }
+
+    // Audio playback handlers
+    if ($btnPlayRef) {
+        $btnPlayRef.onclick = playReferenceAudio;
+    }
+    
+    if ($btnPlayRec) {
+        $btnPlayRec.onclick = playRecordedAudio;
+    }
+    
+    if ($btnReplayPractice) {
+        $btnReplayPractice.onclick = function() { replayPracticeSession(); };
+    }
+    
+    // Load saved files list
+    loadSavedFilesList();
+    
+    // Saved files selection handler
+    if ($savedFiles) {
+        $savedFiles.onchange = () => {
+            loadSelectedFile();
+            updateDeleteButtonState();
+        };
+    }
+    
+    // Delete saved file handler
+    if ($btnDeleteSaved) {
+        $btnDeleteSaved.onclick = confirmDeleteSavedFile;
+    }
+    
+    // Save reference button
+    if ($btnSaveReference) {
+        $btnSaveReference.onclick = showSaveModal;
+    }
+}
+
+// Audio playback functions
+function stopAllAudio() {
+    if (currentlyPlaying) {
+        currentlyPlaying.pause();
+        currentlyPlaying = null;
+    }
+}
+
+function playReferenceAudio() {
+    if (!$wav || !$wav.files || $wav.files.length === 0) {
+        console.log('No reference audio file available');
+        return;
+    }
+    
+    stopAllAudio();
+    
+    const audioFile = $wav.files[0];
+    const audioUrl = URL.createObjectURL(audioFile);
+    const audio = new Audio(audioUrl);
+    
+    audio.onplay = () => {
+        currentlyPlaying = audio;
+        $btnPlayRef.innerHTML = '<i class="fas fa-stop me-1"></i> 참조음성 정지';
+        $btnPlayRef.classList.remove('btn-info');
+        $btnPlayRef.classList.add('btn-danger');
+    };
+    
+    audio.onended = audio.onpause = () => {
+        currentlyPlaying = null;
+        $btnPlayRef.innerHTML = '<i class="fas fa-play me-1"></i> 참조음성 재생';
+        $btnPlayRef.classList.remove('btn-danger');
+        $btnPlayRef.classList.add('btn-info');
+        URL.revokeObjectURL(audioUrl);
+    };
+    
+    audio.onerror = () => {
+        console.error('Error playing reference audio');
+        $status.textContent = '참조 음성 재생 오류';
+        currentlyPlaying = null;
+        $btnPlayRef.innerHTML = '<i class="fas fa-play me-1"></i> 참조음성 재생';
+        $btnPlayRef.classList.remove('btn-danger');
+        $btnPlayRef.classList.add('btn-info');
+        URL.revokeObjectURL(audioUrl);
+    };
+    
+    if (currentlyPlaying === audio) {
+        audio.pause();
+        currentlyPlaying = null;
+    } else {
+        audio.play().catch(e => {
+            console.error('Error playing audio:', e);
+            $status.textContent = '음성 재생 오류';
+        });
+    }
+}
+
+function playRecordedAudio() {
+    if (!recordedAudioBlob) {
+        console.log('No recorded audio available');
+        return;
+    }
+    
+    stopAllAudio();
+    
+    const audioUrl = URL.createObjectURL(recordedAudioBlob);
+    const audio = new Audio(audioUrl);
+    
+    audio.onplay = () => {
+        currentlyPlaying = audio;
+        $btnPlayRec.innerHTML = '<i class="fas fa-stop me-1"></i> 녹음음성 정지';
+        $btnPlayRec.classList.remove('btn-warning');
+        $btnPlayRec.classList.add('btn-danger');
+    };
+    
+    audio.onended = audio.onpause = () => {
+        currentlyPlaying = null;
+        $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+        $btnPlayRec.classList.remove('btn-danger');
+        $btnPlayRec.classList.add('btn-warning');
+        URL.revokeObjectURL(audioUrl);
+    };
+    
+    audio.onerror = () => {
+        console.error('Error playing recorded audio');
+        $status.textContent = '녹음 음성 재생 오류';
+        currentlyPlaying = null;
+        $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+        $btnPlayRec.classList.remove('btn-danger');
+        $btnPlayRec.classList.add('btn-warning');
+        URL.revokeObjectURL(audioUrl);
+    };
+    
+    if (currentlyPlaying === audio) {
+        audio.pause();
+        currentlyPlaying = null;
+    } else {
+        audio.play().catch(e => {
+            console.error('Error playing audio:', e);
+            $status.textContent = '음성 재생 오류';
+        });
+    }
+}
+
+// Add event listeners with better error handling  
+console.log('ToneBridge audio-analysis.js loaded');
+
+// 🎯 현재 Y축 단위 (semitone 또는 qtone)
+let currentYAxisUnit = 'semitone';
+
+// 🎧 실시간 피드백을 위한 초고감도 임계값 - 즉각적인 반응성 우선
+const PERCEPTUAL_THRESHOLDS = {
+    'semitone': 0.05,  // 0.05 세미톤 - 초고감도 (즉각 반응)
+    'qtone': 0.1       // 0.1 Q-tone - 초고감도 (즉각 반응)
+};
+
+// 🎵 이전 피치 값 (필터링용)
+let lastPerceptiblePitch = null;
+
+// 🎬 실시간 연습 시각화 저장/재생 기능
+let practiceRecordingData = []; // 연습 중 실시간 데이터 저장
+let isRecordingPractice = false; // 연습 데이터 저장 중인지 여부
+let replayInterval = null; // 재생 타이머
+
+// 🎬 연습 세션 재생 기능
+function replayPracticeSession() {
+    if (!practiceRecordingData || practiceRecordingData.length === 0) {
+        alert('저장된 연습 데이터가 없습니다.');
+        return;
+    }
+    
+    if (replayInterval) {
+        // 재생 중지
+        clearInterval(replayInterval);
+        replayInterval = null;
+        $btnReplayPractice.innerHTML = '<i class="fas fa-history me-1"></i> 연습 재생';
+        $btnReplayPractice.classList.remove('btn-danger');
+        $btnReplayPractice.classList.add('btn-warning');
+        
+        // 라이브 데이터 차트 클리어 
+        if (chart && chart.data.datasets[1]) {
+            chart.data.datasets[1].data = [];
+            chart.update('none');
+        }
+        return;
+    }
+    
+    // 재생 시작
+    console.log(`🎬 연습 재생 시작: ${practiceRecordingData.length}개 포인트`);
+    
+    // 버튼 상태 변경
+    $btnReplayPractice.innerHTML = '<i class="fas fa-stop me-1"></i> 재생 중지';
+    $btnReplayPractice.classList.remove('btn-warning');
+    $btnReplayPractice.classList.add('btn-danger');
+    
+    // 재생용 임시 데이터
+    const replayData = [];
+    let currentIndex = 0;
+    
+    // 시작 시간 기준으로 정규화
+    const startTime = practiceRecordingData[0].time;
+    const endTime = practiceRecordingData[practiceRecordingData.length - 1].time;
+    const duration = endTime - startTime;
+    
+    console.log(`🎬 재생 시간: ${duration.toFixed(1)}초`);
+    
+    // 재생 타이머 (50ms 간격으로 재생)
+    replayInterval = setInterval(() => {
+        if (currentIndex >= practiceRecordingData.length) {
+            // 재생 완료
+            clearInterval(replayInterval);
+            replayInterval = null;
+            $btnReplayPractice.innerHTML = '<i class="fas fa-history me-1"></i> 연습 재생';
+            $btnReplayPractice.classList.remove('btn-danger');
+            $btnReplayPractice.classList.add('btn-warning');
+            console.log('🎬 연습 재생 완료');
+            return;
+        }
+        
+        // 현재 포인트를 차트에 추가
+        const currentPoint = practiceRecordingData[currentIndex];
+        replayData.push({
+            x: currentPoint.time,
+            y: currentPoint.pitch
+        });
+        
+        // 차트 업데이트
+        if (chart && chart.data.datasets[1]) {
+            chart.data.datasets[1].data = [...replayData];
+            chart.update('none');
+        }
+        
+        currentIndex++;
+        
+        // 진행 상황 로그 (가끔씩만)
+        if (currentIndex % 20 === 0) {
+            const progress = ((currentIndex / practiceRecordingData.length) * 100).toFixed(1);
+            console.log(`🎬 재생 진행: ${progress}%`);
+        }
+    }, 50); // 50ms 간격으로 재생 (부드러운 재생)
+}
+
+// 🎯 Y축 단위 토글 이벤트 리스너
+function setupYAxisToggle() {
+    const semitoneRadio = document.getElementById('yAxisSemitone');
+    const qtoneRadio = document.getElementById('yAxisQtone');
+    
+    if (semitoneRadio) {
+        semitoneRadio.addEventListener('change', function() {
+            if (this.checked) {
+                currentYAxisUnit = 'semitone';
+                lastPerceptiblePitch = null; // 단위 변경 시 필터링 초기화
+                updateChartYAxis();
+            }
+        });
+    }
+        
+    if (qtoneRadio) {
+        qtoneRadio.addEventListener('change', function() {
+            if (this.checked) {
+                currentYAxisUnit = 'qtone';
+                lastPerceptiblePitch = null; // 단위 변경 시 필터링 초기화
+                updateChartYAxis();
+            }
+        });
+    }
+        
+    console.log('🎯 Y축 단위 토글 이벤트 리스너 설정 완료');
+}
+
+// 🎯 차트 Y축 업데이트
+function updateChartYAxis() {
+    if (!chart) return;
+    
+    const refFreq = refMedian || 200;
+    let minValue, maxValue;
+    
+    if (currentYAxisUnit === 'qtone') {
+        // Q-tone 기본 범위: 0~25 등급 전체 사용
+        minValue = 0;
+        maxValue = 25;
+        
+        // Input 필드를 Q-tone 값으로 업데이트
+        $semitoneMin.value = Math.round(minValue * 10) / 10;
+        $semitoneMax.value = Math.round(maxValue * 10) / 10;
+        
+        // 단위 표시를 "qt"로 변경
+        const unitLabel = document.querySelector('small.text-muted:nth-of-type(3)');
+        if (unitLabel) unitLabel.textContent = 'qt';
+        
+        chart.options.scales.y.min = minValue;
+        chart.options.scales.y.max = maxValue;
+        chart.options.scales.y.title.text = 'Q-tone (0~25 등급, 기준: 200Hz=12qt)';
+        
+    } else {
+        // Semitone 기본 범위: -6 ~ 12 세미톤 (기존 기본값 유지)
+        minValue = parseFloat($semitoneMin.value) || -6;
+        maxValue = parseFloat($semitoneMax.value) || 12;
+        
+        // Input 필드를 Semitone 값으로 업데이트
+        $semitoneMin.value = Math.round(minValue);
+        $semitoneMax.value = Math.round(maxValue);
+        
+        // 단위 표시를 "st"로 변경
+        const unitLabel = document.querySelector('small.text-muted:nth-of-type(3)');
+        if (unitLabel) unitLabel.textContent = 'st';
+        
+        chart.options.scales.y.min = minValue;
+        chart.options.scales.y.max = maxValue;
+        chart.options.scales.y.title.text = 'Semitone (기준: 200Hz)';
+    }
+    
+    // 🎯 Y축 단위 변경 시 참조 데이터를 새로운 단위로 변환하여 표시
+    if (refCurve && refCurve.length > 0) {
+        updateChartWithReferenceData();
+    }
+    
+    chart.update();
+    console.log(`🎯 Y축 단위 변경: ${currentYAxisUnit}, 범위: ${minValue.toFixed(1)} ~ ${maxValue.toFixed(1)}`);
+}
+
+// 🎯 참조 데이터로 차트 업데이트 (Y축 단위 변경에 대응)
+function updateChartWithReferenceData() {
+    if (!chart || !refCurve || refCurve.length === 0) return;
+    
+    // 🎯 참조 곡선 데이터를 현재 Y축 단위로 변환
+    const convertedRefData = refCurve.map(point => {
+        let yValue;
+        if (currentYAxisUnit === 'qtone') {
+            // f0를 Q-tone으로 변환 (실제 refCurve 구조 사용)
+            yValue = f0ToQt(point.f0);
+        } else {
+            // f0를 semitone으로 변환 (이미 semitone 값이 있으면 사용)
+            yValue = point.semitone || f0ToSemitone(point.f0, refMedian || 200);
+        }
+        return { x: point.t, y: yValue };  // refCurve의 실제 속성명 사용: t, f0, semitone
+    });
+    
+    // 🎯 차트에 변환된 데이터 적용
+    if (chart.data.datasets[0]) {
+        chart.data.datasets[0].data = convertedRefData;
+    }
+    
+    console.log(`🎯 참조 데이터 Y축 단위 변환 완료: ${convertedRefData.length}개 포인트`);
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - initializing...');
+    
+    // Initialize DOM elements
+    initializeElements();
+    
+    // Setup all event handlers
+    setupEventHandlers();
+    
+    // Setup Y-axis unit toggle
+    setupYAxisToggle();
+    
+    // Initial button state
+    setTimeout(updateButtons, 100);
+});
+
+// 🎯 스펙트로그램 배경 렌더링 함수 (사용자 요청)
+function renderSpectrogramOnCanvas(chartInstance, spectrogramDataArray) {
+    if (!spectrogramDataArray || spectrogramDataArray.length === 0) return;
+    
+    const ctx = chartInstance.ctx;
+    const chartArea = chartInstance.chartArea;
+    const xScale = chartInstance.scales.x;
+    const yScale = chartInstance.scales.y;
+    
+    console.log(`🎯 캔버스에 스펙트로그램 그리기: ${spectrogramDataArray.length}개 시점`);
+    
+    // 스펙트로그램 그리기
+    for (let i = 0; i < spectrogramDataArray.length; i++) {
+        const specPoint = spectrogramDataArray[i];
+        const x = xScale.getPixelForValue(specPoint.t);
+        
+        if (x < chartArea.left || x > chartArea.right) continue;
+        
+        // 주파수 대역별로 색상 강도 표시
+        if (specPoint.spec && specPoint.spec.length > 0) {
+            const freqStep = (specPoint.freq_max || 1000) / specPoint.spec.length;
+            const rectWidth = Math.max(3, (chartArea.right - chartArea.left) / spectrogramDataArray.length);
+            
+            for (let j = 0; j < specPoint.spec.length; j++) {
+                const freq = j * freqStep;
+                const intensity = specPoint.spec[j];
+                
+                // 주파수가 Y축 범위 내에 있는지 확인
+                if (freq < yScale.min || freq > yScale.max) continue;
+                
+                const y = yScale.getPixelForValue(freq);
+                const rectHeight = Math.max(2, Math.abs(freqStep * (chartArea.bottom - chartArea.top) / (yScale.max - yScale.min)));
+                
+                // dB 값을 색상 강도로 변환 (-80dB ~ 0dB -> 0 ~ 0.5)
+                const alpha = Math.max(0, Math.min(0.5, (intensity + 80) / 80 * 0.5));
+                
+                // 스펙트로그램 색상 (파란색 계열) - 더 진하게
+                if (alpha > 0.1) {  // 너무 약한 신호는 표시하지 않음
+                    ctx.fillStyle = `rgba(100, 150, 255, ${alpha})`;
+                    ctx.fillRect(x - rectWidth/2, y - rectHeight/2, rectWidth, rectHeight);
+                }
+            }
+        }
+    }
+}
+
+// Fallback - if DOMContentLoaded already fired
+if (document.readyState === 'loading') {
+    // Do nothing, DOMContentLoaded will handle it
+} else {
+    console.log('Document already loaded, initializing immediately');
+    setTimeout(function() {
+        initializeElements();
+        setupEventHandlers();
+        setupYAxisToggle();
+        updateButtons();
+    }, 10);
+}
+
+// Initialize Chart.js with annotation plugin
+// Register annotation plugin (it may be auto-registered via CDN)
+
+// Chart.js annotation 플러그인은 CDN에서 자동 등록됨
+
+const chart = new Chart(document.getElementById('chart'), {
+    type: "line",
+    data: {
+        datasets: [
+            {
+                label: "표준 억양 패턴",
+                data: [],
+                parsing: false,
+                borderWidth: 1,
+                pointRadius: 4,  // 🎯 음절별 포인트 크기 조정
+                pointBackgroundColor: 'rgb(54, 162, 235)',
+                pointBorderColor: 'white',
+                pointBorderWidth: 2,
+                tension: 0,  // 🎯 직선 연결
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)'
+            },
+            {
+                label: "내 음성 억양",
+                data: [],
+                parsing: false,
+                borderWidth: 2,
+                pointRadius: 0,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)'
+            },
+            {
+                label: "발성 강도",
+                data: [],
+                parsing: false,
+                borderWidth: 1,
+                pointRadius: 0,
+                borderDash: [5, 5],
+                borderColor: 'rgb(255, 205, 86)',
+                backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                yAxisID: "y1"
+            },
+            {
+                label: "실시간 Hz",
+                data: [],
+                parsing: false,
+                borderWidth: 2,
+                pointRadius: 1,
+                borderColor: 'rgb(255, 165, 0)',
+                backgroundColor: 'rgba(255, 165, 0, 0.3)',
+                yAxisID: "y1"
+            },
+            {
+                label: "🔴 현재 음높이",
+                data: [],
+                parsing: false,
+                borderWidth: 0,
+                pointRadius: 8,
+                pointBackgroundColor: 'rgba(255, 0, 0, 0.8)',
+                pointBorderColor: 'rgb(255, 255, 255)',
+                pointBorderWidth: 2,
+                yAxisID: "y",
+                showLine: false
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+            legend: {
+                position: 'top'
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false
+            },
+            annotation: {
+                annotations: {}
+            }
+        },
+        layout: {
+            padding: 10
+        },
+        backgroundColor: '#ffffff',
+        onClick: (event, activeElements, chart) => {
+            // 🎯 차트 클릭 시 음높이 테스트 모드
+            handleChartClick(event, chart);
+        },
+        scales: {
+            x: {
+                type: 'linear',
+                title: {
+                    display: true,
+                    text: '시간 (초)',
+                    font: {
+                        size: 10
+                    },
+                    position: 'end',
+                    align: 'end'
+                }
+            },
+            y: {
+                min: -6,
+                max: 12,
+                title: {
+                    display: true,
+                    text: 'Semitone (반음계)'
+                }
+            },
+            y1: {
+                min: 80,
+                max: 400,
+                position: 'right',
+                grid: {
+                    drawOnChartArea: false
+                },
+                title: {
+                    display: true,
+                    text: '실시간 Hz'
+                }
+            }
+        },
+        interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+        },
+        onHover: (evt, elements) => {
+            // Mouse hover for range selection visual feedback
+            if (!chart) return;
+            
+            const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
+            const dataY = chart.scales.y.getValueForPixel(canvasPos.y);
+            
+            if (isSelecting && rangeStart !== null) {
+                // Show preview of selection range
+                updateRangePreview(rangeStart, dataY);
+            }
+        },
+        onClick: (evt, elements) => {
+            if (!chart) return;
+            
+            const canvasPos = Chart.helpers.getRelativePosition(evt, chart);
+            const dataY = chart.scales.y.getValueForPixel(canvasPos.y);
+            
+            if (!isSelecting) {
+                // Start range selection
+                rangeStart = dataY;
+                isSelecting = true;
+                console.log(`🎯 범위 선택 시작: ${dataY.toFixed(1)} 세미톤`);
+                
+                if ($pitchTestStatus) {
+                    $pitchTestStatus.textContent = "드래그해서 연습할 범위를 설정하세요";
+                    $pitchTestStatus.className = "text-center text-warning small fw-bold";
+                }
+            } else {
+                // End range selection
+                rangeEnd = dataY;
+                isSelecting = false;
+                
+                // Ensure start is lower than end
+                const minRange = Math.min(rangeStart, rangeEnd);
+                const maxRange = Math.max(rangeStart, rangeEnd);
+                
+                createPitchRange(minRange, maxRange);
+                
+                // 🎯 범위 중간값을 목표 음높이로 설정
+                pitchRange = {min: minRange, max: maxRange};
+                targetPitch = (minRange + maxRange) / 2; // 범위의 중간값
+                
+                console.log(`🎯 범위 선택 완료: ${minRange.toFixed(1)} ~ ${maxRange.toFixed(1)} 세미톤`);
+                console.log(`🎯 목표 음높이 설정: ${targetPitch.toFixed(1)} 세미톤 (범위 중심)`);
+                
+                // 🎯 음높이 테스트 버튼 상태 업데이트
+                updatePitchTestButtons();
+                
+                if ($pitchTestStatus) {
+                    $pitchTestStatus.textContent = `연습 범위: ${minRange.toFixed(1)}~${maxRange.toFixed(1)} 세미톤 | 음높이 테스트 시작 가능!`;
+                    $pitchTestStatus.className = "text-center text-success small fw-bold";
+                }
+                
+                rangeStart = null;
+                rangeEnd = null;
+            }
+        }
+    }
+});
+
+// Update chart range based on inputs or data
+function updateChartRange(minVal = null, maxVal = null) {
+    const currentMin = minVal !== null ? minVal : parseFloat($semitoneMin?.value || -6);
+    const currentMax = maxVal !== null ? maxVal : parseFloat($semitoneMax?.value || 12);
+    
+    if (chart) {
+        chart.options.scales.y.min = currentMin;
+        chart.options.scales.y.max = currentMax;
+        
+        // 범위가 바뀌면 음절 라벨 위치도 다시 계산
+        if (refSyll && refSyll.length > 0) {
+            addSyllableAnnotations(refSyll);
+        }
+        
+        const unitName = currentYAxisUnit === 'qtone' ? 'Q-tone' : 'semitone';
+        const unitSymbol = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+        
+        if ($status) {
+            $status.textContent = `표시 범위가 ${currentMin}~${currentMax} ${unitSymbol}로 변경되었습니다`;
+            setTimeout(() => $status.textContent = '', 2000);
+        }
+        
+        chart.update();
+        console.log(`🎯 Chart range updated: ${currentMin} to ${currentMax} ${unitName}`);
+    }
+    
+    // Update input values
+    if ($semitoneMin) $semitoneMin.value = currentMin;
+    if ($semitoneMax) $semitoneMax.value = currentMax;
+    
+}
+
+// 🎯 세미톤과 Qt를 Hz로 변환해서 범위 표시
+function updateFrequencyRangeDisplay(minSemitone, maxSemitone) {
+    if (!$freqRangeDisplay) return;
+    
+    const refFreq = refMedian || 200; // 기준 주파수 (Hz)
+    const minHz = (refFreq * Math.pow(2, minSemitone / 12)).toFixed(1);
+    const maxHz = (refFreq * Math.pow(2, maxSemitone / 12)).toFixed(1);
+    
+    // 🎯 Qt 단위로도 계산 (110 Hz 기준)
+    const minQt = f0ToQt(minHz);
+    const maxQt = f0ToQt(maxHz);
+    
+    $freqRangeDisplay.innerHTML = `
+        <div>Hz: ${minHz}~${maxHz} (기준: ${refFreq.toFixed(1)}Hz)</div>
+        <div class="small text-muted">Qt: ${minQt.toFixed(1)}~${maxQt.toFixed(1)} (음성학 기준: 110Hz)</div>
+    `;
+    
+    console.log(`🎯 Frequency range: ${minHz}-${maxHz} Hz (기준: ${refFreq}Hz)`);
+    console.log(`🎯 Qt range: ${minQt.toFixed(1)}-${maxQt.toFixed(1)} Qt (기준: 110Hz)`);
+}
+
+// 🎯 실시간 Hz 표시 업데이트 (음높이 테스트 전용)
+function updateLiveHzDisplay(currentHz) {
+    if (!chart || !chart.data.datasets[3] || !pitchTestActive) return;
+    
+    const liveHzDataset = chart.data.datasets[3];
+    if (!liveHzDataset.data) liveHzDataset.data = [];
+    
+    // 🎯 현재 시점에서 Hz 값을 y1 축에 표시 (시간은 현재 차트 범위 중앙)
+    const currentTime = Date.now() / 1000;
+    const chartTimeRange = 5; // 5초 범위
+    const relativeTime = (currentTime % chartTimeRange);
+    
+    // 기존 데이터 클리어 (실시간 단일 포인트만 표시)
+    liveHzDataset.data = [{
+        x: relativeTime,
+        y: Math.max(80, Math.min(400, parseFloat(currentHz.toFixed(1)))) // y1 축 범위에 맞게 제한, 소수점 1자리
+    }];
+    
+    chart.update('none'); // 애니메이션 없이 업데이트
+}
+
+// 🎯 음높이 범위 생성 (노란색 배경)
+function createPitchRange(minSemitone, maxSemitone) {
+    if (!chart) return;
+    
+    // 기존 범위 제거
+    clearPitchRange();
+    
+    // Chart.js annotation으로 노란색 배경 영역 추가
+    const rangeAnnotation = {
+        type: 'box',
+        yMin: minSemitone,
+        yMax: maxSemitone,
+        backgroundColor: 'rgba(255, 255, 0, 0.2)', // 노란색 반투명
+        borderColor: 'rgba(255, 255, 0, 0.8)',
+        borderWidth: 2,
+        label: {
+            enabled: true,
+            content: `연습 범위: ${minSemitone.toFixed(1)}~${maxSemitone.toFixed(1)}`,
+            position: 'start',
+            backgroundColor: 'rgba(255, 255, 0, 0.8)',
+            color: 'black',
+            font: {
+                size: 12,
+                weight: 'bold'
+            }
+        }
+    };
+    
+    // 상단 및 하단 참조선 추가
+    const topLine = {
+        type: 'line',
+        yMin: maxSemitone,
+        yMax: maxSemitone,
+        borderColor: 'rgba(255, 165, 0, 1)',
+        borderWidth: 1,
+        borderDash: [5, 5]
+    };
+    
+    const bottomLine = {
+        type: 'line',
+        yMin: minSemitone,
+        yMax: minSemitone,
+        borderColor: 'rgba(255, 165, 0, 1)',
+        borderWidth: 1,
+        borderDash: [5, 5]
+    };
+    
+    // annotation 플러그인에 추가
+    if (!chart.options.plugins.annotation) {
+        chart.options.plugins.annotation = { annotations: {} };
+    }
+    
+    chart.options.plugins.annotation.annotations['pitchRange'] = rangeAnnotation;
+    chart.options.plugins.annotation.annotations['topLine'] = topLine;
+    chart.options.plugins.annotation.annotations['bottomLine'] = bottomLine;
+    
+    chart.update();
+    
+    console.log(`🎯 음높이 연습 범위 생성: ${minSemitone.toFixed(1)}~${maxSemitone.toFixed(1)} 세미톤`);
+}
+
+// 🎯 범위 미리보기 (드래그 중)
+function updateRangePreview(startY, currentY) {
+    if (!chart) return;
+    
+    const minY = Math.min(startY, currentY);
+    const maxY = Math.max(startY, currentY);
+    
+    // 미리보기 annotation 업데이트
+    if (!chart.options.plugins.annotation) {
+        chart.options.plugins.annotation = { annotations: {} };
+    }
+    
+    chart.options.plugins.annotation.annotations['previewRange'] = {
+        type: 'box',
+        yMin: minY,
+        yMax: maxY,
+        backgroundColor: 'rgba(255, 255, 0, 0.1)',
+        borderColor: 'rgba(255, 255, 0, 0.5)',
+        borderWidth: 2,
+        borderDash: [10, 5]
+    };
+    
+    chart.update('none');
+}
+
+// 🎯 음높이 범위 제거
+function clearPitchRange() {
+    if (!chart || !chart.options.plugins.annotation) return;
+    
+    delete chart.options.plugins.annotation.annotations['pitchRange'];
+    delete chart.options.plugins.annotation.annotations['topLine'];
+    delete chart.options.plugins.annotation.annotations['bottomLine'];
+    delete chart.options.plugins.annotation.annotations['previewRange'];
+    
+    chart.update();
+    
+    console.log('🎯 음높이 연습 범위 제거');
+}
+
+// Calculate optimal range based on semitone data
+function calculateOptimalRange(semitoneValues) {
+    if (!semitoneValues || semitoneValues.length === 0) return {min: -6, max: 12};
+    
+    const validValues = semitoneValues.filter(v => v !== null && !isNaN(v));
+    if (validValues.length === 0) return {min: -6, max: 12};
+    
+    const minValue = Math.min(...validValues);
+    const maxValue = Math.max(...validValues);
+    
+    // Add padding (약 20% 여유)
+    const padding = Math.max(2, (maxValue - minValue) * 0.2);
+    const suggestedMin = Math.floor(minValue - padding);
+    const suggestedMax = Math.ceil(maxValue + padding);
+    
+    return {min: suggestedMin, max: suggestedMax};
+}
+
+// Function to add syllable annotations to the chart
+function addSyllableAnnotations(syllables) {
+    if (!syllables || syllables.length === 0) return;
+    
+    // 🧹 기존 annotation 완전 초기화 (안전한 방식)
+    if (chart && chart.options && chart.options.plugins && chart.options.plugins.annotation) {
+        chart.options.plugins.annotation.annotations = {};
+        console.log("🧹 음절 표시 초기화 완료");
+    }
+    
+    console.log('Adding annotations for', syllables.length, 'syllables:', syllables);
+    
+    // Position labels at top of chart (inside chart area)
+    const chartMax = chart.options.scales.y.max;
+    const chartMin = chart.options.scales.y.min;
+    const labelY = chartMax - (chartMax - chartMin) * 0.05; // 5% from top (더 상단)
+    
+    syllables.forEach((syl, index) => {
+        // Add vertical line at syllable boundaries
+        if (index === 0) {
+            // First syllable start
+            chart.options.plugins.annotation.annotations[`start_${index}`] = {
+                type: 'line',
+                xMin: syl.start,
+                xMax: syl.start,
+                borderColor: 'rgba(255, 99, 132, 0.7)',
+                borderWidth: 2,
+                borderDash: [8, 4]
+            };
+        }
+        
+        // Syllable end (also start of next syllable)
+        chart.options.plugins.annotation.annotations[`end_${index}`] = {
+            type: 'line',
+            xMin: syl.end,
+            xMax: syl.end,
+            borderColor: 'rgba(255, 99, 132, 0.7)',
+            borderWidth: 2,
+            borderDash: [8, 4]
+        };
+        
+        // Add syllable label at the center
+        const midTime = (syl.start + syl.end) / 2;
+        chart.options.plugins.annotation.annotations[`label_${index}`] = {
+            type: 'label',
+            xValue: midTime,
+            yValue: labelY,  // 🎯 Position at top of chart
+            content: syl.label || `구간${index+1}`,
+            backgroundColor: 'rgba(138, 43, 226, 0.8)',  // 약간 투명한 보라색 배경
+            borderColor: 'rgba(138, 43, 226, 0.9)',
+            borderWidth: 1,
+            borderRadius: 4,
+            font: {
+                size: 12,
+                family: 'Noto Sans KR, -apple-system, sans-serif',
+                weight: 'bold'
+            },
+            color: 'white',  // 흰색 텍스트
+            padding: {
+                x: 6,
+                y: 3
+            }
+        };
+    });
+    
+    // Force chart update to show annotations
+    chart.update();
+    console.log("🎯 Syllable annotations added and chart updated!");
+}
+
+// Function to update syllable analysis table (horizontal layout)
+function updateSyllableAnalysisTable(syllableAnalysis) {
+    const table = document.getElementById('syllable-analysis-table');
+    const card = document.getElementById('syllable-analysis-card');
+    
+    if (!table || !syllableAnalysis || syllableAnalysis.length === 0) {
+        if (card) card.style.display = 'none';
+        return;
+    }
+    
+    // Clear existing content and rebuild table structure
+    table.innerHTML = '';
+    
+    // Create header row with syllables
+    const thead = table.createTHead();
+    const headerRow = thead.insertRow();
+    const firstHeaderCell = headerRow.insertCell();
+    firstHeaderCell.textContent = '분석 항목';
+    firstHeaderCell.className = 'table-orange-header fw-bold';
+    
+    // Add syllable headers
+    syllableAnalysis.forEach(syl => {
+        const headerCell = headerRow.insertCell();
+        headerCell.textContent = syl.label;  // syllable → label
+        headerCell.className = 'table-orange-header fw-bold text-center';
+    });
+    
+    // Create tbody for data rows
+    const tbody = table.createTBody();
+    
+    // Helper function to add a data row
+    function addDataRow(label, getValue) {
+        const row = tbody.insertRow();
+        const labelCell = row.insertCell();
+        labelCell.textContent = label;
+        labelCell.className = 'fw-bold';
+        
+        syllableAnalysis.forEach(syl => {
+            const dataCell = row.insertCell();
+            dataCell.innerHTML = getValue(syl);
+            dataCell.className = 'text-center';
+        });
+    }
+    
+    // Add data rows - 올바른 필드명 사용
+    addDataRow('지속시간', (syl) => `${(syl.duration || 0).toFixed(0)}ms`);
+    
+    addDataRow('평균 피치', (syl) => {
+        const meanHz = syl.f0 || 0;  // pitch_mean → f0
+        const meanSemitone = syl.semitone || 0;
+        return `${meanHz.toFixed(1)}Hz<br><small>(${meanSemitone.toFixed(1)}st)</small>`;
+    });
+    
+    addDataRow('Q-tone', (syl) => {
+        const qtone = syl.qtone || 0;
+        return `${qtone.toFixed(1)}`;
+    });
+    
+    addDataRow('강도', (syl) => `${(syl.intensity || 0).toFixed(1)}dB`);
+    
+    addDataRow('구간', (syl) => {
+        const start = syl.start || 0;
+        const end = syl.end || 0;
+        return `${start.toFixed(2)}s - ${end.toFixed(2)}s`;
+    });
+    
+    // Show the card
+    card.style.display = 'block';
+    
+    console.log(`Updated syllable analysis table with ${syllableAnalysis.length} columns`);
+}
+
+// Utility functions
+function mean(arr) {
+    return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+}
+
+function clamp(v, a, b) {
+    return Math.min(b, Math.max(a, v));
+}
+
+// Convert Hz to semitone relative to reference median
+function f0ToSemitone(f0, refMedian = 200) {
+    if (f0 <= 0 || refMedian <= 0) return 0;
+    return 12 * Math.log2(f0 / refMedian);
+}
+
+// 🎯 음성학 연구 표준: Qt 단위 계산 (200Hz 기준으로 조정, 0~25 등급)
+function f0ToQt(f0) {
+    if (f0 <= 0) return 0;
+    // 200Hz 기준 Q-tone 체계 (실제 음성 범위에 맞게 조정)
+    const qt = 12 + 12 * Math.log2(f0 / 200); // 200Hz = 12qt로 중앙 설정
+    return Math.max(0, Math.min(25, qt)); // 0~25 범위로 제한
+}
+
+// 🎯 Qt를 Hz로 변환 (0~25 등급 범위 체크)
+function qtToF0(qt) {
+    // 0~25 범위로 제한
+    const limitedQt = Math.max(0, Math.min(25, qt));
+    // 200Hz 기준으로 역계산 (12qt = 200Hz)
+    return 200 * Math.pow(2, (limitedQt - 12) / 12);
+}
+
+
+function normF0(f0, meanF0, maxF0) {
+    if (f0 <= 0) return 0;
+    // Simple linear scaling from 50Hz to 500Hz for better visibility
+    const minF0 = 50;
+    const maxF0Range = 500;
+    return clamp((f0 - minF0) / (maxF0Range - minF0), 0, 1);
+}
+
+function normInt(db) {
+    return clamp((db + 60) / 60, 0, 1);
+}
+
+// Reference analysis - moved to setupEventHandlers function
+
+// 🎯 백엔드 Praat 분석으로 오디오 프레임 전송
+async function sendFrameToBackend(frame, sampleRate) {
+    try {
+        // Float32Array를 WAV 형식으로 변환
+        const audioBlob = new Blob([frame.buffer], { type: 'audio/wav' });
+        
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'frame.wav');
+        
+        const response = await fetch('http://localhost:8000/analyze_live_audio', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.pitch_data.length > 0) {
+                // 🎯 Praat 분석 결과로 차트 업데이트
+                result.pitch_data.forEach(point => {
+                    const f0 = point.f0;
+                    const semitone = point.semitone;
+                    
+                    // Y축 단위에 맞게 변환
+                    let yValue;
+                    if (currentYAxisUnit === 'qtone') {
+                        yValue = f0ToQt(f0);
+                    } else {
+                        yValue = semitone; // 이미 semitone으로 계산됨
+                    }
+                    
+                    const tNow = Date.now() / 1000 - startTime;
+                    
+                    liveBuffer.push({
+                        t: tNow,
+                        f0: f0,
+                        semitone: yValue,
+                        int: 0.5 // 기본 intensity
+                    });
+                    
+                    // 실시간 차트 업데이트
+                    if (tNow > tLive + 0.05) {
+                        addLiveDataToChart(yValue, 0.5);
+                        tLive = tNow;
+                        
+                        const unitLabel = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+                        console.log(`🎯 Praat: ${f0.toFixed(0)}Hz→${yValue.toFixed(1)}${unitLabel}`);
+                    }
+                });
+            }
+        }
+    } catch (error) {
+        console.error('🔥 백엔드 Praat 분석 오류:', error);
+        // 오류 시 기존 YIN 알고리즘으로 fallback
+        const f0 = yinPitch(frame, sampleRate);
+        if (f0 > 0 && f0 < 1000) {
+            console.log('🔄 YIN fallback 사용');
+            // 기존 처리 로직...
+        }
+    }
+}
+
+// Enhanced YIN-based pitch estimation with better sensitivity (fallback용)
+function yinPitch(frame, sampleRate) {
+    const N = frame.length;
+    const tauMax = Math.floor(sampleRate / 50);   // Lower floor for better low pitch detection
+    const tauMin = Math.floor(sampleRate / 800);  // Higher ceiling for better accuracy
+    const diff = new Float32Array(tauMax + 1);
+    
+    // Pre-emphasize signal to improve pitch detection
+    const emphasized = new Float32Array(N);
+    emphasized[0] = frame[0];
+    for (let i = 1; i < N; i++) {
+        emphasized[i] = frame[i] - 0.95 * frame[i-1];
+    }
+    
+    // Calculate difference function with emphasized signal
+    for (let tau = 1; tau <= tauMax; tau++) {
+        let s = 0;
+        for (let i = 0; i < N - tau; i++) {
+            const d = emphasized[i] - emphasized[i + tau];
+            s += d * d;
+        }
+        diff[tau] = s;
+    }
+    
+    // Calculate cumulative normalized difference with improved formula
+    const cmnd = new Float32Array(tauMax + 1);
+    let run = 0;
+    for (let tau = 1; tau <= tauMax; tau++) {
+        run += diff[tau];
+        if (run > 0) {
+            cmnd[tau] = diff[tau] / (run / tau);
+        } else {
+            cmnd[tau] = 1;
+        }
+    }
+    
+    // Find minimum with more lenient threshold
+    let best = -1, minv = 1e9;
+    for (let t = tauMin; t <= tauMax; t++) {
+        if (cmnd[t] < minv) {
+            minv = cmnd[t];
+            best = t;
+        }
+    }
+    
+    // More lenient threshold for better detection (like Praat's voicing_threshold=0.45)
+    return (best > 0 && minv < 0.3) ? sampleRate / best : 0;
+}
+
+function frameEnergy(frame) {
+    let s = 0;
+    for (let i = 0; i < frame.length; i++) {
+        s += frame[i] * frame[i];
+    }
+    const rms = Math.sqrt(s / frame.length);
+    // Use same reference as Praat for dB calculation
+    return 20 * Math.log10(Math.max(rms, 1e-10));
+}
+
+function vadSyllableTracker(intDb, time) {
+    // More sensitive thresholds for better voice activity detection
+    const thrOn = -40, thrOff = -50;
+    const last = sylCuts[sylCuts.length - 1];
+    const voiced = intDb > thrOn;
+    const unvoiced = intDb < thrOff;
+    
+    if (!last) {
+        if (voiced) {
+            sylCuts.push({start: time, end: null});
+        }
+    } else {
+        if (last.end === null) {
+            if (unvoiced && (time - last.start) > 0.07) {
+                last.end = time;
+            }
+        } else {
+            if (voiced) {
+                sylCuts.push({start: time, end: null});
+            }
+        }
+    }
+}
+
+// 🎯 현재 발화 중인 음절 인덱스 추적
+let currentSyllableIndex = 0;
+let syllableStartTime = 0;
+
+function syllableBasedTimeWarp(liveSeries) {
+    if (!refSyll.length) return liveSeries;
+    
+    const completedSyllables = sylCuts.filter(s => s.end !== null);
+    const currentSyllable = sylCuts.find(s => s.end === null);
+    
+    // 음절 진행 업데이트
+    if (completedSyllables.length > currentSyllableIndex) {
+        currentSyllableIndex = Math.min(completedSyllables.length, refSyll.length - 1);
+        console.log(`🎯 음절 진행: ${currentSyllableIndex + 1}/${refSyll.length} - "${refSyll[currentSyllableIndex]?.label || 'N/A'}"`);
+    }
+    
+    // 🎯 데이터가 너무 많으면 최근 것만 사용 (성능 향상)
+    const recentData = liveSeries.length > 100 ? liveSeries.slice(-100) : liveSeries;
+    
+    return recentData.map((p, index) => {
+        const t = p.x;
+        
+        // 🎯 현재 진행 중인 음절 인덱스 결정
+        let targetSylIndex = Math.min(currentSyllableIndex, refSyll.length - 1);
+        
+        // 현재 발화 중인 음절이 있고, 유효한 참조 음절이 있는 경우
+        if (currentSyllable && targetSylIndex >= 0 && targetSylIndex < refSyll.length) {
+            const refSyl = refSyll[targetSylIndex];
+            const currentSylStart = currentSyllable.start || 0;
+            
+            // 🎯 음성 데이터가 현재 음절 시작 이후인지 확인
+            if (t >= currentSylStart) {
+                const liveDuration = t - currentSylStart;
+                const refDuration = Math.max(refSyl.end - refSyl.start, 0.1); // 최소 0.1초
+                
+                // 음절 내 상대적 위치 계산 (0~1, 최대 1.5까지 허용)
+                const relativePos = Math.max(0, Math.min(1.5, liveDuration / refDuration));
+                
+                // 참조 음절 내 시간으로 매핑
+                const mappedTime = refSyl.start + (relativePos * refDuration);
+                
+                // 🎯 디버깅 로그 (가끔만)
+                if (Math.random() < 0.01) {
+                    console.log(`🎯 시간 매핑: live=${t.toFixed(2)}s → mapped=${mappedTime.toFixed(2)}s (음절${targetSylIndex+1}: ${refSyl.label})`);
+                }
+                
+                return {x: mappedTime, y: p.y, int: p.int};
+            }
+        }
+        
+        // 🎯 완료된 음절들의 경우 - 선형 보간으로 더 자연스럽게
+        if (completedSyllables.length > 0 && targetSylIndex >= 0 && targetSylIndex < refSyll.length) {
+            const refSyl = refSyll[targetSylIndex];
+            
+            // 해당하는 완료된 음절 찾기
+            const completedSyl = completedSyllables[Math.min(targetSylIndex, completedSyllables.length - 1)];
+            if (completedSyl) {
+                const liveStart = completedSyl.start || 0;
+                const liveEnd = completedSyl.end || (liveStart + 0.3); // 기본 0.3초
+                const liveDuration = Math.max(liveEnd - liveStart, 0.1);
+                
+                // 음절 내에서의 상대적 위치
+                const relativeInSyl = Math.max(0, Math.min(1, (t - liveStart) / liveDuration));
+                const mappedTime = refSyl.start + (relativeInSyl * (refSyl.end - refSyl.start));
+                
+                return {x: mappedTime, y: p.y, int: p.int};
+            }
+        }
+        
+        // 🎯 기본 매핑 - 비례식으로 전체 시간에 맞춤
+        const maxRefTime = refSyll.length > 0 ? refSyll[refSyll.length - 1].end : 2.0;
+        const maxLiveTime = Math.max(t, 0.5);
+        const scaledTime = (t / maxLiveTime) * maxRefTime;
+        
+        return {x: scaledTime, y: p.y, int: p.int};
+    });
+}
+
+// 🎯 ===== PITCH TEST 기능 =====
+
+// 참조음성 부분 연습 버튼 클릭 핸들러
+function handleTwoPointPractice() {
+    if (!refCurve || refCurve.length === 0) {
+        alert('참조음성 분석을 먼저 진행해주세요.\n\n"모델 음성 분석" 버튼을 클릭하여 참조 데이터를 분석한 후 이용하실 수 있습니다.');
+        return;
+    }
+    
+    if (!pitchRange) {
+        alert('차트에서 드래그하여 연습할 두 음의 범위를 먼저 선택해주세요.');
+        return;
+    }
+    
+    // 두 음 연습 로직 실행 (기존 음높이 테스트와 동일)
+    startPitchTest();
+}
+
+function setupPitchTestHandlers() {
+    if (!$btnPitchTest || !$btnStopPitchTest || !$btnTwoPointPractice) return;
+    
+    // 음높이 테스트 시작 (팝업 없이 바로 시작)
+    $btnPitchTest.onclick = async () => {
+        // 🎯 팝업 없이 바로 음높이 연습 시작
+        await startPitchTest();
+    };
+    
+    // 음높이 테스트 중지
+    $btnStopPitchTest.onclick = () => {
+        stopPitchTest();
+    };
+    
+    // 참조음성 부분 연습
+    $btnTwoPointPractice.onclick = () => {
+        handleTwoPointPractice();
+    };
+}
+
+async function startPitchTest() {
+    if (pitchTestActive) return;
+    
+    try {
+        pitchTestActive = true;
+        pitchTestBuffer = [];
+        chartFrozen = true; // 🎯 차트 완전 고정
+        
+        // 🎬 연습 데이터 저장 시작
+        practiceRecordingData = [];
+        isRecordingPractice = true;
+        console.log("🎬 연습 시각화 저장 시작");
+        
+        // 🎯 현재 차트 스케일을 저장 (참조음성 범위 보존)
+        if (chart && chart.scales) {
+            originalScales = {
+                xMin: chart.scales.x.min,
+                xMax: chart.scales.x.max,
+                yMin: chart.scales.y.min,
+                yMax: chart.scales.y.max
+            };
+            console.log("🎯 원본 차트 스케일 저장:", originalScales);
+        }
+        
+        // 🎯 마이크 접근 전 가이드 메시지
+        $pitchTestStatus.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                <strong>🎤 마이크를 켜는 중...</strong>
+            </div>
+        `;
+        $pitchTestStatus.className = "text-center text-info small fw-bold";
+        
+        console.log("🎯 차트 완전 고정 모드 시작 - 참조음성 범위 보존");
+        
+        $btnPitchTest.disabled = true;
+        $btnStopPitchTest.disabled = false;
+        
+        // 🎤 마이크 접근
+        console.log("🎯 Pitch Test: 마이크 접근 중...");
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
+        
+        let selectedDeviceId = null;
+        const usbMic = audioInputs.find(device => 
+            device.label.toLowerCase().includes('usb') || 
+            device.label.toLowerCase().includes('external')
+        );
+        
+        if (usbMic) {
+            selectedDeviceId = usbMic.deviceId;
+            console.log("🎯 Pitch Test: USB 마이크 사용");
+        }
+        
+        const constraints = {
+            audio: {
+                sampleRate: 16000,
+                channelCount: 1,
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            }
+        };
+        
+        if (selectedDeviceId) {
+            constraints.audio.deviceId = { exact: selectedDeviceId };
+        }
+        
+        pitchTestStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // AudioContext 설정
+        pitchTestAudioCtx = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 16000
+        });
+        
+        if (pitchTestAudioCtx.state === 'suspended') {
+            await pitchTestAudioCtx.resume();
+        }
+        
+        const src = pitchTestAudioCtx.createMediaStreamSource(pitchTestStream);
+        pitchTestProcNode = pitchTestAudioCtx.createScriptProcessor(2048, 1, 1);
+        
+        const ring = new Float32Array(1600); // 100ms buffer
+        let ringPos = 0;
+        let accTime = 0;
+        
+        src.connect(pitchTestProcNode);
+        pitchTestProcNode.connect(pitchTestAudioCtx.destination);
+        
+        // 실시간 피치 분석
+        pitchTestProcNode.onaudioprocess = (e) => {
+            if (!pitchTestActive) return;
+            
+            const ch = e.inputBuffer.getChannelData(0);
+            
+            // Fill ring buffer
+            for (let i = 0; i < ch.length; i++) {
+                ring[ringPos % ring.length] = ch[i];
+                ringPos++;
+            }
+            
+            accTime += ch.length / pitchTestAudioCtx.sampleRate;
+            
+            // 🚀 실시간 처리: 25ms 간격으로 더 빠른 업데이트 (지연 최소화)
+            if (accTime >= 0.025) {
+                accTime = 0;
+                
+                const frame = new Float32Array(800); // 50ms frame
+                const start = (ringPos - 800 + ring.length) % ring.length;
+                
+                for (let j = 0; j < 800; j++) {
+                    frame[j] = ring[(start + j) % ring.length];
+                }
+                
+                const f0 = yinPitch(frame, pitchTestAudioCtx.sampleRate);
+                const dB = frameEnergy(frame);
+                
+                if (f0 > 0 && f0 < 1000) {
+                    // 🎯 현재 Y축 단위에 맞게 변환
+                    let yValue;
+                    if (currentYAxisUnit === 'qtone') {
+                        yValue = f0ToQt(f0);
+                    } else {
+                        yValue = f0ToSemitone(f0, refMedian);
+                    }
+                    
+                    // 🚀 실시간 피드백: 모든 변화를 즉시 반영 (필터링 최소화)
+                    const threshold = PERCEPTUAL_THRESHOLDS[currentYAxisUnit];
+                    const isPerceptibleChange = lastPerceptiblePitch === null || 
+                        Math.abs(yValue - lastPerceptiblePitch) >= threshold;
+                    
+                    // 실시간성을 위해 모든 유효한 피치 즉시 처리
+                    if (isPerceptibleChange || true) { // 항상 업데이트
+                        lastPerceptiblePitch = yValue;
+                        currentLiveHz = f0; // 실시간 Hz 업데이트
+                        
+                        // 🔴 음높이 테스트: 지각 가능한 변화만 표시
+                        updatePitchTestChart(yValue);
+                        
+                        // 🎬 연습 데이터 저장
+                        if (isRecordingPractice) {
+                            const practicePoint = {
+                                timestamp: Date.now(),
+                                time: tLive,
+                                pitch: yValue,
+                                frequency: f0,
+                                unit: currentYAxisUnit
+                            };
+                            practiceRecordingData.push(practicePoint);
+                        }
+                        
+                        // 🎯 실시간 Hz 값을 우측 축에 표시
+                        updateLiveHzDisplay(f0);
+                    } else {
+                        // 지각하기 어려운 미세한 변화는 무시
+                        return;
+                    }
+                    
+                    // 범위/목표 체크
+                    let feedback = "";
+                    if (pitchRange) {
+                        // 🎯 범위를 현재 단위로 변환
+                        let convertedMin, convertedMax;
+                        if (currentYAxisUnit === 'qtone') {
+                            convertedMin = f0ToQt((refMedian || 200) * Math.pow(2, pitchRange.min / 12));
+                            convertedMax = f0ToQt((refMedian || 200) * Math.pow(2, pitchRange.max / 12));
+                        } else {
+                            convertedMin = pitchRange.min;
+                            convertedMax = pitchRange.max;
+                        }
+                        
+                        const isInRange = yValue >= convertedMin && yValue <= convertedMax;
+                        feedback = isInRange ? "🟢 범위 내!" : "🔴 범위 밖";
+                        
+                        let unitLabel = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+                        
+                        // 🚀 로그 최소화 (성능 최우선)
+                        if (Math.random() < 0.005) { // 0.5%만 로그
+                            console.log(`🎯 ${yValue.toFixed(0)}${unitLabel} (${convertedMin.toFixed(0)}~${convertedMax.toFixed(0)}) → ${feedback}`);
+                        }
+                    } else if (targetPitch !== null) {
+                        // 🎯 목표값을 현재 단위로 변환
+                        let convertedTarget;
+                        if (currentYAxisUnit === 'qtone') {
+                            convertedTarget = f0ToQt((refMedian || 200) * Math.pow(2, targetPitch / 12));
+                        } else {
+                            convertedTarget = targetPitch;
+                        }
+                        
+                        const diff = Math.abs(yValue - convertedTarget);
+                        const threshold = currentYAxisUnit === 'qtone' ? 1.0 : 0.5;
+                        const isAccurate = diff <= threshold;
+                        feedback = isAccurate ? "🟢 정확!" : "🟡 조정 필요";
+                        
+                        let unitLabel = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+                        
+                        // 🚀 로그 최소화 (성능 최우선)
+                        if (Math.random() < 0.005) { // 0.5%만 로그
+                            console.log(`🎯 ${yValue.toFixed(0)}${unitLabel} vs ${convertedTarget.toFixed(0)}${unitLabel} → ${feedback}`);
+                        }
+                    }
+                }
+            }
+        };
+        
+        // 🎯 마이크 연결 성공 후 사용자 가이드
+        $pitchTestStatus.innerHTML = `
+            <div class="text-center">
+                <strong>🎤 마이크 연결됨!</strong><br>
+                <span class="text-success">📢 "아~" 소리를 내보세요. 빨간줄로 현재 음높이가 표시됩니다.</span><br>
+                <small class="text-muted">발성 후 차트에서 드래그하여 연습 범위를 설정할 수 있습니다.</small>
+            </div>
+        `;
+        $pitchTestStatus.className = "text-center small fw-bold";
+        
+        console.log("🎯 Pitch Test 시작됨");
+        
+    } catch (error) {
+        console.error("🎯 Pitch Test 오류:", error);
+        $pitchTestStatus.textContent = "마이크 접근 오류: " + error.message;
+        $pitchTestStatus.className = "text-center text-danger small";
+        stopPitchTest();
+    }
+}
+
+function stopPitchTest() {
+    if (!pitchTestActive) return;
+    
+    pitchTestActive = false;
+    chartFrozen = false; // 🎯 차트 고정 해제
+    originalScales = null; // 🎯 저장된 스케일 제거
+    
+    // 🎯 음성 지속시간 기록 초기화
+    currentPitchHistory = [];
+    lastPitchValue = null;
+    pitchStartTime = null;
+    
+    // 🎬 연습 데이터 저장 종료
+    isRecordingPractice = false;
+    if (practiceRecordingData.length > 0) {
+        console.log(`🎬 연습 시각화 저장 완료: ${practiceRecordingData.length}개 데이터 포인트`);
+        updateButtons(); // 재생 버튼 활성화
+    }
+    
+    if (pitchTestStream) {
+        pitchTestStream.getTracks().forEach(track => track.stop());
+        pitchTestStream = null;
+    }
+    
+    if (pitchTestProcNode) {
+        pitchTestProcNode.disconnect();
+        pitchTestProcNode = null;
+    }
+    
+    if (pitchTestAudioCtx) {
+        pitchTestAudioCtx.close();
+        pitchTestAudioCtx = null;
+    }
+    
+    $btnPitchTest.disabled = false;
+    $btnStopPitchTest.disabled = true;
+    
+    // 🎯 음높이 연습 종료 메시지 개선
+    $pitchTestStatus.innerHTML = `
+        <div class="text-center">
+            <strong>🎤 음높이 연습이 종료되었습니다.</strong><br>
+            <small class="text-muted">다시 시작하려면 "음높이 연습" 버튼을 누르세요.</small>
+        </div>
+    `;
+    $pitchTestStatus.className = "text-center text-success small";
+    
+    // 🔴 빨간 포인트 제거 (음높이 테스트 전용)
+    if (chart && chart.data.datasets[4]) {
+        chart.data.datasets[4].data = [];
+    }
+    
+    // 🎯 현재 음높이 가로선 제거
+    if (chart && chart.options.plugins.annotation && chart.options.plugins.annotation.annotations.currentPitchLine) {
+        delete chart.options.plugins.annotation.annotations.currentPitchLine;
+    }
+    
+    // 실시간 Hz 표시 제거
+    if (chart && chart.data.datasets[3]) {
+        chart.data.datasets[3].data = [];
+    }
+    
+    chart.update('none');
+    
+    console.log("🎯 Pitch Test 종료 - 차트 고정 해제");
+}
+
+// 🎯 음성 지속시간 기록을 위한 변수들
+let currentPitchHistory = [];
+let lastPitchValue = null;
+let pitchStartTime = null;
+
+// 🎯 음높이 테스트: 완전 고정 차트에서 지속시간을 선 굵기로 표현
+function updatePitchTestChart(currentValue) {
+    if (!chart || !pitchTestActive || chartFrozen === false) return;
+    
+    // 🎯 차트 스케일을 원본으로 완전 고정 (절대 변경되지 않도록)
+    if (originalScales) {
+        chart.scales.x.min = originalScales.xMin;
+        chart.scales.x.max = originalScales.xMax;
+        chart.scales.y.min = originalScales.yMin;
+        chart.scales.y.max = originalScales.yMax;
+        
+        // 스케일 옵션도 고정
+        chart.options.scales.x.min = originalScales.xMin;
+        chart.options.scales.x.max = originalScales.xMax;
+        chart.options.scales.y.min = originalScales.yMin;
+        chart.options.scales.y.max = originalScales.yMax;
+    }
+    
+    // 🔴 빨간 포인트 데이터셋 (5번째 데이터셋, index 4)
+    const redPointDataset = chart.data.datasets[4];
+    if (!redPointDataset) return;
+    
+    // 🎯 차트 중앙 고정 위치 (절대 변하지 않음)
+    const refMidTime = originalScales ? (originalScales.xMin + originalScales.xMax) / 2 : 1.0;
+    
+    // 🎯 지속시간 계산을 위한 단위별 허용 오차
+    const currentTime = Date.now();
+    const pitchTolerance = currentYAxisUnit === 'cent' ? 30 : (currentYAxisUnit === 'qtone' ? 0.5 : 0.3);
+    
+    if (lastPitchValue === null || Math.abs(currentValue - lastPitchValue) > pitchTolerance) {
+        // 새로운 음높이 시작
+        lastPitchValue = currentValue;
+        pitchStartTime = currentTime;
+    }
+    
+    // 현재 음높이 지속시간 계산 (초 단위)
+    const sustainDuration = pitchStartTime ? (currentTime - pitchStartTime) / 1000 : 0;
+    
+    // 🎯 지속시간에 따른 시각적 강도 계산 (0.1초 ~ 2초 범위)
+    const minDuration = 0.1;
+    const maxDuration = 2.0;
+    const normalizedDuration = Math.min(sustainDuration, maxDuration) / maxDuration;
+    
+    // 선 굵기: 지속시간에 따라 2~8px (더 세련되게)
+    const lineWidth = 2 + (normalizedDuration * 6);
+    
+    // 투명도: 지속시간에 따라 0.7~1.0 (더 선명하게)
+    const alpha = 0.7 + (normalizedDuration * 0.3);
+    
+    // 🔴 빨간 포인트만 업데이트
+    redPointDataset.data = [{
+        x: refMidTime,
+        y: currentValue
+    }];
+    
+    // 🎯 현재 단위에 맞는 표시
+    let unitLabel = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+    
+    // 🎯 현재 음높이 가로선 (지속시간으로 굵기 표현)
+    if (!chart.options.plugins.annotation) {
+        chart.options.plugins.annotation = { annotations: {} };
+    }
+    
+    chart.options.plugins.annotation.annotations.currentPitchLine = {
+        type: 'line',
+        yMin: currentValue,
+        yMax: currentValue,
+        borderColor: `rgba(255, 0, 0, ${alpha})`,
+        borderWidth: lineWidth,
+        borderDash: sustainDuration > 0.2 ? [] : [4, 2], // 0.2초 이상 지속시 실선
+        label: {
+            content: sustainDuration > 0.1 ? 
+                `${currentValue.toFixed(1)}${unitLabel} (${sustainDuration.toFixed(1)}s)` : 
+                `${currentValue.toFixed(1)}${unitLabel}`,
+            enabled: true,
+            position: 'end',
+            backgroundColor: `rgba(255, 0, 0, ${Math.min(alpha + 0.2, 1.0)})`,
+            color: 'white',
+            font: { size: 11, weight: 'bold' },
+            padding: 4
+        }
+    };
+    
+    // 🎯 차트 업데이트 (스케일은 절대 변경 안됨)
+    chart.update('none');
+    
+    // 🚀 로그 최소화 (실시간 성능 최우선)
+    if (sustainDuration > 0.2 && Math.random() < 0.01) { // 로그 대폭 감소
+        console.log(`🔴 ${currentValue.toFixed(0)}${unitLabel} ${sustainDuration.toFixed(1)}s`);
+    }
+}
+
+function updatePitchTestStatus(currentValue, diff) {
+    const accuracy = Math.max(0, 100 - (diff * 20)); // 차이에 따른 정확도
+    
+    // 단위별 표시
+    let unitLabel = currentYAxisUnit === 'qtone' ? 'qt' : 'st';
+    
+    let message = `현재: ${currentValue.toFixed(1)}${unitLabel} | 목표: ${targetPitch.toFixed(1)}${unitLabel}`;
+    let className = "text-center small fw-bold";
+    
+    if (diff < 0.5) {
+        message += " | ✅ 완벽합니다!";
+        className += " text-success";
+    } else if (diff < 1.0) {
+        message += " | 🎯 거의 맞습니다!";
+        className += " text-primary";
+    } else if (diff < 2.0) {
+        message += " | 📈 조금 더 " + (currentValue < targetPitch ? "높게" : "낮게");
+        className += " text-warning";
+    } else {
+        message += " | 🔄 " + (currentValue < targetPitch ? "더 높게" : "더 낮게") + " 발성하세요";
+        className += " text-danger";
+    }
+    
+    $pitchTestStatus.textContent = message;
+    $pitchTestStatus.className = className;
+}
+
+// 🎯 차트 클릭 이벤트 핸들러
+function handleChartClick(event, chartInstance) {
+    if (!chartInstance || pitchTestActive) return;
+    
+    const canvasPosition = Chart.helpers.getRelativePosition(event, chartInstance);
+    const dataX = chartInstance.scales.x.getValueForPixel(canvasPosition.x);
+    const dataY = chartInstance.scales.y.getValueForPixel(canvasPosition.y);
+    
+    // 유효한 세미톤 범위인지 확인
+    if (dataY >= -10 && dataY <= 15) {
+        targetPitch = dataY;
+        
+        // 참조선 추가/업데이트
+        addPitchReferenceLine(dataY);
+        
+        // UI 업데이트
+        $pitchTestStatus.textContent = `목표 음높이: ${dataY.toFixed(1)} 세미톤 선택됨. "음높이 테스트" 버튼을 누르세요`;
+        $pitchTestStatus.className = "text-center text-info small fw-bold";
+        
+        if ($btnPitchTest) {
+            $btnPitchTest.disabled = false;
+            $btnPitchTest.classList.remove('btn-outline-success');
+            $btnPitchTest.classList.add('btn-success');
+        }
+        
+        console.log(`🎯 목표 음높이 설정: ${dataY.toFixed(1)} 세미톤`);
+    }
+}
+
+// 🎯 피치 참조선 추가
+function addPitchReferenceLine(semitoneValue) {
+    if (!chart || !chart.options.plugins.annotation) return;
+    
+    // 기존 참조선 제거
+    if (chart.options.plugins.annotation.annotations.pitchTarget) {
+        delete chart.options.plugins.annotation.annotations.pitchTarget;
+    }
+    
+    // 새 참조선 추가
+    chart.options.plugins.annotation.annotations.pitchTarget = {
+        type: 'line',
+        yMin: semitoneValue,
+        yMax: semitoneValue,
+        borderColor: '#e74c3c',
+        borderWidth: 1,
+        borderDash: [10, 5],
+        label: {
+            enabled: true,
+            content: `목표: ${semitoneValue.toFixed(1)}st`,
+            position: 'start',
+            backgroundColor: '#e74c3c',
+            color: 'white',
+            font: {
+                size: 12,
+                weight: 'bold'
+            }
+        }
+    };
+    
+    chart.update('none');
+    console.log(`🎯 참조선 추가: ${semitoneValue.toFixed(1)} 세미톤`);
+}
+
+// 🎯 피치 테스트 참조선 제거
+function removePitchReferenceLine() {
+    if (chart && chart.options.plugins.annotation && chart.options.plugins.annotation.annotations.pitchTarget) {
+        delete chart.options.plugins.annotation.annotations.pitchTarget;
+        chart.update('none');
+        console.log("🎯 참조선 제거됨");
+    }
+}
+
+// 🎯 updateButtons 함수 확장 - 피치 테스트 버튼 상태도 관리
+function updatePitchTestButtons() {
+    if (!$btnPitchTest || !$btnStopPitchTest) return;
+    
+    if (pitchTestActive) {
+        $btnPitchTest.disabled = true;
+        $btnStopPitchTest.disabled = false;
+    } else {
+        $btnPitchTest.disabled = false; // 항상 활성화
+        $btnStopPitchTest.disabled = true;
+        
+        // 목표 피치가 설정되었으면 버튼 스타일 변경
+        if (targetPitch !== null) {
+            $btnPitchTest.classList.remove('btn-outline-success');
+            $btnPitchTest.classList.add('btn-success');
+        } else {
+            $btnPitchTest.classList.remove('btn-success');
+            $btnPitchTest.classList.add('btn-outline-success');
+        }
+    }
+}
+
+// 기존 함수는 백업용으로 유지
+function timeWarpToRef_backup(liveSeries) {
+    const liveSyl = sylCuts.filter(s => s.end !== null);
+    if (!liveSyl.length || !refSyll.length) return liveSeries;
+    
+    const n = Math.min(liveSyl.length, refSyll.length);
+    const anchors = [];
+    
+    for (let i = 0; i < n; i++) {
+        const L = liveSyl[i], R = refSyll[i];
+        const lMid = (L.start + L.end) / 2;
+        const rMid = (R.start + R.end) / 2;
+        anchors.push({l: lMid, r: rMid});
+    }
+    
+    return liveSeries.map(p => {
+        const t = p.x;
+        let k = 0;
+        while (k < anchors.length && anchors[k].l < t) k++;
+        
+        if (k === 0) {
+            const a0 = anchors[0];
+            const scale = (a0.r) / (a0.l || 1e-6);
+            return {x: t * scale, y: p.y, int: p.int};
+        } else if (k >= anchors.length) {
+            const a1 = anchors[anchors.length - 1];
+            const scale = ((refStats.duration - a1.r) / ((t) - a1.l || 1e-6));
+            return {x: a1.r + (t - a1.l) * scale, y: p.y, int: p.int};
+        } else {
+            const a0 = anchors[k - 1], a1 = anchors[k];
+            const alpha = (t - a0.l) / ((a1.l - a0.l) || 1e-6);
+            const x = a0.r + alpha * (a1.r - a0.r);
+            return {x, y: p.y, int: p.int};
+        }
+    });
+}
+
+// Microphone handler - moved to setupEventHandlers function
+
+// Reset handler - moved to setupEventHandlers function
+
+// Save session data
+async function saveSessionData(data) {
+    try {
+        const response = await fetch('/api/save_session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            console.log('Session data saved successfully');
+        }
+    } catch (e) {
+        console.error('Error saving session data:', e);
+    }
+}
+
+// Initialize - removed from here since it's now in DOMContentLoaded
+
+// Load saved files from server
+async function loadSavedFilesList() {
+    try {
+        const response = await fetch(`${API_BASE}/api/reference_files`);
+        const data = await response.json();
+        
+        if ($savedFiles) {
+            $savedFiles.innerHTML = '<option value="">저장된 파일을 선택하세요</option>';
+            
+            if (data.files && data.files.length > 0) {
+                data.files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = file.id;
+                    option.textContent = `${file.title} (${file.duration?.toFixed(1)}초, ${file.syllable_count}음절)`;
+                    $savedFiles.appendChild(option);
+                });
+                $savedFiles.disabled = false;
+            } else {
+                $savedFiles.innerHTML = '<option value="">저장된 파일이 없습니다</option>';
+                $savedFiles.disabled = true;
+            }
+            
+            // Update delete button state
+            updateDeleteButtonState();
+        }
+    } catch (error) {
+        console.error('Failed to load saved files:', error);
+        if ($savedFiles) {
+            $savedFiles.innerHTML = '<option value="">파일 목록 로드 실패</option>';
+            $savedFiles.disabled = true;
+        }
+    }
+}
+
+// Load selected file from saved files
+async function loadSelectedFile() {
+    const fileId = $savedFiles.value;
+    if (!fileId) return;
+    
+    try {
+        $status.textContent = '저장된 파일을 불러오는 중...';
+        
+        // Download WAV file
+        const wavResponse = await fetch(`${API_BASE}/api/reference_files/${fileId}/wav`);
+        const wavBlob = await wavResponse.blob();
+        
+        // Download TextGrid file  
+        const tgResponse = await fetch(`${API_BASE}/api/reference_files/${fileId}/textgrid`);
+        const tgBlob = await tgResponse.blob();
+        
+        // Create file objects and set to inputs
+        const wavFile = new File([wavBlob], `reference_${fileId}.wav`, { type: 'audio/wav' });
+        const tgFile = new File([tgBlob], `reference_${fileId}.TextGrid`, { type: 'text/plain' });
+        
+        // Create file list for inputs
+        const wavDataTransfer = new DataTransfer();
+        wavDataTransfer.items.add(wavFile);
+        $wav.files = wavDataTransfer.files;
+        
+        const tgDataTransfer = new DataTransfer();
+        tgDataTransfer.items.add(tgFile);
+        $tg.files = tgDataTransfer.files;
+        
+        $status.textContent = '저장된 파일을 성공적으로 불러왔습니다.';
+        updateButtons();
+        
+    } catch (error) {
+        console.error('Failed to load selected file:', error);
+        $status.textContent = '파일 로드 중 오류가 발생했습니다.';
+    }
+}
+
+// Update delete button state
+function updateDeleteButtonState() {
+    if ($btnDeleteSaved && $savedFiles) {
+        $btnDeleteSaved.disabled = !$savedFiles.value;
+    }
+    if ($btnReplayPractice) {
+        $btnReplayPractice.disabled = !practiceRecordingData || practiceRecordingData.length === 0;
+    }
+}
+
+// Confirm delete saved file
+async function confirmDeleteSavedFile() {
+    const fileId = $savedFiles.value;
+    if (!fileId) return;
+    
+    const selectedOption = $savedFiles.options[$savedFiles.selectedIndex];
+    const fileName = selectedOption.textContent;
+    
+    if (confirm(`정말로 "${fileName}" 파일을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+        await deleteSavedFile(fileId);
+    }
+}
+
+// Delete saved file from server
+async function deleteSavedFile(fileId) {
+    try {
+        $status.textContent = '파일을 삭제하는 중...';
+        
+        const response = await fetch(`${API_BASE}/api/reference_files/${fileId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            $status.textContent = '파일이 성공적으로 삭제되었습니다.';
+            
+            // Reload saved files list
+            await loadSavedFilesList();
+            
+            console.log(`🗑️ 저장된 파일 삭제 성공: ${fileId}`);
+            
+        } else {
+            throw new Error(result.message || 'Unknown error');
+        }
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        $status.textContent = '파일 삭제 중 오류가 발생했습니다.';
+        alert('파일 삭제에 실패했습니다: ' + error.message);
+    }
+}
+
+// Show save modal
+function showSaveModal() {
+    const modal = createSaveModal();
+    document.body.appendChild(modal);
+    
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Remove modal from DOM when closed
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+// Create save modal
+function createSaveModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">참조 파일 저장</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="saveForm">
+                        <div class="mb-3">
+                            <label for="saveTitle" class="form-label">제목 *</label>
+                            <input type="text" class="form-control" id="saveTitle" required 
+                                   placeholder="예: 한국어 기본 문장 연습">
+                        </div>
+                        <div class="mb-3">
+                            <label for="saveDescription" class="form-label">설명</label>
+                            <textarea class="form-control" id="saveDescription" rows="3"
+                                      placeholder="파일에 대한 설명을 입력하세요"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="saveSentence" class="form-label">문장 내용</label>
+                            <input type="text" class="form-control" id="saveSentence"
+                                   placeholder="예: 내 친구가 면접에 합격했대">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-success" onclick="saveReferenceFile()">저장</button>
+                </div>
+            </div>
+        </div>
+    `;
+    return modal;
+}
+
+// Save reference file to server
+async function saveReferenceFile() {
+    const title = document.getElementById('saveTitle').value.trim();
+    const description = document.getElementById('saveDescription').value.trim();
+    const sentence = document.getElementById('saveSentence').value.trim();
+    
+    if (!title) {
+        alert('제목을 입력해주세요.');
+        return;
+    }
+    
+    if (!$wav.files[0] || !$tg.files[0]) {
+        alert('WAV 파일과 TextGrid 파일이 모두 필요합니다.');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('sentence_text', sentence);
+        formData.append('wav_file', $wav.files[0]);
+        formData.append('textgrid_file', $tg.files[0]);
+        
+        $status.textContent = '파일을 저장하는 중...';
+        
+        const response = await fetch(`${API_BASE}/api/save_reference`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            $status.textContent = '파일이 성공적으로 저장되었습니다!';
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+            modal.hide();
+            
+            // Reload saved files list
+            await loadSavedFilesList();
+            
+        } else {
+            throw new Error(result.message || 'Unknown error');
+        }
+        
+    } catch (error) {
+        console.error('Save error:', error);
+        $status.textContent = '파일 저장 중 오류가 발생했습니다.';
+        alert('파일 저장에 실패했습니다: ' + error.message);
+    }
+}
+
+// 🎯 성별 선택 모달 기능
+document.addEventListener('DOMContentLoaded', function() {
+    initializeGenderSelection();
+    initializeLearningInterface();
+});
+
+function initializeGenderSelection() {
+    // 성별 옵션 선택 이벤트
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.gender-option')) {
+            const genderOption = e.target.closest('.gender-option');
+            const gender = genderOption.dataset.gender;
+            
+            // 모든 선택 해제
+            document.querySelectorAll('.gender-option').forEach(opt => {
+                if (opt.classList.contains('card')) {
+                    opt.style.border = '2px solid transparent';
+                } else {
+                    opt.classList.remove('btn-primary');
+                    opt.classList.add('btn-outline-secondary');
+                }
+            });
+            
+            // 선택한 옵션 강조
+            if (genderOption.classList.contains('card')) {
+                genderOption.style.border = '2px solid #0d6efd';
+            } else {
+                genderOption.classList.remove('btn-outline-secondary');
+                genderOption.classList.add('btn-primary');
+            }
+            
+            selectedGender = gender;
+            document.getElementById('confirmGenderSelection').disabled = false;
+        }
+    });
+    
+    // 성별 선택 확인
+    document.getElementById('confirmGenderSelection')?.addEventListener('click', function() {
+        if (selectedGender) {
+            applyGenderNormalization(selectedGender);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('genderSelectionModal'));
+            modal.hide();
+        }
+    });
+}
+
+function showGenderSelectionModal(refGender, refMedian) {
+    const modal = new bootstrap.Modal(document.getElementById('genderSelectionModal'));
+    const genderText = refGender === 'female' ? 
+        `여성 음성 (평균 ${refMedian.toFixed(0)}Hz)` : 
+        `남성 음성 (평균 ${refMedian.toFixed(0)}Hz)`;
+    
+    document.getElementById('referenceGenderInfo').textContent = genderText;
+    
+    // 선택 초기화
+    selectedGender = null;
+    document.getElementById('confirmGenderSelection').disabled = true;
+    document.querySelectorAll('.gender-option').forEach(opt => {
+        if (opt.classList.contains('card')) {
+            opt.style.border = '2px solid transparent';
+        } else {
+            opt.classList.remove('btn-primary');
+            opt.classList.add('btn-outline-secondary');
+        }
+    });
+    
+    modal.show();
+}
+
+function applyGenderNormalization(learnerGender) {
+    console.log(`🎯 성별 정규화 적용: ${detectedReferenceGender} → ${learnerGender}`);
+    
+    // 정규화된 매개변수로 다시 분석 요청
+    analyzeReferenceWithGender(learnerGender);
+}
+
+// 🎯 학습 방법에 따른 버튼 활성화/비활성화
+function updateButtonsByLearningMethod(method) {
+    console.log(`🎯 학습 방법에 따른 버튼 상태 업데이트: ${method}`);
+    
+    if (method === 'pitch') {
+        // 음높이 학습: 녹음 버튼 완전 비활성화, 분석 버튼 활성화
+        if ($btnMic) {
+            $btnMic.disabled = false; // 🎯 음높이 학습에서 녹음 활성화
+            $btnMic.classList.remove('disabled');
+            $btnMic.style.opacity = '1';
+        }
+        if ($btnAnalyze) {
+            $btnAnalyze.disabled = true; // 🎯 음높이 학습에서 분석 비활성화
+            $btnAnalyze.classList.add('disabled');
+            $btnAnalyze.style.opacity = '0.5';
+        }
+        console.log('🎯 음높이 학습 모드: 녹음 활성화, 분석 비활성화');
+        
+        // 🎯 즉시 updateButtons 호출하여 상태 강제 업데이트
+        updateButtons();
+        
+    } else if (method === 'sentence') {
+        // 문장억양연습: 분석 버튼 활성화, 녹음 버튼 활성화
+        if ($btnAnalyze) {
+            $btnAnalyze.disabled = false;
+            $btnAnalyze.classList.remove('disabled');
+            $btnAnalyze.style.opacity = '1';
+        }
+        if ($btnMic) {
+            // 문장억양연습: 항상 활성화
+            $btnMic.disabled = false;
+            $btnMic.classList.remove('disabled');
+            $btnMic.style.opacity = '1';
+        }
+        console.log('🎯 문장억양연습 모드: 분석 활성화, 녹음 활성화');
+        
+        // 🎯 즉시 updateButtons 호출하여 상태 강제 업데이트
+        updateButtons();
+        
+    } else {
+        // 방법이 선택되지 않은 경우: 모든 버튼 비활성화
+        if ($btnMic) {
+            $btnMic.disabled = true;
+            $btnMic.classList.add('disabled');
+            $btnMic.style.opacity = '0.5';
+        }
+        if ($btnAnalyze) {
+            $btnAnalyze.disabled = false; // 🎯 기본적으로 활성화
+            $btnAnalyze.classList.remove('disabled');
+            $btnAnalyze.style.opacity = '1';
+        }
+        console.log('🎯 학습 방법 미선택: 분석 버튼 활성화, 녹음 버튼 비활성화');
+    }
+}
+
+// 🎯 새로운 학습 인터페이스 초기화
+function initializeLearningInterface() {
+    // 학습자 성별 선택 이벤트
+    document.getElementById('learner-gender')?.addEventListener('change', function(e) {
+        learnerGender = e.target.value;
+        updateProgress();
+    });
+    
+    // 학습 방법 선택 이벤트 (새로운 토글 형태)
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.learning-method-toggle')) {
+            const toggle = e.target.closest('.learning-method-toggle');
+            const method = toggle.dataset.method;
+            const radio = toggle.querySelector('input[type="radio"]');
+            
+            // 라디오 버튼 선택
+            radio.checked = true;
+            
+            // 모든 토글 스타일 초기화
+            document.querySelectorAll('.learning-method-toggle').forEach(t => {
+                t.classList.remove('border-primary', 'bg-light');
+                t.classList.add('border');
+            });
+            
+            // 선택한 토글 강조
+            toggle.classList.remove('border');
+            toggle.classList.add('border-primary', 'bg-light');
+            
+            // 상세 정보 토글
+            const detailsId = method === 'pitch' ? 'pitchDetails' : 'sentenceDetails';
+            const otherDetailsId = method === 'pitch' ? 'sentenceDetails' : 'pitchDetails';
+            
+            // 다른 상세 정보 숨기기
+            document.getElementById(otherDetailsId).classList.remove('show');
+            
+            // 선택한 상세 정보 표시
+            const details = document.getElementById(detailsId);
+            details.classList.toggle('show');
+            
+            learningMethod = method;
+            
+            // 학습 방법에 따라 음성 분석 섹션 표시/숨김
+            const audioAnalysisSection = document.getElementById('audioAnalysisSection');
+            if (audioAnalysisSection) {
+                // 🎯 문장억양연습만 음성 분석 섹션 표시, 음높이 학습은 숨김
+                if (method === 'sentence') {
+                    audioAnalysisSection.classList.remove('d-none');
+                } else {
+                    audioAnalysisSection.classList.add('d-none');
+                }
+            }
+            
+            // 🎯 학습 방법에 따른 버튼 활성화/비활성화
+            updateButtonsByLearningMethod(method);
+            
+            updateProgress();
+        }
+    });
+    
+    // 토글 헤더 클릭시 화살표 회전 (기본 상태: 접혀짐)
+    const chevron = document.getElementById('learningMethodChevron');
+    if (chevron) {
+        // 기본 상태를 0도로 설정 (접혀진 상태)
+        chevron.style.transform = 'rotate(0deg)';
+    }
+    
+    document.querySelector('[data-bs-target="#learningMethodCollapse"]')?.addEventListener('click', function() {
+        setTimeout(() => {
+            const isExpanded = document.getElementById('learningMethodCollapse').classList.contains('show');
+            chevron.style.transform = isExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        }, 150);
+    });
+    
+    // 통합 녹음 버튼
+    document.getElementById('btnUnifiedRecord')?.addEventListener('click', startUnifiedRecording);
+    document.getElementById('btnStopRecord')?.addEventListener('click', stopUnifiedRecording);
+    
+    // 초기 상태 설정 - 아무것도 선택되지 않은 상태로 시작
+    learningMethod = null; // 명시적으로 null로 설정
+    updateButtonsByLearningMethod(null); // 초기 버튼 상태 설정
+    updateProgress();
+}
+
+// 토글 상세 정보는 HTML에서 직접 관리하므로 이 함수는 제거
+
+function updateProgress() {
+    const recordBtn = document.getElementById('btnUnifiedRecord');
+    
+    // 🎯 간단한 조건으로 변경: 학습방법만 선택되면 활성화
+    const canRecord = learningMethod === 'sentence'; // 문장억양연습일 때만 녹음 가능
+    
+    if (recordBtn) {
+        recordBtn.disabled = !canRecord;
+        console.log(`🎯 녹음 버튼 상태: ${canRecord ? '활성화' : '비활성화'} (학습방법: ${learningMethod})`);
+    }
+    
+    // 상태 텍스트는 표시하지 않음 (완전 삭제)
+}
+
+function startUnifiedRecording() {
+    if (learningMethod === 'pitch') {
+        // 음높이 학습 모드
+        console.log('🎯 음높이 학습 녹음 시작');
+        document.getElementById('learning-status').textContent = '음높이 연습 중';
+        // 기존 피치 테스트 로직 활용
+        startPitchTest();
+    } else if (learningMethod === 'sentence') {
+        // 문장 억양 학습 모드
+        console.log('🎯 문장 억양 학습 녹음 시작');
+        document.getElementById('learning-status').textContent = '문장 억양 연습 중';
+        // 기존 마이크 녹음 로직 활용
+        startMicRecording();
+    }
+    
+    document.getElementById('btnUnifiedRecord').disabled = true;
+    document.getElementById('btnStopRecord').disabled = false;
+}
+
+function stopUnifiedRecording() {
+    console.log('🎯 통합 녹음 정지');
+    
+    // 모든 녹음 정지
+    if (pitchTestActive) {
+        stopPitchTest();
+    }
+    if (isListening) {
+        stopMicRecording();
+    }
+    
+    document.getElementById('btnUnifiedRecord').disabled = false;
+    document.getElementById('btnStopRecord').disabled = true;
+    document.getElementById('learning-status').textContent = '녹음 완료';
+}
+
+async function analyzeReferenceWithGender(targetGender) {
+    if (!$wav.files[0] || !$tg.files[0]) return;
+    
+    try {
+        $status.textContent = `성별 정규화 적용 중... (${detectedReferenceGender} → ${targetGender})`;
+        
+        const formData = new FormData();
+        formData.append('wav', $wav.files[0]);
+        formData.append('textgrid', $tg.files[0]);
+        
+        const response = await fetch(`${API_BASE}/analyze_ref?target_gender=${targetGender}&t=${Date.now()}`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const js = await response.json();
+        
+        // 정규화된 데이터로 차트 업데이트
+        if (js.curve && js.syllables) {
+            refCurve = js.curve;
+            refSyll = js.syllables;
+            refStats = js.stats;
+            refMedian = js.stats.sentence_median || 200;
+            
+            console.log('🎯 정규화된 데이터 수신:', refCurve.length, '포인트');
+            
+            // 차트 업데이트
+            if (chart && refCurve.length > 0) {
+                const chartData = refCurve.map(p => ({x: p.t, y: p.semitone || 0}));
+                chart.data.datasets[0].data = chartData;
+                chart.update();
+            }
+            
+            // 음절 분석 테이블 업데이트
+            if (js.syllable_analysis) {
+                updateSyllableAnalysisTable(js.syllable_analysis);
+            }
+            
+            updateButtons();
+            updateProgress(); // 진행률 업데이트
+            $status.textContent = `성별 정규화 완료 (${detectedReferenceGender} → ${targetGender})`;
+        }
+        
+    } catch (error) {
+        console.error('성별 정규화 오류:', error);
+        $status.textContent = '성별 정규화 중 오류가 발생했습니다.';
+    }
+}
