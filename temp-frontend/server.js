@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const path = require('path');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = 5000;
@@ -250,9 +251,41 @@ app.use('/tonebridge-app', createProxyMiddleware({
   logLevel: 'info'
 }));
 
-// 서버 시작
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 ToneBridge Client Server running on http://localhost:${PORT}`);
-  console.log(`📡 Proxying API calls to Backend: http://localhost:8000`);
-  console.log(`🎯 ToneBridge App: http://localhost:${PORT}/tonebridge-app`);
-});
+// 🔄 서버 시작 전 React 빌드 실행
+const buildReactApp = () => {
+  return new Promise((resolve, reject) => {
+    console.log('🔨 React 앱 빌드 시작...');
+    
+    exec('cd ../frontend && npm run build', (error, stdout, stderr) => {
+      if (error) {
+        console.error('❌ React 빌드 실패:', error.message);
+        reject(error);
+        return;
+      }
+      
+      if (stderr) {
+        console.warn('⚠️ React 빌드 경고:', stderr);
+      }
+      
+      console.log('✅ React 빌드 완료!');
+      if (stdout) {
+        console.log('📊 빌드 출력:', stdout.split('\n').slice(-5).join('\n')); // 마지막 5줄만 출력
+      }
+      resolve();
+    });
+  });
+};
+
+// 빌드 후 서버 시작
+buildReactApp()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 ToneBridge Client Server running on http://localhost:${PORT}`);
+      console.log(`📡 Proxying API calls to Backend: http://localhost:8000`);
+      console.log(`🎯 ToneBridge App: http://localhost:${PORT}/tonebridge-app`);
+    });
+  })
+  .catch((error) => {
+    console.error('💥 서버 시작 실패 - React 빌드 오류:', error.message);
+    process.exit(1);
+  });
