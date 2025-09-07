@@ -1525,7 +1525,7 @@ async def get_reference_files():
 async def get_reference_wav(file_id: str):
     """저장된 WAV 파일 다운로드 - 파일 시스템 기반"""
     try:
-        wav_path = f"reference_files/{file_id}.wav"
+        wav_path = f"static/reference_files/{file_id}.wav"
         if not os.path.exists(wav_path):
             raise HTTPException(status_code=404, detail="WAV 파일을 찾을 수 없습니다.")
         
