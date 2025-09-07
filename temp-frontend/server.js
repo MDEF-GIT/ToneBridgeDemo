@@ -172,22 +172,19 @@ app.get('/', (req, res) => {
     </div>
 
     <script>
-        // 서비스 상태 모니터링
+        // 서비스 상태 모니터링 (한 번만 실행)
         const checkServiceStatus = async () => {
             try {
                 const response = await fetch('/api/reference_files');
                 const data = await response.json();
-                console.log('✅ ToneBridge Backend Service: 연결됨', data);
+                console.log('✅ ToneBridge Backend Service: 연결됨 (초기 체크)');
             } catch (error) {
                 console.error('❌ ToneBridge Backend Service: 연결 실패', error);
             }
         };
         
-        // 페이지 로드 시 서비스 상태 확인
+        // 페이지 로드 시 서비스 상태 확인 (한 번만)
         checkServiceStatus();
-        
-        // 5초마다 헬스체크
-        setInterval(checkServiceStatus, 5000);
         
         // iframe 토글 기능
         window.toggleIframe = function() {
