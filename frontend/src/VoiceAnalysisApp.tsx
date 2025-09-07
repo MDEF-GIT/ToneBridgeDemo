@@ -187,55 +187,82 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [selectedFile, API_BASE]);
 
   // 📝 커스텀 파일 분석 처리
-  const handleCustomFileAnalysis = useCallback(async () => {
-    if (!uploadedWavFile || !uploadedTextGridFile) {
+  // 🎯 분석 버튼 상태 업데이트 (원본 방식)
+  const updateAnalyzeButtonState = useCallback(() => {
+    const hasSelectedSentence = !!selectedFile;
+    const hasWav = !!uploadedWavFile;
+    const hasTextGrid = !!uploadedTextGridFile;
+    
+    if (!hasSelectedSentence && !hasWav && !hasTextGrid) {
+      setStatus('📝 연습할 문장을 선택하거나 WAV + TextGrid 파일을 업로드해주세요.');
+    } else if (!hasSelectedSentence && hasWav && !hasTextGrid) {
+      setStatus('📝 음절 구분 TextGrid 파일을 선택해 주세요.');
+    } else if (!hasSelectedSentence && !hasWav && hasTextGrid) {
+      setStatus('🎧 WAV 오디오 파일을 선택해 주세요.');
+    } else if (hasSelectedSentence) {
+      setStatus('✅ 분석 준비 완료! 선택한 문장으로 분석을 시작합니다.');
+    } else if (hasWav && hasTextGrid) {
+      setStatus('✅ 분석 준비 완료! 업로드한 파일로 분석을 시작합니다.');
+    }
+  }, [selectedFile, uploadedWavFile, uploadedTextGridFile]);
+
+  // 🎯 원본 방식 분석 함수 (문장 선택 또는 파일 업로드)
+  const handleAnalysis = useCallback(async () => {
+    const hasSelectedSentence = !!selectedFile;
+    const hasWav = !!uploadedWavFile;
+    const hasTextGrid = !!uploadedTextGridFile;
+    
+    // 원본 방식: 문장 선택 또는 WAV + TextGrid 파일 둘 다 필요
+    if (!hasSelectedSentence && !(hasWav && hasTextGrid)) {
       alert('WAV 파일과 TextGrid 파일을 모두 선택해주세요.');
       return;
     }
 
     setIsLoading(true);
-    setStatus('커스텀 파일을 분석 중입니다...');
+    setStatus(hasSelectedSentence ? '선택한 문장을 분석 중입니다...' : '업로드한 파일을 분석 중입니다...');
 
     try {
-      const formData = new FormData();
-      formData.append('wav', uploadedWavFile);
-      formData.append('textgrid', uploadedTextGridFile);
+      if (hasSelectedSentence) {
+        // 기존 문장 선택 분석 로직 사용
+        await handleSentenceAnalysis(selectedFile);
+      } else {
+        // 파일 업로드 분석
+        const formData = new FormData();
+        formData.append('wav', uploadedWavFile!);
+        formData.append('textgrid', uploadedTextGridFile!);
+        formData.append('learner_gender', learnerInfo.gender || 'female');
+        formData.append('sentence', '');
 
-      // 🔄 학습자 정보 추가 (임시 고정값)
-      formData.append('learner_gender', 'female'); // 기본값, 나중에 사용자 입력으로 변경 가능
-      formData.append('sentence', ''); // 빈 문장 (TextGrid에서 추출됨)
-
-      const response = await fetch(`${API_BASE}/api/analyze_ref`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await response.json();
-      
-      if (data && data.pitch_data) {
-        pitchChart.clearChart();
-        
-        // 🎯 TextGrid 시간 정보를 사용한 정확한 차트 렌더링
-        data.pitch_data.forEach((point: [number, number]) => {
-          pitchChart.addPitchData(point[1], point[0], 'reference');
+        const response = await fetch(`${API_BASE}/api/analyze_ref`, {
+          method: 'POST',
+          body: formData
         });
+
+        const data = await response.json();
         
-        // 음절 데이터 업데이트
-        if (data.syllables) {
-          setSyllableData(data.syllables);
-          setShowSyllableAnalysis(true);
+        if (data && data.pitch_data) {
+          pitchChart.clearChart();
+          
+          data.pitch_data.forEach((point: [number, number]) => {
+            pitchChart.addPitchData(point[1], point[0], 'reference');
+          });
+          
+          if (data.syllables) {
+            setSyllableData(data.syllables);
+            setShowSyllableAnalysis(true);
+          }
+          
+          setAnalysisResult(data);
+          setStatus('파일 분석 완료! TextGrid 정렬로 차트가 그려졌습니다.');
         }
-        
-        setAnalysisResult(data);
-        setStatus('커스텀 파일 분석 완료! 정확한 TextGrid 정렬로 차트가 그려졌습니다.');
       }
     } catch (error) {
-      console.error('❌ 커스텀 파일 분석 실패:', error);
-      setStatus('커스텀 파일 분석에 실패했습니다.');
+      console.error('❌ 분석 실패:', error);
+      setStatus('분석에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, [uploadedWavFile, uploadedTextGridFile, pitchChart, API_BASE]);
+  }, [selectedFile, uploadedWavFile, uploadedTextGridFile, learnerInfo.gender, pitchChart, API_BASE, handleSentenceAnalysis]);
   
   // 🎯 차트 범위 업데이트
   const updateChartRange = useCallback(() => {
@@ -643,36 +670,34 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           )}
 
-          {/* 📝 커스텀 파일 업로드 섹션 */}
-          <div className="row mb-4">
-            <div className="col-12">
-              <div className="card border-warning">
-                <div className="card-header bg-warning bg-opacity-10">
-                  <h5 className="mb-0 text-warning">
+          {/* 🎯 원본 방식: 파일 업로드 통합 */}
+          {showAudioAnalysisSection && learningMethod && (
+            <div className="row mb-4">
+              <div className="col-12">
+                <div className="alert alert-secondary">
+                  <div className="d-flex align-items-center mb-3">
                     <i className="fas fa-upload me-2"></i>
-                    커스텀 파일 업로드 (고급 사용자)
-                  </h5>
-                </div>
-                <div className="card-body">
-                  <div className="alert alert-warning">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
-                    <strong>중요:</strong> WAV 파일과 TextGrid 파일을 모두 업로드해야 정확한 차트 정렬이 가능합니다.
+                    <h6 className="mb-0">📁 직접 파일 업로드</h6>
                   </div>
+                  <p className="mb-3 small text-muted">
+                    사전 준비된 문장 대신 직접 준비한 WAV 파일과 TextGrid 파일로 학습하고 싶다면 아래에서 업로드하세요.
+                  </p>
                   
                   <div className="row">
                     <div className="col-md-6">
                       <div className="mb-3">
-                        <label className="form-label">
+                        <label className="form-label small">
                           <i className="fas fa-file-audio me-2"></i>
                           WAV 파일
                         </label>
                         <input
                           type="file"
-                          className="form-control"
+                          className="form-control form-control-sm"
                           accept=".wav"
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             setUploadedWavFile(file);
+                            updateAnalyzeButtonState();
                             if (file) {
                               console.log('🎧 WAV 파일 선택:', file.name);
                             }
@@ -688,17 +713,18 @@ const VoiceAnalysisApp: React.FC = () => {
                     </div>
                     <div className="col-md-6">
                       <div className="mb-3">
-                        <label className="form-label">
+                        <label className="form-label small">
                           <i className="fas fa-file-alt me-2"></i>
                           TextGrid 파일
                         </label>
                         <input
                           type="file"
-                          className="form-control"
+                          className="form-control form-control-sm"
                           accept=".TextGrid,.textgrid"
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             setUploadedTextGridFile(file);
+                            updateAnalyzeButtonState();
                             if (file) {
                               console.log('🗒️ TextGrid 파일 선택:', file.name);
                             }
@@ -713,21 +739,10 @@ const VoiceAnalysisApp: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="text-center">
-                    <button
-                      className="btn btn-warning btn-lg"
-                      disabled={!uploadedWavFile || !uploadedTextGridFile || isLoading}
-                      onClick={handleCustomFileAnalysis}
-                    >
-                      <i className="fas fa-chart-line me-2"></i>
-                      커스텀 파일 분석 시작
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* 🎯 상태 메시지 */}
           <div className="mb-3">
