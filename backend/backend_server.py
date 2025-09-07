@@ -1593,6 +1593,55 @@ async def analyze_reference_file(file_id: str):
         print(f"❌ Analyze reference file error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/reference_files/{file_id}/pitch")
+async def get_reference_pitch(file_id: str):
+    """참조 파일의 피치 데이터 반환 - Chart.js에서 사용"""
+    try:
+        print(f"🎯 Getting pitch data for reference file: {file_id}")
+        
+        # 파일 경로 설정
+        wav_path = f"static/reference_files/{file_id}.wav"
+        tg_path = f"static/reference_files/{file_id}.TextGrid"
+        
+        # 파일 존재 확인
+        if not os.path.exists(wav_path):
+            raise HTTPException(status_code=404, detail=f"WAV 파일을 찾을 수 없습니다: {wav_path}")
+        
+        # 파일 분석 수행
+        import parselmouth as pm
+        
+        try:
+            snd = pm.Sound(wav_path)
+            print(f"🎯 Successfully loaded WAV: {wav_path}")
+            
+            # 피치 데이터 추출
+            pitch = snd.to_pitch(time_step=0.01, pitch_floor=75.0, pitch_ceiling=500.0)
+            times = pitch.xs()
+            pitch_points = []
+            
+            for t in times:
+                f0 = pitch.get_value_at_time(t)
+                if f0 and not np.isnan(f0) and 75.0 < f0 < 500.0:
+                    pitch_points.append({
+                        "time": float(t), 
+                        "frequency": float(f0)
+                    })
+            
+            print(f"🎯 Extracted {len(pitch_points)} pitch points")
+            
+            # Chart.js가 예상하는 형태로 반환
+            return JSONResponse(pitch_points)
+            
+        except Exception as parse_error:
+            print(f"❌ Parselmouth parsing error: {parse_error}")
+            raise HTTPException(status_code=500, detail=f"파일 분석 실패: {str(parse_error)}")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Get reference pitch error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/reference_files/{file_id}/textgrid")
 async def get_reference_textgrid(file_id: str):
     """저장된 TextGrid 파일 다운로드 - 파일 시스템 기반"""

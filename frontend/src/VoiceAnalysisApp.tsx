@@ -246,20 +246,6 @@ const VoiceAnalysisApp: React.FC = () => {
             }}>
               실시간 피드백 한국어 억양학습 솔루션 <span style={{fontSize: '0.95em'}}>데모ver.</span>
             </p>
-            {/* 🎯 네비게이션 링크 */}
-            <div className="text-center mb-3">
-              <Link 
-                to="/survey" 
-                className="btn btn-outline-light btn-lg fw-bold px-4 py-2 me-3"
-                style={{
-                  borderRadius: '25px',
-                  borderWidth: '2px',
-                  boxShadow: '0 3px 10px rgba(255, 255, 255, 0.2)'
-                }}
-              >
-                <i className="fas fa-clipboard-list me-2"></i>사용자 설문
-              </Link>
-            </div>
             <div className="text-end">
               <div className="mb-1" style={{
                 color: 'white',
