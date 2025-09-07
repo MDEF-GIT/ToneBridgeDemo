@@ -102,8 +102,6 @@ const VoiceAnalysisApp: React.FC = () => {
         setIsPlayingReference(false);
       }
       
-      // 🎯 녹음 상태를 전역에 공유 (audio-analysis.js에서 참조)
-      window.audioRecordingState = { isRecording: false };
     } else {
       // 🎯 재생 중일 때는 녹음 시작 불가 (React 재생)
       if (isPlayingReference) {
@@ -111,14 +109,6 @@ const VoiceAnalysisApp: React.FC = () => {
         return;
       }
       
-      // 🎯 legacy 재생 중일 때도 확인 (audio-analysis.js 재생)
-      if (window.currentlyPlaying) {
-        alert('재생 중에는 녹음할 수 없습니다. 먼저 재생을 정지해주세요.');
-        return;
-      }
-      
-      // 🎯 녹음 상태를 전역에 공유 (audio-analysis.js에서 참조)
-      window.audioRecordingState = { isRecording: true };
       
       pitchChart.resetForNewRecording();
       await audioRecording.startRecording();
