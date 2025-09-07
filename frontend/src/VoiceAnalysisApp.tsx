@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ReferenceFile, LearnerInfo, LearningMethod, AnalysisResult, SyllableData } from './types/api';
+import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './types/api';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import './custom.css';
