@@ -7,6 +7,7 @@ interface AudioRecordingState {
   analyser: AnalyserNode | null;
   error: string | null;
   recordedBlob: Blob | null;
+  isPlayingRecorded: boolean;
 }
 
 export const useAudioRecording = () => {
@@ -16,13 +17,15 @@ export const useAudioRecording = () => {
     audioContext: null,
     analyser: null,
     error: null,
-    recordedBlob: null
+    recordedBlob: null,
+    isPlayingRecorded: false
   });
 
   const animationFrameRef = useRef<number | undefined>(undefined);
   const onPitchDataRef = useRef<((frequency: number, timestamp: number) => void) | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const startRecording = useCallback(async () => {
     try {
@@ -161,6 +164,47 @@ export const useAudioRecording = () => {
     }
   };
 
+  const playRecordedAudio = useCallback(() => {
+    if (!state.recordedBlob) return;
+
+    // 이미 재생 중이면 정지
+    if (state.isPlayingRecorded && recordedAudioRef.current) {
+      recordedAudioRef.current.pause();
+      recordedAudioRef.current.currentTime = 0;
+      recordedAudioRef.current = null;
+      setState(prev => ({ ...prev, isPlayingRecorded: false }));
+      return;
+    }
+
+    try {
+      const audioUrl = URL.createObjectURL(state.recordedBlob);
+      const audio = new Audio(audioUrl);
+      
+      recordedAudioRef.current = audio;
+      
+      audio.onplay = () => {
+        setState(prev => ({ ...prev, isPlayingRecorded: true }));
+      };
+
+      audio.onended = () => {
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        recordedAudioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        recordedAudioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.play();
+    } catch (error) {
+      console.error('녹음음성 재생 실패:', error);
+      setState(prev => ({ ...prev, isPlayingRecorded: false }));
+    }
+  }, [state.recordedBlob, state.isPlayingRecorded]);
+
   const setPitchCallback = useCallback((callback: (frequency: number, timestamp: number) => void) => {
     onPitchDataRef.current = callback;
   }, []);
@@ -169,6 +213,7 @@ export const useAudioRecording = () => {
     ...state,
     startRecording,
     stopRecording,
+    playRecordedAudio,
     setPitchCallback
   };
 };

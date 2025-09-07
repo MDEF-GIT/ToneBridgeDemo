@@ -109,6 +109,12 @@ const VoiceAnalysisApp: React.FC = () => {
         return;
       }
       
+      // 🎯 녹음음성 재생 중일 때는 녹음 시작 불가
+      if (audioRecording.isPlayingRecorded) {
+        alert('재생 중에는 녹음할 수 없습니다. 먼저 재생을 정지해주세요.');
+        return;
+      }
+      
       
       pitchChart.resetForNewRecording();
       await audioRecording.startRecording();
@@ -140,6 +146,12 @@ const VoiceAnalysisApp: React.FC = () => {
     // 🎯 녹음 중일 때는 재생 시작 불가
     if (audioRecording.isRecording) {
       alert('녹음 중에는 재생할 수 없습니다. 먼저 녹음을 정지해주세요.');
+      return;
+    }
+    
+    // 🎯 녹음음성 재생 중일 때는 참조음성 재생 불가
+    if (audioRecording.isPlayingRecorded) {
+      alert('재생 중에는 다른 음성을 재생할 수 없습니다. 먼저 재생을 정지해주세요.');
       return;
     }
 
@@ -522,7 +534,7 @@ const VoiceAnalysisApp: React.FC = () => {
           <div className="card mb-4">
             <div className="card-body">
               <div className="row g-3">
-                <div className="col-md-6">
+                <div className="col-lg-4">
                   <button 
                     className={`btn btn-lg w-100 ${audioRecording.isRecording ? 'btn-danger' : 'btn-success'}`}
                     disabled={!learningMethod || !selectedSentence}
@@ -532,7 +544,17 @@ const VoiceAnalysisApp: React.FC = () => {
                     {audioRecording.isRecording ? '녹음 중지' : '녹음 시작'}
                   </button>
                 </div>
-                <div className="col-md-6">
+                <div className="col-lg-4">
+                  <button 
+                    className={`btn btn-lg w-100 ${audioRecording.isPlayingRecorded ? 'btn-danger' : 'btn-warning'}`}
+                    disabled={!audioRecording.recordedBlob}
+                    onClick={audioRecording.playRecordedAudio}
+                  >
+                    <i className={`fas ${audioRecording.isPlayingRecorded ? 'fa-stop' : 'fa-play'} me-2`}></i>
+                    {audioRecording.isPlayingRecorded ? '녹음음성 중지' : '녹음음성 재생'}
+                  </button>
+                </div>
+                <div className="col-lg-4">
                   <button 
                     className={`btn btn-lg w-100 ${isPlayingReference ? 'btn-danger' : 'btn-info'}`}
                     disabled={!selectedSentence}
