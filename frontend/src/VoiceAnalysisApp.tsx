@@ -286,12 +286,52 @@ const VoiceAnalysisApp: React.FC = () => {
             <div className="col-lg-10">
 
 
+          {/* 🎯 개인화 코칭 설문 CTA */}
+          <div className="alert alert-primary d-flex align-items-center mb-4" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+            border: 'none', 
+            borderRadius: '12px', 
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+          }}>
+            <div className="flex-grow-1 text-white">
+              <div className="d-flex align-items-center mb-2">
+                <i className="fas fa-graduation-cap fa-2x me-3" style={{color: '#ffd700'}}></i>
+                <div>
+                  <h5 className="mb-1 fw-bold">데모학습 후, 더 정확한 개인화 코칭을 위해</h5>
+                  <p className="mb-0 small opacity-90">3분 설문 참여로 서비스 품질 향상에 힘을 보태주세요!</p>
+                </div>
+              </div>
+              <div className="d-flex flex-wrap gap-2 small">
+                <span className="badge bg-warning text-dark">
+                  <i className="fas fa-check me-1"></i>개선 의견 남기기
+                </span>
+                <span className="badge bg-info">
+                  <i className="fas fa-bell me-1"></i>신기능 알림 신청
+                </span>
+                <span className="badge bg-success">
+                  <i className="fas fa-users me-1"></i>파일럿 프로그램 참여
+                </span>
+              </div>
+            </div>
+            <div className="ms-3">
+              <Link 
+                to="/survey" 
+                className="btn btn-warning btn-lg fw-bold px-4 py-2"
+                style={{
+                  borderRadius: '25px', 
+                  boxShadow: '0 3px 10px rgba(255, 193, 7, 0.4)'
+                }}
+              >
+                <i className="fas fa-clipboard-list me-2"></i>3분 설문하기
+              </Link>
+            </div>
+          </div>
+
           {/* 🎯 휴대폰 가로보기 안내 */}
-          <div className="alert text-center mb-4 mobile-warning shake-animation" style={{
-            background: 'linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%)',
-            border: 'none',
-            borderRadius: '20px',
-            boxShadow: '0 4px 12px rgba(255, 154, 86, 0.4)'
+          <div className="alert border-0 text-center mb-4" style={{
+            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
+            borderRadius: '12px',
+            boxShadow: '0 2px 15px rgba(255, 107, 107, 0.3)'
           }}>
             <div className="d-flex align-items-center justify-content-center">
               <i 
