@@ -516,13 +516,16 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           </div>
 
-          {/* 🎯 연습 문장 선택 및 안내 동영상 */}
+          {/* 🎯 연습 문장 선택 및 안내 동영상 (참조억양학습시에만 표시) */}
           {showAudioAnalysisSection && (
-            <div className="mb-4 d-flex justify-content-center" style={{marginTop: '1.5rem'}}>
+            <div className="mb-4" style={{marginTop: '1.5rem'}}>
               <div className="row g-4 w-100">
                 {/* 연습 문장 선택 */}
                 <div className="col-md-7">
-                  <div className="alert alert-info border-0 practice-info">
+                  <div className="alert alert-info border-0" style={{
+                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', 
+                    borderRadius: '12px'
+                  }}>
                     <div className="d-flex align-items-center mb-3">
                       <i className="fas fa-lightbulb me-2 text-primary"></i>
                       <h6 className="mb-0 fw-bold text-primary">
@@ -556,7 +559,10 @@ const VoiceAnalysisApp: React.FC = () => {
                 
                 {/* 안내 동영상 */}
                 <div className="col-md-5">
-                  <div className="alert alert-success border-0 video-guide">
+                  <div className="alert alert-success border-0" style={{
+                    background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%)', 
+                    borderRadius: '12px'
+                  }}>
                     <div className="d-flex align-items-center mb-3">
                       <i className="fas fa-play-circle me-2 text-success"></i>
                       <h6 className="mb-0 fw-bold text-success">📹 사용법 안내 동영상</h6>
