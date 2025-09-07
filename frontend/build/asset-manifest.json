@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/tonebridge-app/static/css/main.c2867f49.css",
-    "main.js": "/tonebridge-app/static/js/main.15583bcb.js",
+    "main.js": "/tonebridge-app/static/js/main.afc27710.js",
     "static/js/453.7c6eb181.chunk.js": "/tonebridge-app/static/js/453.7c6eb181.chunk.js",
     "index.html": "/tonebridge-app/index.html",
     "main.c2867f49.css.map": "/tonebridge-app/static/css/main.c2867f49.css.map",
-    "main.15583bcb.js.map": "/tonebridge-app/static/js/main.15583bcb.js.map",
+    "main.afc27710.js.map": "/tonebridge-app/static/js/main.afc27710.js.map",
     "453.7c6eb181.chunk.js.map": "/tonebridge-app/static/js/453.7c6eb181.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.c2867f49.css",
-    "static/js/main.15583bcb.js"
+    "static/js/main.afc27710.js"
   ]
 }

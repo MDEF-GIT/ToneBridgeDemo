@@ -154,12 +154,18 @@ const VoiceAnalysisApp: React.FC = () => {
       const response = await fetch(`${API_BASE}/api/analyze/${fileId}`);
       const data = await response.json();
       
-      if (data && data.pitch_data) {
+      if (data && data.pitch_data && Array.isArray(data.pitch_data)) {
         pitchChart.clearChart();
-        data.pitch_data.forEach((point: [number, number]) => {
-          pitchChart.addPitchData(point[1], point[0], 'reference');
+        console.log(`🎯 TextGrid 데이터 로드: ${data.pitch_data.length}개 포인트`);
+        
+        data.pitch_data.forEach((point: {time: number, frequency: number}) => {
+          pitchChart.addPitchData(point.frequency, point.time * 1000, 'reference');
         });
-        setStatus('참조 음성 분석 완료. 녹음을 시작하세요!');
+        
+        setStatus(`참조 음성 분석 완료 (${data.pitch_data.length}개 포인트). 녹음을 시작하세요!`);
+      } else {
+        console.warn('⚠️ TextGrid 데이터가 없습니다:', data);
+        setStatus('참조 음성 데이터를 찾을 수 없습니다.');
       }
     } catch (error) {
       console.error('❌ 참조 오디오 로딩 실패:', error);

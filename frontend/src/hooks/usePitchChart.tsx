@@ -195,8 +195,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           chartRef.current.data.datasets[0].data = [];
         }
         
-        // Add reference data points
-        pitchData.forEach((point: any) => {
+        // Add reference data points  
+        pitchData.forEach((point: {time: number, frequency: number}) => {
           addPitchData(point.frequency, point.time * 1000, 'reference');
         });
       }
