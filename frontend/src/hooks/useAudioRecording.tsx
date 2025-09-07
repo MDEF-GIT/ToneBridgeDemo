@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 interface AudioRecordingState {
   isRecording: boolean;
@@ -28,6 +28,15 @@ export const useAudioRecording = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 🎯 상태 변화 추적 로그
+  useEffect(() => {
+    console.log('🎯 [STEP 3] Hook 상태 변화 감지:', {
+      'state.isPlayingRecorded': state.isPlayingRecorded,
+      'state.recordedBlob': !!state.recordedBlob,
+      'recordedAudioRef.current': !!recordedAudioRef.current
+    });
+  }, [state.isPlayingRecorded, state.recordedBlob]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -176,63 +185,118 @@ export const useAudioRecording = () => {
   };
 
   const playRecordedAudio = useCallback(() => {
-    console.log('🎯 playRecordedAudio 함수 호출됨!');
+    console.log('🎯🎯🎯 [STEP 2] playRecordedAudio 함수 진입!');
+    
+    // 현재 상태 상세 로깅
+    console.log('🎯 [STEP 2.1] 현재 Hook 상태 체크:', {
+      'state.recordedBlob': !!state.recordedBlob,
+      'state.isPlayingRecorded': state.isPlayingRecorded,
+      'state.isRecording': state.isRecording,
+      'recordedAudioRef.current': !!recordedAudioRef.current
+    });
     
     // 현재 상태 확인
     if (!state.recordedBlob) {
-      console.log("❌ 녹음된 음성이 없습니다");
+      console.log("❌ [STEP 2.2] 녹음된 음성이 없습니다 - 함수 종료");
       return;
     }
+    console.log("✅ [STEP 2.2] 녹음된 음성 존재 확인됨");
 
     // 현재 재생 중이면 정지
     if (state.isPlayingRecorded) {
-      console.log("🛑 녹음음성 재생 중지");
+      console.log("🛑 [STEP 2.3] 현재 재생 중 - 중지 프로세스 시작");
+      
       if (recordedAudioRef.current) {
+        console.log("🛑 [STEP 2.3.1] 오디오 레퍼런스 존재 - pause() 호출");
         recordedAudioRef.current.pause();
+        
+        console.log("🛑 [STEP 2.3.2] currentTime = 0 설정");
         recordedAudioRef.current.currentTime = 0;
+        
+        console.log("🛑 [STEP 2.3.3] 레퍼런스 null로 설정");
         recordedAudioRef.current = null;
+      } else {
+        console.log("⚠️ [STEP 2.3.1] 오디오 레퍼런스가 null임");
       }
-      setState(prev => ({ ...prev, isPlayingRecorded: false }));
+      
+      console.log("🛑 [STEP 2.3.4] setState로 isPlayingRecorded: false 설정");
+      setState(prev => {
+        console.log("🛑 [STEP 2.3.5] setState 콜백 실행 - 이전 상태:", prev.isPlayingRecorded);
+        return { ...prev, isPlayingRecorded: false };
+      });
+      
+      console.log("🛑 [STEP 2.3.6] 중지 프로세스 완료 - 함수 종료");
       return;
     }
+    console.log("✅ [STEP 2.3] 현재 재생 중이 아님 - 재생 시작 프로세스로 진행");
 
     // 재생 시작
-    console.log("▶️ 녹음음성 재생 시작");
+    console.log("▶️ [STEP 2.4] 녹음음성 재생 시작 프로세스");
     try {
+      console.log("▶️ [STEP 2.4.1] URL.createObjectURL() 호출");
       const audioUrl = URL.createObjectURL(state.recordedBlob);
+      console.log("▶️ [STEP 2.4.2] 오디오 URL 생성 완료:", audioUrl.substring(0, 50) + '...');
+      
+      console.log("▶️ [STEP 2.4.3] new Audio() 객체 생성");
       const audio = new Audio(audioUrl);
+      console.log("▶️ [STEP 2.4.4] 오디오 객체 생성 완료");
 
+      console.log("▶️ [STEP 2.4.5] recordedAudioRef.current에 오디오 객체 할당");
       recordedAudioRef.current = audio;
 
+      console.log("▶️ [STEP 2.4.6] 이벤트 리스너 설정 시작");
       audio.onended = () => {
-        console.log("🔚 녹음음성 재생 완료");
-        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        console.log("🔚 [EVENT] 녹음음성 재생 완료 이벤트 발생");
+        setState(prev => {
+          console.log("🔚 [EVENT] setState로 isPlayingRecorded: false 설정");
+          return { ...prev, isPlayingRecorded: false };
+        });
         recordedAudioRef.current = null;
         URL.revokeObjectURL(audioUrl);
+        console.log("🔚 [EVENT] 정리 작업 완료");
       };
 
-      audio.onerror = () => {
-        console.log("❌ 녹음음성 재생 오류");
-        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+      audio.onerror = (event) => {
+        console.log("❌ [EVENT] 녹음음성 재생 오류 이벤트 발생:", event);
+        setState(prev => {
+          console.log("❌ [EVENT] setState로 isPlayingRecorded: false 설정");
+          return { ...prev, isPlayingRecorded: false };
+        });
         recordedAudioRef.current = null;
         URL.revokeObjectURL(audioUrl);
+        console.log("❌ [EVENT] 오류 정리 작업 완료");
       };
+      console.log("▶️ [STEP 2.4.7] 이벤트 리스너 설정 완료");
 
       // 비동기 재생 시작
+      console.log("▶️ [STEP 2.4.8] audio.play() 호출 시작");
       audio.play().then(() => {
-        console.log("✅ 녹음음성 재생 시작됨");
-        setState(prev => ({ ...prev, isPlayingRecorded: true }));
+        console.log("✅ [STEP 2.4.9] audio.play() 성공 - 재생 시작됨");
+        setState(prev => {
+          console.log("✅ [STEP 2.4.10] setState로 isPlayingRecorded: true 설정");
+          return { ...prev, isPlayingRecorded: true };
+        });
+        console.log("✅ [STEP 2.4.11] 재생 시작 프로세스 완료");
       }).catch((error) => {
-        console.error("❌ 재생 실패:", error);
-        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        console.error("❌ [STEP 2.4.9] audio.play() 실패:", error);
+        setState(prev => {
+          console.log("❌ [STEP 2.4.10] setState로 isPlayingRecorded: false 설정");
+          return { ...prev, isPlayingRecorded: false };
+        });
         recordedAudioRef.current = null;
         URL.revokeObjectURL(audioUrl);
+        console.log("❌ [STEP 2.4.11] 재생 실패 정리 작업 완료");
       });
 
     } catch (error) {
-      console.error("❌ 녹음음성 재생 실패:", error);
-      setState(prev => ({ ...prev, isPlayingRecorded: false }));
+      console.error("❌ [STEP 2.4] try-catch 블록에서 예외 발생:", error);
+      setState(prev => {
+        console.log("❌ [STEP 2.4.ERROR] setState로 isPlayingRecorded: false 설정");
+        return { ...prev, isPlayingRecorded: false };
+      });
     }
+    
+    console.log('🎯🎯🎯 [STEP 2] playRecordedAudio 함수 종료');
   }, [state.recordedBlob, state.isPlayingRecorded]);
 
   const setPitchCallback = useCallback(

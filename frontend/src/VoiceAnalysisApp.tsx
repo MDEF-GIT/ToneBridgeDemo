@@ -548,7 +548,17 @@ const VoiceAnalysisApp: React.FC = () => {
                   <button 
                     className={`btn btn-lg w-100 ${audioRecording.isPlayingRecorded ? 'btn-danger' : 'btn-warning'}`}
                     disabled={!audioRecording.recordedBlob}
-                    onClick={audioRecording.playRecordedAudio}
+                    onClick={() => {
+                      console.log('🎯🎯🎯 [STEP 1] 녹음음성 재생 버튼 클릭됨!');
+                      console.log('🎯 [STEP 1.1] 현재 상태:', {
+                        hasRecordedBlob: !!audioRecording.recordedBlob,
+                        isPlayingRecorded: audioRecording.isPlayingRecorded,
+                        buttonDisabled: !audioRecording.recordedBlob
+                      });
+                      console.log('🎯 [STEP 1.2] playRecordedAudio 함수 호출 시작...');
+                      audioRecording.playRecordedAudio();
+                      console.log('🎯 [STEP 1.3] playRecordedAudio 함수 호출 완료');
+                    }}
                   >
                     <i className={`fas ${audioRecording.isPlayingRecorded ? 'fa-stop' : 'fa-play'} me-2`}></i>
                     {audioRecording.isPlayingRecorded ? '녹음음성 중지' : '녹음음성 재생'}
