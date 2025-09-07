@@ -360,13 +360,17 @@ function updateButtons() {
     const isCurrentlyRecording = isRecording || (typeof window !== 'undefined' && window.audioRecordingState?.isRecording);
     const isCurrentlyPlaying = currentlyPlaying !== null;
     
-    console.log('Updating buttons:', {
+    console.log('🎯 updateButtons 호출됨');
+    console.log('🔍 호출 스택:', new Error().stack);
+    console.log('🔍 상태 체크:', {
         hasWav,
         hasTextGrid,
         hasRefData,
         hasRecording,
         isCurrentlyRecording,
         isCurrentlyPlaying,
+        currentlyPlaying: currentlyPlaying,
+        recordedAudioBlob: !!recordedAudioBlob,
         wavFiles: $wav ? $wav.files.length : 0,
         tgFiles: $tg ? $tg.files.length : 0
     });
@@ -426,6 +430,8 @@ function updateButtons() {
         }
         
         console.log(`🎵 녹음음성 재생 버튼 상태: ${$btnPlayRec.disabled ? '비활성화' : '활성화'} (재생중: ${isCurrentlyPlaying}, 녹음파일: ${hasRecording}, 녹음중: ${isCurrentlyRecording})`);
+        console.log(`🔍 버튼 HTML: ${$btnPlayRec.innerHTML}`);
+        console.log(`🔍 버튼 클래스: ${$btnPlayRec.className}`);
     }
     
     
@@ -1427,25 +1433,33 @@ function playReferenceAudio() {
 }
 
 function playRecordedAudio() {
-    console.log('🎯 녹음음성 재생 버튼 클릭, 현재 재생 상태:', !!currentlyPlaying);
+    console.log('🎯 녹음음성 재생 버튼 클릭');
+    console.log('🔍 현재 재생 상태:', !!currentlyPlaying);
+    console.log('🔍 currentlyPlaying 객체:', currentlyPlaying);
     
     // 현재 재생 중이면 완전히 정지
     if (currentlyPlaying) {
-        console.log('🛑 녹음음성 정지 실행');
+        console.log('🛑 녹음음성 정지 실행 시작');
+        console.log('🔍 정지 전 currentlyPlaying:', currentlyPlaying);
         
         // 오디오 완전히 정지
         try {
             currentlyPlaying.pause();
             currentlyPlaying.currentTime = 0;
+            console.log('🔍 오디오 pause() 및 currentTime=0 완료');
         } catch (e) {
             console.log('오디오 정지 시 오류 (무시됨):', e);
         }
         
         // 🎯 전역 상태 초기화
+        console.log('🔍 currentlyPlaying을 null로 설정 전');
         currentlyPlaying = null;
+        console.log('🔍 currentlyPlaying을 null로 설정 후:', currentlyPlaying);
         
         // 🎯 중앙집중화된 상태 업데이트 (버튼 직접 조작 제거)
+        console.log('🔍 updateButtons() 호출 전');
         updateButtons();
+        console.log('🔍 updateButtons() 호출 후');
         
         console.log('✅ 녹음음성 완전 정지 완료');
         return; // 함수 완전 종료
