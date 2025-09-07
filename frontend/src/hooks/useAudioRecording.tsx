@@ -148,11 +148,9 @@ export const useAudioRecording = () => {
       }));
     }
   }, []);
-  console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
+
   const stopRecording = useCallback(() => {
-    console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌2222");
     if (animationFrameRef.current) {
-      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌33333");
       cancelAnimationFrame(animationFrameRef.current);
     }
 
@@ -160,17 +158,14 @@ export const useAudioRecording = () => {
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
     ) {
-      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌44444");
       mediaRecorderRef.current.stop();
     }
 
     if (state.audioStream) {
-      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌55555");
       state.audioStream.getTracks().forEach((track) => track.stop());
     }
 
     if (state.audioContext) {
-      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌66666");
       state.audioContext.close();
     }
 

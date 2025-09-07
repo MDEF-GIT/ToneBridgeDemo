@@ -58,12 +58,14 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 백엔드 연결 및 참조 파일 로딩
   useEffect(() => {
     loadReferenceFiles();
-    
-    // Set up pitch callback for audio recording
+  }, []); // 빈 의존성 배열로 한 번만 실행
+
+  // 🎯 피치 콜백 설정
+  useEffect(() => {
     audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
       pitchChart.addPitchData(frequency, timestamp, 'live');
     });
-  }, [audioRecording, pitchChart]);
+  }, []); // 빈 의존성 배열로 한 번만 설정
 
   // 🎯 참조 파일 로딩 (백엔드 API 호출)
   const loadReferenceFiles = async () => {
