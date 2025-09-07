@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from "react";
 
 interface AudioRecordingState {
   isRecording: boolean;
@@ -18,41 +18,43 @@ export const useAudioRecording = () => {
     analyser: null,
     error: null,
     recordedBlob: null,
-    isPlayingRecorded: false
+    isPlayingRecorded: false,
   });
 
   const animationFrameRef = useRef<number | undefined>(undefined);
-  const onPitchDataRef = useRef<((frequency: number, timestamp: number) => void) | null>(null);
+  const onPitchDataRef = useRef<
+    ((frequency: number, timestamp: number) => void) | null
+  >(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
-          sampleRate: 44100
-        } 
+          sampleRate: 44100,
+        },
       });
 
       const audioContext = new AudioContext({ sampleRate: 44100 });
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
-      
+
       analyser.fftSize = 4096;
       analyser.smoothingTimeConstant = 0.3;
       source.connect(analyser);
 
       // Setup MediaRecorder for file saving
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
+        mimeType: "audio/webm;codecs=opus",
       });
-      
+
       audioChunksRef.current = [];
-      
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
@@ -60,11 +62,13 @@ export const useAudioRecording = () => {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
-        setState(prev => ({
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+
+        setState((prev) => ({
           ...prev,
-          recordedBlob: audioBlob
+          recordedBlob: audioBlob,
         }));
 
         // Upload to backend
@@ -74,13 +78,13 @@ export const useAudioRecording = () => {
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // Record in 1-second chunks
 
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isRecording: true,
         audioStream: stream,
         audioContext,
         analyser,
-        error: null
+        error: null,
       }));
 
       // Start pitch detection
@@ -97,7 +101,7 @@ export const useAudioRecording = () => {
         analyser.getFloatTimeDomainData(timeDomainData);
 
         const frequency = autoCorrelate(timeDomainData, sampleRate);
-        
+
         if (frequency > 0 && onPitchDataRef.current) {
           onPitchDataRef.current(frequency, Date.now());
         }
@@ -106,75 +110,82 @@ export const useAudioRecording = () => {
       };
 
       detectPitch();
-
     } catch (error) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        error: `마이크 접근 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
+        error: `마이크 접근 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
       }));
     }
   }, []);
-
+  console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
   const stopRecording = useCallback(() => {
+    console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌2222");
     if (animationFrameRef.current) {
+      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌33333");
       cancelAnimationFrame(animationFrameRef.current);
     }
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌44444");
       mediaRecorderRef.current.stop();
     }
 
     if (state.audioStream) {
-      state.audioStream.getTracks().forEach(track => track.stop());
+      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌55555");
+      state.audioStream.getTracks().forEach((track) => track.stop());
     }
 
     if (state.audioContext) {
+      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌66666");
       state.audioContext.close();
     }
 
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       isRecording: false,
       audioStream: null,
       audioContext: null,
       analyser: null,
       error: null,
-      recordedBlob: null
+      recordedBlob: null,
     }));
   }, [state]);
 
   const uploadRecordedAudio = async (audioBlob: Blob) => {
     try {
       const formData = new FormData();
-      formData.append('audio_data', audioBlob, 'recording.webm');
-      formData.append('session_id', `session_${Date.now()}`);
+      formData.append("audio_data", audioBlob, "recording.webm");
+      formData.append("session_id", `session_${Date.now()}`);
 
-      const response = await fetch('/api/record_realtime', {
-        method: 'POST',
-        body: formData
+      const response = await fetch("/api/record_realtime", {
+        method: "POST",
+        body: formData,
       });
 
       if (response.ok) {
-        console.log('✅ 녹음 파일 업로드 성공');
+        console.log("✅ 녹음 파일 업로드 성공");
       } else {
-        console.error('❌ 녹음 파일 업로드 실패:', response.statusText);
+        console.error("❌ 녹음 파일 업로드 실패:", response.statusText);
       }
     } catch (error) {
-      console.error('❌ 업로드 중 오류:', error);
+      console.error("❌ 업로드 중 오류:", error);
     }
   };
 
   const playRecordedAudio = useCallback(() => {
     // 현재 상태 읽기 (클로저 문제 해결)
-    setState(currentState => {
+    setState((currentState) => {
       if (!currentState.recordedBlob) {
-        console.log('❌ 녹음된 음성이 없습니다');
+        console.log("❌ 녹음된 음성이 없습니다");
         return currentState;
       }
 
       // 현재 재생 중이면 정지
       if (currentState.isPlayingRecorded) {
-        console.log('🛑 녹음음성 재생 중지');
+        console.log("🛑 녹음음성 재생 중지");
         if (recordedAudioRef.current) {
           recordedAudioRef.current.pause();
           recordedAudioRef.current.currentTime = 0;
@@ -182,55 +193,58 @@ export const useAudioRecording = () => {
         }
         return { ...currentState, isPlayingRecorded: false };
       }
-
+      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌777");
       // 재생 시작
-      console.log('▶️ 녹음음성 재생 시작');
+      console.log("▶️ 녹음음성 재생 시작");
       try {
         const audioUrl = URL.createObjectURL(currentState.recordedBlob);
         const audio = new Audio(audioUrl);
-        
+
         recordedAudioRef.current = audio;
 
         audio.onended = () => {
-          console.log('🔚 녹음음성 재생 완료');
-          setState(prev => ({ ...prev, isPlayingRecorded: false }));
+          console.log("🔚 녹음음성 재생 완료");
+          setState((prev) => ({ ...prev, isPlayingRecorded: false }));
           recordedAudioRef.current = null;
           URL.revokeObjectURL(audioUrl);
         };
 
         audio.onerror = () => {
-          console.log('❌ 녹음음성 재생 오류');
-          setState(prev => ({ ...prev, isPlayingRecorded: false }));
+          console.log("❌ 녹음음성 재생 오류");
+          setState((prev) => ({ ...prev, isPlayingRecorded: false }));
           recordedAudioRef.current = null;
           URL.revokeObjectURL(audioUrl);
         };
 
         // 비동기 재생 시작
-        audio.play().catch(error => {
-          console.error('❌ 재생 실패:', error);
-          setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        audio.play().catch((error) => {
+          console.error("❌ 재생 실패:", error);
+          setState((prev) => ({ ...prev, isPlayingRecorded: false }));
           recordedAudioRef.current = null;
           URL.revokeObjectURL(audioUrl);
         });
 
         return { ...currentState, isPlayingRecorded: true };
       } catch (error) {
-        console.error('❌ 녹음음성 재생 실패:', error);
+        console.error("❌ 녹음음성 재생 실패:", error);
         return { ...currentState, isPlayingRecorded: false };
       }
     });
   }, []); // 의존성 제거 - setState 함수형 업데이트 사용
 
-  const setPitchCallback = useCallback((callback: (frequency: number, timestamp: number) => void) => {
-    onPitchDataRef.current = callback;
-  }, []);
+  const setPitchCallback = useCallback(
+    (callback: (frequency: number, timestamp: number) => void) => {
+      onPitchDataRef.current = callback;
+    },
+    [],
+  );
 
   return {
     ...state,
     startRecording,
     stopRecording,
     playRecordedAudio,
-    setPitchCallback
+    setPitchCallback,
   };
 };
 
@@ -249,18 +263,18 @@ function autoCorrelate(buffer: Float32Array, sampleRate: number): number {
     rms += val * val;
   }
   rms = Math.sqrt(rms / SIZE);
-  
+
   if (rms < 0.01) return -1;
 
   let lastCorrelation = 1;
   for (let offset = 1; offset < MAX_SAMPLES; offset++) {
     let correlation = 0;
     for (let i = 0; i < MAX_SAMPLES; i++) {
-      correlation += Math.abs((buffer[i]) - (buffer[i + offset]));
+      correlation += Math.abs(buffer[i] - buffer[i + offset]);
     }
-    correlation = 1 - (correlation / MAX_SAMPLES);
+    correlation = 1 - correlation / MAX_SAMPLES;
     correlations[offset] = correlation;
-    
+
     if (correlation > 0.9 && correlation > lastCorrelation) {
       foundGoodCorrelation = true;
       if (correlation > bestCorrelation) {
@@ -268,12 +282,14 @@ function autoCorrelate(buffer: Float32Array, sampleRate: number): number {
         bestOffset = offset;
       }
     } else if (foundGoodCorrelation) {
-      const shift = (correlations[bestOffset + 1] - correlations[bestOffset - 1]) / correlations[bestOffset];
-      return sampleRate / (bestOffset + (8 * shift));
+      const shift =
+        (correlations[bestOffset + 1] - correlations[bestOffset - 1]) /
+        correlations[bestOffset];
+      return sampleRate / (bestOffset + 8 * shift);
     }
     lastCorrelation = correlation;
   }
-  
+
   if (bestCorrelation > 0.01) {
     return sampleRate / bestOffset;
   }
