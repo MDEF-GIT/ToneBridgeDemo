@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
-import ChartControls from './components/ChartControls';
-import PitchTestMode from './components/PitchTestMode';
+// 임시 비활성화
+// import ChartControls from './components/ChartControls';
+// import PitchTestMode from './components/PitchTestMode';
 import './custom.css';
 
 // Types
@@ -514,13 +515,7 @@ const VoiceAnalysisApp: React.FC = () => {
                 <i className="fas fa-chart-line me-2"></i>실시간 음성 분석
               </h5>
               <div className="d-flex gap-2">
-                {/* 🎯 새로운 차트 컨트롤 */}
-                <ChartControls 
-                  chartInstance={pitchChart.chartInstance}
-                  onZoom={(factor, range) => console.log('Chart zoomed:', factor, range)}
-                  onScroll={(direction, range) => console.log('Chart scrolled:', direction, range)}
-                  onReset={() => console.log('Chart reset')}
-                />
+                {/* 🎯 새로운 차트 컨트롤 - 임시 비활성화 */}
                 <button 
                   className="btn btn-outline-secondary btn-sm" 
                   onClick={pitchChart.clearChart}
@@ -539,16 +534,7 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           </div>
 
-          {/* 🎯 피치 테스트 모드 */}
-          {selectedSentence && (
-            <PitchTestMode
-              chartInstance={pitchChart.chartInstance}
-              isActive={false}
-              onStart={() => console.log('피치 테스트 시작')}
-              onStop={() => console.log('피치 테스트 중지')}
-              onTargetHit={(accuracy) => console.log('타겟 적중:', accuracy)}
-            />
-          )}
+          {/* 🎯 피치 테스트 모드 - 임시 비활성화 */}
 
           {/* 제어 버튼들 */}
           <div className="card mb-4">
