@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { YINPitchDetector, PitchResult } from '../utils/pitchAnalysis';
+import { AudioPlaybackController } from '../utils/audioUtils';
 
 interface AudioRecordingState {
   isRecording: boolean;
@@ -8,6 +10,9 @@ interface AudioRecordingState {
   error: string | null;
   recordedBlob: Blob | null;
   isPlayingRecorded: boolean;
+  // 🎯 새로운 고급 피치 분석 상태
+  advancedPitchData: PitchResult[];
+  currentPitchConfidence: number;
 }
 
 export const useAudioRecording = () => {
@@ -19,6 +24,9 @@ export const useAudioRecording = () => {
     error: null,
     recordedBlob: null,
     isPlayingRecorded: false,
+    // 🎯 새로운 고급 피치 분석 상태
+    advancedPitchData: [],
+    currentPitchConfidence: 0,
   });
 
   const animationFrameRef = useRef<number | undefined>(undefined);
@@ -28,6 +36,10 @@ export const useAudioRecording = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // 🎯 새로운 고급 피치 분석 엔진
+  const yinDetectorRef = useRef<YINPitchDetector | null>(null);
+  const audioPlaybackRef = useRef<AudioPlaybackController>(new AudioPlaybackController());
 
   // 🎯 상태 변화 추적 로그
   useEffect(() => {
@@ -56,6 +68,13 @@ export const useAudioRecording = () => {
       analyser.fftSize = 4096;
       analyser.smoothingTimeConstant = 0.3;
       source.connect(analyser);
+      
+      // 🎯 고급 YIN 피치 검출기 초기화
+      yinDetectorRef.current = new YINPitchDetector(audioContext.sampleRate, {
+        frameMs: 25,
+        confidenceThreshold: 0.6,
+        voicingThreshold: 0.45
+      });
 
       // Setup MediaRecorder for file saving
       const mediaRecorder = new MediaRecorder(stream, {
@@ -78,6 +97,9 @@ export const useAudioRecording = () => {
         setState((prev) => ({
           ...prev,
           recordedBlob: audioBlob,
+          // 🎯 피치 분석 데이터 초기화
+          advancedPitchData: [],
+          currentPitchConfidence: 0,
         }));
 
         // Upload to backend
@@ -192,7 +214,7 @@ export const useAudioRecording = () => {
       'state.recordedBlob': !!state.recordedBlob,
       'state.isPlayingRecorded': state.isPlayingRecorded,
       'state.isRecording': state.isRecording,
-      'recordedAudioRef.current': !!recordedAudioRef.current
+      'audioPlaybackController': !!audioPlaybackRef.current
     });
     
     // 현재 상태 확인
@@ -202,22 +224,11 @@ export const useAudioRecording = () => {
     }
     console.log("✅ [STEP 2.2] 녹음된 음성 존재 확인됨");
 
-    // 현재 재생 중이면 정지
+    // 현재 재생 중이면 정지 (새로운 AudioPlaybackController 사용)
     if (state.isPlayingRecorded) {
-      console.log("🛑 [STEP 2.3] 현재 재생 중 - 중지 프로세스 시작");
+      console.log("🛑 [STEP 2.3] 현재 재생 중 - 새로운 컨트롤러로 중지");
       
-      if (recordedAudioRef.current) {
-        console.log("🛑 [STEP 2.3.1] 오디오 레퍼런스 존재 - pause() 호출");
-        recordedAudioRef.current.pause();
-        
-        console.log("🛑 [STEP 2.3.2] currentTime = 0 설정");
-        recordedAudioRef.current.currentTime = 0;
-        
-        console.log("🛑 [STEP 2.3.3] 레퍼런스 null로 설정");
-        recordedAudioRef.current = null;
-      } else {
-        console.log("⚠️ [STEP 2.3.1] 오디오 레퍼런스가 null임");
-      }
+      audioPlaybackRef.current.stop();
       
       console.log("🛑 [STEP 2.3.4] setState로 isPlayingRecorded: false 설정");
       setState(prev => {
@@ -230,61 +241,28 @@ export const useAudioRecording = () => {
     }
     console.log("✅ [STEP 2.3] 현재 재생 중이 아님 - 재생 시작 프로세스로 진행");
 
-    // 재생 시작
-    console.log("▶️ [STEP 2.4] 녹음음성 재생 시작 프로세스");
+    // 새로운 AudioPlaybackController로 재생 시작
+    console.log("▶️ [STEP 2.4] 새로운 오디오 컨트롤러로 재생 시작");
     try {
-      console.log("▶️ [STEP 2.4.1] URL.createObjectURL() 호출");
-      const audioUrl = URL.createObjectURL(state.recordedBlob);
-      console.log("▶️ [STEP 2.4.2] 오디오 URL 생성 완료:", audioUrl.substring(0, 50) + '...');
-      
-      console.log("▶️ [STEP 2.4.3] new Audio() 객체 생성");
-      const audio = new Audio(audioUrl);
-      console.log("▶️ [STEP 2.4.4] 오디오 객체 생성 완료");
-
-      console.log("▶️ [STEP 2.4.5] recordedAudioRef.current에 오디오 객체 할당");
-      recordedAudioRef.current = audio;
-
-      console.log("▶️ [STEP 2.4.6] 이벤트 리스너 설정 시작");
-      audio.onended = () => {
-        console.log("🔚 [EVENT] 녹음음성 재생 완료 이벤트 발생");
+      audioPlaybackRef.current.play(state.recordedBlob, () => {
+        console.log("🔚 [EVENT] 새로운 컨트롤러 - 재생 완료 이벤트");
         setState(prev => {
           console.log("🔚 [EVENT] setState로 isPlayingRecorded: false 설정");
           return { ...prev, isPlayingRecorded: false };
         });
-        recordedAudioRef.current = null;
-        URL.revokeObjectURL(audioUrl);
-        console.log("🔚 [EVENT] 정리 작업 완료");
-      };
-
-      audio.onerror = (event) => {
-        console.log("❌ [EVENT] 녹음음성 재생 오류 이벤트 발생:", event);
-        setState(prev => {
-          console.log("❌ [EVENT] setState로 isPlayingRecorded: false 설정");
-          return { ...prev, isPlayingRecorded: false };
-        });
-        recordedAudioRef.current = null;
-        URL.revokeObjectURL(audioUrl);
-        console.log("❌ [EVENT] 오류 정리 작업 완료");
-      };
-      console.log("▶️ [STEP 2.4.7] 이벤트 리스너 설정 완료");
-
-      // 비동기 재생 시작
-      console.log("▶️ [STEP 2.4.8] audio.play() 호출 시작");
-      audio.play().then(() => {
-        console.log("✅ [STEP 2.4.9] audio.play() 성공 - 재생 시작됨");
+      }).then(() => {
+        console.log("✅ [STEP 2.4.9] 새로운 컨트롤러 재생 성공");
         setState(prev => {
           console.log("✅ [STEP 2.4.10] setState로 isPlayingRecorded: true 설정");
           return { ...prev, isPlayingRecorded: true };
         });
         console.log("✅ [STEP 2.4.11] 재생 시작 프로세스 완료");
       }).catch((error) => {
-        console.error("❌ [STEP 2.4.9] audio.play() 실패:", error);
+        console.error("❌ [STEP 2.4.9] 새로운 컨트롤러 재생 실패:", error);
         setState(prev => {
           console.log("❌ [STEP 2.4.10] setState로 isPlayingRecorded: false 설정");
           return { ...prev, isPlayingRecorded: false };
         });
-        recordedAudioRef.current = null;
-        URL.revokeObjectURL(audioUrl);
         console.log("❌ [STEP 2.4.11] 재생 실패 정리 작업 완료");
       });
 

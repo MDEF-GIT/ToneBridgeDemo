@@ -331,7 +331,7 @@ export class AudioPlaybackController {
    * 현재 재생 중인지 확인
    */
   public get isPlaying(): boolean {
-    return this.audioElement && !this.audioElement.paused;
+    return !!(this.audioElement && !this.audioElement.paused);
   }
   
   private cleanup(): void {
