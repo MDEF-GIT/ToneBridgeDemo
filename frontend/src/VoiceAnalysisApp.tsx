@@ -43,7 +43,7 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 Refs
   const chartRef = useRef<HTMLCanvasElement>(null);
   
-  // 🎯 Hooks
+  // 🎯 Hooks  
   const audioRecording = useAudioRecording();
   const pitchChart = usePitchChart(chartRef);
 
@@ -74,10 +74,14 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 초기화
   useEffect(() => {
     loadReferenceFiles();
-    audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
-      pitchChart.addPitchData(frequency, timestamp, 'live');
-    });
-  }, []);
+    if (audioRecording && audioRecording.setPitchCallback) {
+      audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
+        if (pitchChart && pitchChart.addPitchData) {
+          pitchChart.addPitchData(frequency, timestamp, 'live');
+        }
+      });
+    }
+  }, [audioRecording, pitchChart]);
 
   // 🎯 참조 파일 로딩
   const loadReferenceFiles = async () => {

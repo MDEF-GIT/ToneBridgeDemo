@@ -38,10 +38,16 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const startTimeRef = useRef<number>(0);
 
   const initChart = useCallback(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef || !canvasRef.current) {
+      console.warn('⚠️ Canvas ref not available');
+      return;
+    }
 
     const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('⚠️ Canvas context not available');
+      return;
+    }
 
     // Destroy existing chart
     if (chartRef.current) {
