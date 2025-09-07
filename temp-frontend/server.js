@@ -77,6 +77,37 @@ app.get('/', (req, res) => {
             border-radius: 6px;
             color: #2d5e2d;
         }
+        .actions {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 0 10px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .btn-secondary:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .service-frame { height: 600px; }
@@ -95,10 +126,25 @@ app.get('/', (req, res) => {
             ✅ 서비스 연결됨 | API: localhost:8000 | Client: localhost:5000
         </div>
         
+        <div class="actions">
+            <h3 style="margin-bottom: 15px; color: #495057;">🚀 ToneBridge 앱 실행</h3>
+            <a href="/tonebridge-app" target="_blank" class="btn">
+                🎯 새 창에서 열기
+            </a>
+            <a href="http://localhost:8000" target="_blank" class="btn btn-secondary">
+                🔧 Backend API 직접 접근
+            </a>
+            <button onclick="toggleIframe()" class="btn btn-secondary">
+                📱 임베드 토글
+            </button>
+        </div>
+        
         <iframe 
+            id="tonebridge-frame"
             src="/tonebridge-app" 
             class="service-frame"
-            title="ToneBridge Voice Analysis App">
+            title="ToneBridge Voice Analysis App"
+            style="display: block;">
         </iframe>
     </div>
 
@@ -119,6 +165,16 @@ app.get('/', (req, res) => {
         
         // 5초마다 헬스체크
         setInterval(checkServiceStatus, 5000);
+        
+        // iframe 토글 기능
+        window.toggleIframe = function() {
+            const frame = document.getElementById('tonebridge-frame');
+            if (frame.style.display === 'none') {
+                frame.style.display = 'block';
+            } else {
+                frame.style.display = 'none';
+            }
+        };
     </script>
 </body>
 </html>
