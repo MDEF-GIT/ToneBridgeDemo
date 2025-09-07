@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -33,11 +33,11 @@ interface PitchData {
 }
 
 export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>) => {
-  const chartRef = useRef<ChartJS | null>(null);
-  const pitchDataRef = useRef<PitchData[]>([]);
-  const startTimeRef = useRef<number>(0);
+  const chartRef = React.useRef<ChartJS | null>(null);
+  const pitchDataRef = React.useRef<PitchData[]>([]);
+  const startTimeRef = React.useRef<number>(0);
 
-  const initChart = useCallback(() => {
+  const initChart = React.useCallback(() => {
     if (!canvasRef || !canvasRef.current) {
       console.warn('⚠️ Canvas ref not available');
       return;
@@ -132,7 +132,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     });
   }, [canvasRef]);
 
-  const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
+  const addPitchData = React.useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
     if (!chartRef.current) return;
 
     if (startTimeRef.current === 0) {
@@ -166,7 +166,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     chart.update('none'); // Update without animation for real-time performance
   }, []);
 
-  const clearChart = useCallback(() => {
+  const clearChart = React.useCallback(() => {
     if (!chartRef.current) return;
 
     chartRef.current.data.datasets.forEach(dataset => {
@@ -183,7 +183,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     chartRef.current.update();
   }, []);
 
-  const loadReferenceData = useCallback(async (fileId: string) => {
+  const loadReferenceData = React.useCallback(async (fileId: string) => {
     try {
       // Load reference pitch data from backend
       const response = await fetch(`/api/reference_files/${fileId}/pitch`);
@@ -205,7 +205,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     }
   }, [addPitchData]);
 
-  const resetForNewRecording = useCallback(() => {
+  const resetForNewRecording = React.useCallback(() => {
     if (!chartRef.current) return;
 
     // Clear only live data, keep reference data
@@ -218,7 +218,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     chartRef.current.update();
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     initChart();
     
     return () => {
