@@ -23,13 +23,13 @@ args = "ToneBridge Client"
 name = "ToneBridge Backend"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd backend && uvicorn backend_server:app --host 0.0.0.0 --port 8000 --reload"
 waitForPort = 8000
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow]]
 name = "ToneBridge Client"
@@ -46,6 +46,10 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
 
 [nix]
 channel = "stable-25_05"
