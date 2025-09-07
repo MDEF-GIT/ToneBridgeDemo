@@ -48,7 +48,7 @@ const VoiceAnalysisApp: React.FC = () => {
     audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
       pitchChart.addPitchData(frequency, timestamp, 'live');
     });
-  }, []); // 빈 의존성 배열 - 컴포넌트 마운트 시에만 실행
+  }, [audioRecording, pitchChart]); // audioRecording과 pitchChart 의존성 추가
 
   // Clean up audio when component unmounts or selectedSentence changes
   useEffect(() => {
