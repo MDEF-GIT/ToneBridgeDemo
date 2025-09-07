@@ -218,6 +218,129 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     chartRef.current.update();
   }, []);
 
+  // 🎯 Y축 피치 조정 (오리지널 기능)
+  const adjustPitch = useCallback((direction: 'up' | 'down') => {
+    if (!chartRef.current) return;
+
+    const yScale = chartRef.current.options.scales?.y;
+    if (!yScale || typeof yScale.min !== 'number' || typeof yScale.max !== 'number') return;
+
+    const range = yScale.max - yScale.min;
+    const step = range * 0.1; // 10% 이동
+
+    if (direction === 'up') {
+      yScale.min += step;
+      yScale.max += step;
+    } else {
+      yScale.min -= step;
+      yScale.max -= step;
+    }
+
+    chartRef.current.update('none');
+    console.log(`🎯 피치 ${direction === 'up' ? '위로' : '아래로'} 조정:`, {
+      min: yScale.min.toFixed(1),
+      max: yScale.max.toFixed(1)
+    });
+  }, []);
+
+  // 🎯 피치 위치 초기화
+  const resetPitch = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const yScale = chartRef.current.options.scales?.y;
+    if (!yScale) return;
+
+    yScale.min = 50;
+    yScale.max = 500;
+
+    chartRef.current.update('none');
+    console.log('🔄 피치 위치 초기화: 50-500Hz');
+  }, []);
+
+  // 🎯 차트 확대/축소
+  const zoomIn = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const xScale = chartRef.current.options.scales?.x;
+    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
+
+    const center = (xScale.max + xScale.min) / 2;
+    const range = xScale.max - xScale.min;
+    const newRange = range * 0.8; // 20% 확대
+
+    xScale.min = center - newRange / 2;
+    xScale.max = center + newRange / 2;
+
+    chartRef.current.update('none');
+    console.log('🔍 확대:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const xScale = chartRef.current.options.scales?.x;
+    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
+
+    const center = (xScale.max + xScale.min) / 2;
+    const range = xScale.max - xScale.min;
+    const newRange = range * 1.25; // 25% 축소
+
+    xScale.min = Math.max(0, center - newRange / 2);
+    xScale.max = center + newRange / 2;
+
+    chartRef.current.update('none');
+    console.log('🔍 축소:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
+  }, []);
+
+  // 🎯 좌우 스크롤
+  const scrollLeft = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const xScale = chartRef.current.options.scales?.x;
+    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
+
+    const range = xScale.max - xScale.min;
+    const step = range * 0.1; // 10% 이동
+
+    if (xScale.min > step) {
+      xScale.min -= step;
+      xScale.max -= step;
+      
+      chartRef.current.update('none');
+      console.log('⬅️ 왼쪽 스크롤:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
+    }
+  }, []);
+
+  const scrollRight = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const xScale = chartRef.current.options.scales?.x;
+    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
+
+    const range = xScale.max - xScale.min;
+    const step = range * 0.1; // 10% 이동
+
+    xScale.min += step;
+    xScale.max += step;
+
+    chartRef.current.update('none');
+    console.log('➡️ 오른쪽 스크롤:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
+  }, []);
+
+  // 🎯 전체 보기 리셋
+  const resetView = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const xScale = chartRef.current.options.scales?.x;
+    if (!xScale) return;
+
+    xScale.min = 0;
+    xScale.max = 10;
+
+    chartRef.current.update('none');
+    console.log('🔄 전체 보기 리셋: 0-10초');
+  }, []);
+
   useEffect(() => {
     initChart();
     
@@ -235,6 +358,14 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     resetForNewRecording,
     pitchData: pitchDataRef.current,
     // 🎯 차트 인스턴스 노출 (ChartControls에서 사용)
-    chartInstance: chartRef.current
+    chartInstance: chartRef.current,
+    // 🎯 새로 추가된 컨트롤 기능들
+    adjustPitch,
+    resetPitch,
+    zoomIn,
+    zoomOut,
+    scrollLeft,
+    scrollRight,
+    resetView
   };
 };

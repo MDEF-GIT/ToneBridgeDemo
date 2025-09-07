@@ -730,7 +730,7 @@ const VoiceAnalysisApp: React.FC = () => {
                           className="btn btn-sm btn-outline-success" 
                           title="그래프를 아래로 이동" 
                           style={{borderColor: '#4caf50', color: '#4caf50'}}
-                          onClick={() => console.log('pitch down')}
+                          onClick={() => pitchChart.adjustPitch('down')}
                         >
                           <i className="fas fa-arrow-down"></i>
                         </button>
@@ -738,14 +738,14 @@ const VoiceAnalysisApp: React.FC = () => {
                           className="btn btn-sm btn-outline-success" 
                           title="그래프를 위로 이동" 
                           style={{borderColor: '#4caf50', color: '#4caf50'}}
-                          onClick={() => console.log('pitch up')}
+                          onClick={() => pitchChart.adjustPitch('up')}
                         >
                           <i className="fas fa-arrow-up"></i>
                         </button>
                         <button 
                           className="btn btn-sm btn-outline-secondary" 
                           title="그래프 위치 초기화"
-                          onClick={() => console.log('pitch reset')}
+                          onClick={() => pitchChart.resetPitch()}
                         >
                           <i className="fas fa-undo"></i>
                         </button>
@@ -760,35 +760,35 @@ const VoiceAnalysisApp: React.FC = () => {
                     <button 
                       className="btn btn-sm btn-outline-primary" 
                       title="확대 (마우스 휠로도 가능)"
-                      onClick={() => console.log('zoom in')}
+                      onClick={() => pitchChart.zoomIn()}
                     >
                       <i className="fas fa-search-plus"></i>
                     </button>
                     <button 
                       className="btn btn-sm btn-outline-primary" 
                       title="축소 (마우스 휠로도 가능)"
-                      onClick={() => console.log('zoom out')}
+                      onClick={() => pitchChart.zoomOut()}
                     >
                       <i className="fas fa-search-minus"></i>
                     </button>
                     <button 
                       className="btn btn-sm btn-outline-info" 
                       title="왼쪽으로 스크롤"
-                      onClick={() => console.log('scroll left')}
+                      onClick={() => pitchChart.scrollLeft()}
                     >
                       <i className="fas fa-chevron-left"></i>
                     </button>
                     <button 
                       className="btn btn-sm btn-outline-info" 
                       title="오른쪽으로 스크롤"
-                      onClick={() => console.log('scroll right')}
+                      onClick={() => pitchChart.scrollRight()}
                     >
                       <i className="fas fa-chevron-right"></i>
                     </button>
                     <button 
                       className="btn btn-sm btn-outline-secondary" 
                       title="전체 보기로 리셋"
-                      onClick={() => console.log('reset view')}
+                      onClick={() => pitchChart.resetView()}
                     >
                       <i className="fas fa-expand-arrows-alt"></i>
                     </button>
