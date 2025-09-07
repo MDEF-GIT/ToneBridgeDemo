@@ -128,11 +128,11 @@ app.get('/', (req, res) => {
         
         <div class="actions">
             <h3 style="margin-bottom: 15px; color: #495057;">🚀 ToneBridge 앱 실행</h3>
-            <a href="/tonebridge-app" target="_blank" class="btn">
+            <a href="javascript:openToneBridge()" class="btn">
                 🎯 새 창에서 열기
             </a>
-            <a href="http://localhost:8000" target="_blank" class="btn btn-secondary">
-                🔧 Backend API 직접 접근
+            <a href="/api/docs" target="_blank" class="btn btn-secondary">
+                🔧 Backend API 문서
             </a>
             <button onclick="toggleIframe()" class="btn btn-secondary">
                 📱 임베드 토글
@@ -175,15 +175,31 @@ app.get('/', (req, res) => {
                 frame.style.display = 'none';
             }
         };
+        
+        // ToneBridge 앱을 새 창에서 열기 (프록시를 통해)
+        window.openToneBridge = function() {
+            // 현재 주소에서 새 창으로 앱 열기
+            const baseUrl = window.location.origin;
+            const newWindow = window.open(\`\${baseUrl}/tonebridge-app\`, '_blank', 'width=1200,height=800');
+            if (!newWindow) {
+                alert('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+            }
+        };
     </script>
 </body>
 </html>
   `);
 });
 
-// ToneBridge 앱 페이지 제공 
+// ToneBridge 앱 페이지 프록시
 app.get('/tonebridge-app', (req, res) => {
-  res.redirect('http://localhost:8000/');
+  // 직접 리다이렉트 대신 프록시로 전달
+  req.url = '/';
+  createProxyMiddleware({
+    target: 'http://localhost:8000',
+    changeOrigin: true,
+    followRedirects: true
+  })(req, res);
 });
 
 // 서버 시작
