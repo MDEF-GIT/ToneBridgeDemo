@@ -7,6 +7,8 @@ import { Link } from 'react-router-dom';
 import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './types/api';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
+// import { PitchTestMode } from './components/PitchTestMode';
+// import { ChartControls } from './components/ChartControls';
 import './custom.css';
 
 const VoiceAnalysisApp: React.FC = () => {

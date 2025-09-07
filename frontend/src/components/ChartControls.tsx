@@ -6,7 +6,7 @@
  * Lines: 448-593 in backend/static/js/audio-analysis.js
  */
 
-import React, { useRef, useEffect } from 'react';
+import * as React from 'react';
 import { Chart as ChartJS } from 'chart.js';
 
 interface ChartControlsProps {
@@ -37,7 +37,7 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   onReset,
   className = ''
 }) => {
-  const viewStateRef = useRef<ChartViewState>({
+  const viewStateRef = React.useRef<ChartViewState>({
     currentZoom: 1,
     minX: 0,
     maxX: 100,
@@ -47,7 +47,7 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   });
 
   // 차트 인스턴스 변경 시 원본 범위 저장
-  useEffect(() => {
+  React.useEffect(() => {
     if (chartInstance && chartInstance.data.datasets.length > 0) {
       const dataset = chartInstance.data.datasets[0];
       if (dataset.data.length > 0) {
@@ -203,7 +203,7 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   };
 
   // 키보드 단축키 처리
-  useEffect(() => {
+  React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!chartInstance) return;
       
