@@ -253,7 +253,12 @@ const VoiceAnalysisApp: React.FC = () => {
             <div className="col-lg-10">
 
           {/* 🎯 개인화 코칭 설문 CTA */}
-          <div className="alert alert-primary d-flex align-items-center mb-4 survey-cta">
+          <div className="alert d-flex align-items-center mb-4 survey-cta" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: 'none',
+            borderRadius: '15px',
+            boxShadow: '0 5px 15px rgba(102, 126, 234, 0.3)'
+          }}>
             <div className="flex-grow-1 text-white">
               <div className="d-flex align-items-center mb-2">
                 <i className="fas fa-graduation-cap fa-2x me-3" style={{color: '#ffd700'}}></i>
@@ -289,7 +294,12 @@ const VoiceAnalysisApp: React.FC = () => {
           </div>
 
           {/* 🎯 휴대폰 가로보기 안내 */}
-          <div className="alert border-0 text-center mb-4 mobile-warning shake-animation">
+          <div className="alert text-center mb-4 mobile-warning shake-animation" style={{
+            background: 'linear-gradient(135deg, #ff9a56 0%, #ff6b9d 100%)',
+            border: 'none',
+            borderRadius: '20px',
+            boxShadow: '0 4px 12px rgba(255, 154, 86, 0.4)'
+          }}>
             <div className="d-flex align-items-center justify-content-center">
               <i 
                 className="fas fa-mobile-alt me-2 bounce-animation" 
@@ -761,7 +771,11 @@ const VoiceAnalysisApp: React.FC = () => {
           )}
 
           {/* 🎯 하단 연락처 섹션 */}
-          <div className="mt-5 py-4 contact-section">
+          <div className="mt-5 py-4 contact-section" style={{
+            background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+            borderRadius: '15px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}>
             <div className="container">
               <div className="row align-items-center">
                 <div className="col-md-8">
