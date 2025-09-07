@@ -1,0 +1,49 @@
+✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🔍 Google Analytics 초기화 완료 - ID: G-56D78RCESE
+Console.js:61 📊 GA 페이지뷰 이벤트 전송: 음성 분석 - ToneBridge
+Console.js:61 TypeError: Cannot read properties of null (reading 'useRef')
+    at t.useRef (react.production.min.js:25:337)
+    at mt (chunk-PVWAREVJ.mjs:9056:20)
+    at Sa (react-dom.production.min.js:167:137)
+    at Sl (react-dom.production.min.js:290:337)
+    at xc (react-dom.production.min.js:280:389)
+    at yc (react-dom.production.min.js:280:320)
+    at bc (react-dom.production.min.js:280:180)
+    at ac (react-dom.production.min.js:271:88)
+    at oc (react-dom.production.min.js:268:429)
+    at _ (scheduler.production.min.js:13:203)
+Mt.forEach.n.<computed> @ Console.js:61
+hs @ react-dom.production.min.js:189
+n.callback @ react-dom.production.min.js:189
+Fo @ react-dom.production.min.js:144
+wl @ react-dom.production.min.js:262
+xl @ react-dom.production.min.js:260
+vl @ react-dom.production.min.js:259
+(anonymous) @ react-dom.production.min.js:283
+_c @ react-dom.production.min.js:281
+oc @ react-dom.production.min.js:270
+_ @ scheduler.production.min.js:13
+T @ scheduler.production.min.js:14Understand this error
+react.production.min.js:25 Uncaught TypeError: Cannot read properties of null (reading 'useRef')
+    at t.useRef (react.production.min.js:25:337)
+    at mt (chunk-PVWAREVJ.mjs:9056:20)
+    at Sa (react-dom.production.min.js:167:137)
+    at Sl (react-dom.production.min.js:290:337)
+    at xc (react-dom.production.min.js:280:389)
+    at yc (react-dom.production.min.js:280:320)
+    at bc (react-dom.production.min.js:280:180)
+    at ac (react-dom.production.min.js:271:88)
+    at oc (react-dom.production.min.js:268:429)
+    at _ (scheduler.production.min.js:13:203)
+t.useRef @ react.production.min.js:25
+mt @ chunk-PVWAREVJ.mjs:9056
+Sa @ react-dom.production.min.js:167
+Sl @ react-dom.production.min.js:290
+xc @ react-dom.production.min.js:280
+yc @ react-dom.production.min.js:280
+bc @ react-dom.production.min.js:280
+ac @ react-dom.production.min.js:271
+oc @ react-dom.production.min.js:268
+_ @ scheduler.production.min.js:13
+T @ scheduler.production.min.js:14Understand this error
+Console.js:61 🎯 Chart.js annotation 플러그인이 이미 등록되어 있습니다
