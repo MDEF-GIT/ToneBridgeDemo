@@ -31,6 +31,10 @@ const VoiceAnalysisApp: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
+  
+  // 🎯 파일 업로드 상태
+  const [uploadedWavFile, setUploadedWavFile] = useState<File | null>(null);
+  const [uploadedTextGridFile, setUploadedTextGridFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [syllableData, setSyllableData] = useState<SyllableData[]>([]);
   
@@ -181,6 +185,57 @@ const VoiceAnalysisApp: React.FC = () => {
       setStatus('🔊 참조 음성을 재생합니다.');
     }
   }, [selectedFile, API_BASE]);
+
+  // 📝 커스텀 파일 분석 처리
+  const handleCustomFileAnalysis = useCallback(async () => {
+    if (!uploadedWavFile || !uploadedTextGridFile) {
+      alert('WAV 파일과 TextGrid 파일을 모두 선택해주세요.');
+      return;
+    }
+
+    setIsLoading(true);
+    setStatus('커스텀 파일을 분석 중입니다...');
+
+    try {
+      const formData = new FormData();
+      formData.append('wav', uploadedWavFile);
+      formData.append('textgrid', uploadedTextGridFile);
+
+      // 🔄 학습자 정보 추가 (임시 고정값)
+      formData.append('learner_gender', 'female'); // 기본값, 나중에 사용자 입력으로 변경 가능
+      formData.append('sentence', ''); // 빈 문장 (TextGrid에서 추출됨)
+
+      const response = await fetch(`${API_BASE}/api/analyze_ref`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data && data.pitch_data) {
+        pitchChart.clearChart();
+        
+        // 🎯 TextGrid 시간 정보를 사용한 정확한 차트 렌더링
+        data.pitch_data.forEach((point: [number, number]) => {
+          pitchChart.addPitchData(point[1], point[0], 'reference');
+        });
+        
+        // 음절 데이터 업데이트
+        if (data.syllables) {
+          setSyllableData(data.syllables);
+          setShowSyllableAnalysis(true);
+        }
+        
+        setAnalysisResult(data);
+        setStatus('커스텀 파일 분석 완료! 정확한 TextGrid 정렬로 차트가 그려졌습니다.');
+      }
+    } catch (error) {
+      console.error('❌ 커스텀 파일 분석 실패:', error);
+      setStatus('커스텀 파일 분석에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [uploadedWavFile, uploadedTextGridFile, pitchChart, API_BASE]);
   
   // 🎯 차트 범위 업데이트
   const updateChartRange = useCallback(() => {
@@ -613,6 +668,92 @@ const VoiceAnalysisApp: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* 📝 커스텀 파일 업로드 섹션 */}
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className="card border-warning">
+                <div className="card-header bg-warning bg-opacity-10">
+                  <h5 className="mb-0 text-warning">
+                    <i className="fas fa-upload me-2"></i>
+                    커스텀 파일 업로드 (고급 사용자)
+                  </h5>
+                </div>
+                <div className="card-body">
+                  <div className="alert alert-warning">
+                    <i className="fas fa-exclamation-triangle me-2"></i>
+                    <strong>중요:</strong> WAV 파일과 TextGrid 파일을 모두 업로드해야 정확한 차트 정렬이 가능합니다.
+                  </div>
+                  
+                  <div className="row">
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">
+                          <i className="fas fa-file-audio me-2"></i>
+                          WAV 파일
+                        </label>
+                        <input
+                          type="file"
+                          className="form-control"
+                          accept=".wav"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setUploadedWavFile(file);
+                            if (file) {
+                              console.log('🎧 WAV 파일 선택:', file.name);
+                            }
+                          }}
+                        />
+                        {uploadedWavFile && (
+                          <small className="text-success">
+                            <i className="fas fa-check me-1"></i>
+                            {uploadedWavFile.name}
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="mb-3">
+                        <label className="form-label">
+                          <i className="fas fa-file-alt me-2"></i>
+                          TextGrid 파일
+                        </label>
+                        <input
+                          type="file"
+                          className="form-control"
+                          accept=".TextGrid,.textgrid"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setUploadedTextGridFile(file);
+                            if (file) {
+                              console.log('🗒️ TextGrid 파일 선택:', file.name);
+                            }
+                          }}
+                        />
+                        {uploadedTextGridFile && (
+                          <small className="text-success">
+                            <i className="fas fa-check me-1"></i>
+                            {uploadedTextGridFile.name}
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <button
+                      className="btn btn-warning btn-lg"
+                      disabled={!uploadedWavFile || !uploadedTextGridFile || isLoading}
+                      onClick={handleCustomFileAnalysis}
+                    >
+                      <i className="fas fa-chart-line me-2"></i>
+                      커스텀 파일 분석 시작
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* 🎯 상태 메시지 */}
           <div className="mb-3">
