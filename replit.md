@@ -93,3 +93,69 @@ Preferred communication style: Simple, everyday language.
 - **Node.js**: Version 16+ for React development and build processes
 - **Browser Compatibility**: Modern browsers with WebRTC support for audio capture
 - **Audio Hardware**: Microphone access required for real-time analysis features
+
+## HTML Template Analysis and React Implementation Strategy
+
+### Template Inheritance Hierarchy
+```
+base.html (Master Template)
+├── index.html (Main Learning Platform - COMPLETE FEATURES)
+├── react-complete-voice-analysis.html (React-style Demo)
+└── survey.html (User Feedback Collection)
+```
+
+### Core Features from index.html (Target for React Implementation)
+1. **Personalized Coaching Survey CTA** - Gradient banner with badges and survey link
+2. **Mobile Landscape Orientation Guide** - Animated warning for mobile users  
+3. **Learner Information Input** - Name, gender (required), age group forms
+4. **Learning Method Selection** - Pitch learning vs Reference intonation learning with detailed guides
+5. **Practice Sentence Selection & Video Guide** - 10 prepared sentences with instructional video
+6. **Real-time Analysis Chart** - Advanced Chart.js with controls (zoom, scroll, key adjustment)
+7. **Syllable Analysis Table** - Detailed breakdown with prosodic measurements
+8. **Gender Selection Modal** - Bootstrap modal for voice calibration
+
+### Technical Implementation References from react-complete-voice-analysis.html
+- **MediaRecorder API**: Real-time audio capture and processing
+- **FormData Handling**: File uploads (audio + TextGrid)
+- **Backend Integration**: Fetch API calls to Python FastAPI endpoints
+- **Chart.js Integration**: Canvas-based pitch visualization
+- **Error Handling**: Comprehensive try-catch with user feedback
+
+### Missing Assets and Dependencies
+- **CSS**: `/static/css/custom.css` (referenced but not found)
+- **JavaScript**: `/static/js/audio-analysis.js` (referenced but not found)
+- **Media Files**: 
+  - `/static/images/video-thumbnail.jpg` ✓ (exists)
+  - `/static/videos/tonebridge_guide.mp4` ✓ (exists)
+- **Reference Files**: 10 audio files with TextGrid annotations ✓ (exists)
+
+### API Endpoint Mapping
+```
+index.html: API_BASE = "" (relative paths)
+react-complete: API_BASE = "http://localhost:8000" (absolute paths)
+React App Target: Configurable API_BASE for both development and production
+```
+
+### Animation and Styling Requirements
+- **CSS Animations**: `shake`, `bounce` for mobile warning
+- **Gradient Backgrounds**: Linear gradients for CTA and warning sections
+- **Bootstrap Integration**: Full Bootstrap 5.3.3 with custom color schemes
+- **Responsive Design**: Mobile-first approach with landscape orientation handling
+- **Font Integration**: Pretendard Korean font for optimal readability
+
+## Recent Changes
+
+### 2025-01-07: Complete HTML Architecture Analysis
+- Identified index.html as the definitive feature source (not simplified react-complete version)
+- Documented template inheritance: base.html → child templates
+- Discovered missing CSS/JS files that need to be created for React implementation
+- Established complete feature mapping for React conversion
+- Confirmed 8 major UI components need to be implemented in React
+
+### Next Steps for React Implementation
+1. Create missing CSS styles in React components (styled-components or CSS modules)
+2. Implement all 8 major features from index.html
+3. Integrate Chart.js with annotation plugin for advanced chart controls
+4. Add MediaRecorder API for real-time audio processing
+5. Connect to FastAPI backend with proper error handling
+6. Implement routing for survey page integration
