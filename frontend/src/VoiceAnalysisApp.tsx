@@ -7,6 +7,7 @@ import { ReferenceFile, LearnerInfo, LearningMethod, AnalysisResult, SyllableDat
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import './custom.css';
+import SurveyForm from './components/SurveyForm';
 
 const VoiceAnalysisApp: React.FC = () => {
   // 🎯 학습자 정보 및 학습 방법
@@ -769,6 +770,56 @@ const VoiceAnalysisApp: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* 📋 설문조사 CTA 섹션 */}
+          <div className="row mb-5">
+            <div className="col-12">
+              <div className="survey-cta p-4 rounded shadow-sm" style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '20px'
+              }}>
+                <div className="text-white text-center">
+                  <div className="d-flex align-items-center justify-content-center flex-wrap">
+                    <div className="me-3 mb-2 mb-md-0">
+                      <i className="fas fa-lightbulb fa-2x pulse" style={{color: '#ffc107'}}></i>
+                    </div>
+                    <div className="flex-grow-1 text-start text-md-start text-center">
+                      <h5 className="mb-1">
+                        <i className="fas fa-clipboard-list me-2"></i>
+                        ToneBridge 사용자 설문조사
+                      </h5>
+                      <p className="mb-0 small">
+                        귀하의 소중한 의견으로 ToneBridge를 더욱 발전시켜주세요!
+                      </p>
+                    </div>
+                    <div className="ms-3">
+                      <button 
+                        className="btn btn-warning btn-lg fw-bold"
+                        onClick={() => {
+                          document.getElementById('survey-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        설문 참여하기
+                        <i className="fas fa-arrow-down ms-2"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 📋 설문 섹션 */}
+          <div id="survey-section" className="row mb-5">
+            <div className="col-12">
+              <SurveyForm 
+                onSubmit={(data) => {
+                  console.log('설문 데이터 제출:', data);
+                }}
+                className="mb-4"
+              />
+            </div>
+          </div>
 
           {/* 🎯 하단 연락처 섹션 */}
           <div className="mt-5 py-4 contact-section" style={{

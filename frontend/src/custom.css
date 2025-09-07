@@ -654,10 +654,7 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 4px 15px rgba(255, 193, 7, 0.6) !important;
 }
 
-/* 배지 애니메이션 */
-.survey-cta .badge {
-    animation: badgeFloat 2s ease-in-out infinite alternate;
-}
+/* 배지 애니메이션 - 이미 위에 추가됨 */
 
 .survey-cta .badge:nth-child(1) { animation-delay: 0s; }
 .survey-cta .badge:nth-child(2) { animation-delay: 0.3s; }
@@ -710,4 +707,81 @@ h1, h2, h3, h4, h5, h6 {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* 📱 가로보기 안내 애니메이션 */
+.mobile-warning {
+    position: relative;
+    overflow: hidden;
+}
+
+.shake-animation {
+    animation: shake 1s ease-in-out infinite;
+}
+
+.bounce-animation {
+    animation: bounce 2s infinite;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+/* 설문 CTA 추가 애니메이션 */
+.survey-cta .badge {
+    animation: badgeFloat 2s ease-in-out infinite alternate;
+}
+
+.survey-cta .badge:nth-child(1) { animation-delay: 0s; }
+.survey-cta .badge:nth-child(2) { animation-delay: 0.3s; }
+.survey-cta .badge:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes badgeFloat {
+    from { transform: translateY(0px); }
+    to { transform: translateY(-2px); }
+}
+
+/* 학습 방법 카드 비활성화 스타일 */
+.learning-method-toggle.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(50%);
+}
+
+.learning-method-toggle.disabled::after {
+    content: "성별을 먼저 선택하세요";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 107, 107, 0.95);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    font-weight: 500;
+}
+
+.learning-method-toggle.disabled:hover::after {
+    opacity: 1;
 }
