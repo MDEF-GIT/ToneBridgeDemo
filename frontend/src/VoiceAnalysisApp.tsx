@@ -703,6 +703,107 @@ const VoiceAnalysisApp: React.FC = () => {
             <div className="card-body px-2 py-2">
               <div className="chart-container" style={{position: 'relative', height: '500px'}}>
                 <canvas ref={chartRef}></canvas>
+                
+                {/* 키 조정 컨트롤 - 차트 내부 우측 하단 */}
+                <div 
+                  id="pitchAdjustmentButtons" 
+                  style={{position: 'absolute', bottom: '10px', right: '10px', zIndex: 1000, display: selectedFile ? 'block' : 'none'}}
+                >
+                  {/* 키 조정 사용법 강조박스 (컴팩트 버전) */}
+                  <div className="p-2" style={{
+                    background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%)', 
+                    border: '2px solid #4caf50', 
+                    borderRadius: '8px', 
+                    fontSize: '0.85em', 
+                    lineHeight: '1.3', 
+                    width: '380px'
+                  }}>
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div className="d-flex align-items-center">
+                        <i className="fas fa-info-circle text-success me-2" style={{fontSize: '1.0em'}}></i>
+                        <span style={{color: '#1b5e20', fontWeight: '500'}}>
+                          <strong>[녹음]</strong> 버튼 클릭후 <strong>/아/</strong> 발성으로 편안한 음도를 찾고, <span style={{color: '#dc3545', fontWeight: 'bold'}}>⬆️<strong>화살표</strong>⬇️를 통해 참조음성의 억양 그래프 위치를 나의 음에 맞춥니다</span>
+                        </span>
+                      </div>
+                      <div className="d-flex gap-1 ms-2">
+                        <button 
+                          className="btn btn-sm btn-outline-success" 
+                          title="그래프를 아래로 이동" 
+                          style={{borderColor: '#4caf50', color: '#4caf50'}}
+                          onClick={() => console.log('pitch down')}
+                        >
+                          <i className="fas fa-arrow-down"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-success" 
+                          title="그래프를 위로 이동" 
+                          style={{borderColor: '#4caf50', color: '#4caf50'}}
+                          onClick={() => console.log('pitch up')}
+                        >
+                          <i className="fas fa-arrow-up"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-secondary" 
+                          title="그래프 위치 초기화"
+                          onClick={() => console.log('pitch reset')}
+                        >
+                          <i className="fas fa-undo"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 확대/스크롤 컨트롤 - 우측 상단 */}
+                <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
+                  <div className="d-flex gap-1 align-items-center">
+                    <button 
+                      className="btn btn-sm btn-outline-primary" 
+                      title="확대 (마우스 휠로도 가능)"
+                      onClick={() => console.log('zoom in')}
+                    >
+                      <i className="fas fa-search-plus"></i>
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-primary" 
+                      title="축소 (마우스 휠로도 가능)"
+                      onClick={() => console.log('zoom out')}
+                    >
+                      <i className="fas fa-search-minus"></i>
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-info" 
+                      title="왼쪽으로 스크롤"
+                      onClick={() => console.log('scroll left')}
+                    >
+                      <i className="fas fa-chevron-left"></i>
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-info" 
+                      title="오른쪽으로 스크롤"
+                      onClick={() => console.log('scroll right')}
+                    >
+                      <i className="fas fa-chevron-right"></i>
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-outline-secondary" 
+                      title="전체 보기로 리셋"
+                      onClick={() => console.log('reset view')}
+                    >
+                      <i className="fas fa-expand-arrows-alt"></i>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 초기화 버튼 - 왼쪽 하단 */}
+                <div style={{position: 'absolute', bottom: '10px', left: '10px', zIndex: 1000}}>
+                  <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => pitchChart.clearChart()}
+                  >
+                    <i className="fas fa-refresh me-1"></i> 초기화
+                  </button>
+                </div>
               </div>
             </div>
           </div>
