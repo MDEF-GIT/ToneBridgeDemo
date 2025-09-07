@@ -815,10 +815,9 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           </div>
 
-            </div>
           </div>
         </div>
-      </main>
+      </div>
 
       {/* 🎯 성별 선택 모달 */}
       {showGenderModal && (
