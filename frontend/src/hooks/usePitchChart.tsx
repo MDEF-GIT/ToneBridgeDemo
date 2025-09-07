@@ -69,11 +69,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         {
           label: '실시간 음성',
           data: [],
-          borderColor: 'rgb(255, 99, 132)',
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          tension: 0.4,
-          pointRadius: 0,
-          borderWidth: 2
+          borderColor: 'rgb(40, 167, 69)',  // 🟢 초록색
+          backgroundColor: 'rgba(40, 167, 69, 0.2)',
+          tension: 0,  // 직선 연결
+          pointRadius: 1,
+          borderWidth: 3,
+          stepped: true  // 가로선 스타일
         }
       ]
     };
