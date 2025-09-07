@@ -183,83 +183,51 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   }, [selectedFile, API_BASE]);
 
-  // 📝 커스텀 파일 분석 처리
   // 🎯 분석 버튼 상태 업데이트 (원본 방식)
   const updateAnalyzeButtonState = useCallback(() => {
     const hasSelectedSentence = !!selectedFile;
-    const hasWav = !!uploadedWavFile;
-    const hasTextGrid = !!uploadedTextGridFile;
     
-    if (!hasSelectedSentence && !hasWav && !hasTextGrid) {
-      setStatus('📝 연습할 문장을 선택하거나 WAV + TextGrid 파일을 업로드해주세요.');
-    } else if (!hasSelectedSentence && hasWav && !hasTextGrid) {
-      setStatus('📝 음절 구분 TextGrid 파일을 선택해 주세요.');
-    } else if (!hasSelectedSentence && !hasWav && hasTextGrid) {
-      setStatus('🎧 WAV 오디오 파일을 선택해 주세요.');
-    } else if (hasSelectedSentence) {
+    if (!hasSelectedSentence) {
+      setStatus('📝 연습할 문장을 선택해주세요.');
+    } else {
       setStatus('✅ 분석 준비 완료! 선택한 문장으로 분석을 시작합니다.');
-    } else if (hasWav && hasTextGrid) {
-      setStatus('✅ 분석 준비 완료! 업로드한 파일로 분석을 시작합니다.');
     }
-  }, [selectedFile, uploadedWavFile, uploadedTextGridFile]);
+  }, [selectedFile]);
 
-  // 🎯 원본 방식 분석 함수 (문장 선택 또는 파일 업로드)
+  // 🎯 원본 방식 분석 함수 (문장 선택)
   const handleAnalysis = useCallback(async () => {
-    const hasSelectedSentence = !!selectedFile;
-    const hasWav = !!uploadedWavFile;
-    const hasTextGrid = !!uploadedTextGridFile;
-    
-    // 원본 방식: 문장 선택 또는 WAV + TextGrid 파일 둘 다 필요
-    if (!hasSelectedSentence && !(hasWav && hasTextGrid)) {
-      alert('WAV 파일과 TextGrid 파일을 모두 선택해주세요.');
+    if (!selectedFile) {
+      alert('연습할 문장을 선택해주세요.');
       return;
     }
 
     setIsLoading(true);
-    setStatus(hasSelectedSentence ? '선택한 문장을 분석 중입니다...' : '업로드한 파일을 분석 중입니다...');
+    setStatus('선택한 문장을 분석 중입니다...');
 
     try {
-      if (hasSelectedSentence) {
-        // 기존 문장 선택 분석 로직 사용
-        await handleSentenceAnalysis(selectedFile);
-      } else {
-        // 파일 업로드 분석
-        const formData = new FormData();
-        formData.append('wav', uploadedWavFile!);
-        formData.append('textgrid', uploadedTextGridFile!);
-        formData.append('learner_gender', learnerInfo.gender || 'female');
-        formData.append('sentence', '');
-
-        const response = await fetch(`${API_BASE}/api/analyze_ref`, {
-          method: 'POST',
-          body: formData
-        });
-
-        const data = await response.json();
+      // 🎯 원본 방식: 참조 파일 분석
+      const response = await fetch(`${API_BASE}/api/analyze/${selectedFile}?gender=${learnerInfo.gender || 'female'}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setAnalysisResult(data);
+        setSyllableData(data.syllables || []);
         
-        if (data && data.pitch_data) {
-          pitchChart.clearChart();
-          
-          data.pitch_data.forEach((point: [number, number]) => {
-            pitchChart.addPitchData(point[1], point[0], 'reference');
-          });
-          
-          if (data.syllables) {
-            setSyllableData(data.syllables);
-            setShowSyllableAnalysis(true);
-          }
-          
-          setAnalysisResult(data);
-          setStatus('파일 분석 완료! TextGrid 정렬로 차트가 그려졌습니다.');
-        }
+        // 피치 차트 업데이트
+        pitchChart.clearChart();
+        pitchChart.updateReferenceData(data.reference_curve || [], data.syllables || []);
+        
+        setStatus(`✅ 분석 완료: ${data.statistics?.duration || 0}초 음성 분석됨`);
+      } else {
+        setStatus('❌ 분석 실패: ' + (data.error || '알 수 없는 오류'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ 분석 실패:', error);
       setStatus('분석에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedFile, uploadedWavFile, uploadedTextGridFile, learnerInfo.gender, pitchChart, API_BASE, handleSentenceAnalysis]);
+  }, [selectedFile, learnerInfo.gender, pitchChart, API_BASE]);
   
   // 🎯 차트 범위 업데이트
   const updateChartRange = useCallback(() => {
@@ -667,79 +635,6 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           )}
 
-          {/* 🎯 원본 방식: 파일 업로드 통합 */}
-          {showAudioAnalysisSection && learningMethod && (
-            <div className="row mb-4">
-              <div className="col-12">
-                <div className="alert alert-secondary">
-                  <div className="d-flex align-items-center mb-3">
-                    <i className="fas fa-upload me-2"></i>
-                    <h6 className="mb-0">📁 직접 파일 업로드</h6>
-                  </div>
-                  <p className="mb-3 small text-muted">
-                    사전 준비된 문장 대신 직접 준비한 WAV 파일과 TextGrid 파일로 학습하고 싶다면 아래에서 업로드하세요.
-                  </p>
-                  
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label small">
-                          <i className="fas fa-file-audio me-2"></i>
-                          WAV 파일
-                        </label>
-                        <input
-                          type="file"
-                          className="form-control form-control-sm"
-                          accept=".wav"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            setUploadedWavFile(file);
-                            updateAnalyzeButtonState();
-                            if (file) {
-                              console.log('🎧 WAV 파일 선택:', file.name);
-                            }
-                          }}
-                        />
-                        {uploadedWavFile && (
-                          <small className="text-success">
-                            <i className="fas fa-check me-1"></i>
-                            {uploadedWavFile.name}
-                          </small>
-                        )}
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label small">
-                          <i className="fas fa-file-alt me-2"></i>
-                          TextGrid 파일
-                        </label>
-                        <input
-                          type="file"
-                          className="form-control form-control-sm"
-                          accept=".TextGrid,.textgrid"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] || null;
-                            setUploadedTextGridFile(file);
-                            updateAnalyzeButtonState();
-                            if (file) {
-                              console.log('🗒️ TextGrid 파일 선택:', file.name);
-                            }
-                          }}
-                        />
-                        {uploadedTextGridFile && (
-                          <small className="text-success">
-                            <i className="fas fa-check me-1"></i>
-                            {uploadedTextGridFile.name}
-                          </small>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* 🎯 상태 메시지 */}
           <div className="mb-3">
