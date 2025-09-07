@@ -167,8 +167,9 @@ export const useAudioRecording = () => {
   const playRecordedAudio = useCallback(() => {
     if (!state.recordedBlob) return;
 
-    // 이미 재생 중이면 정지
-    if (state.isPlayingRecorded && recordedAudioRef.current) {
+    // 현재 재생 중인지 Audio 객체로 직접 확인
+    if (recordedAudioRef.current && !recordedAudioRef.current.paused) {
+      console.log('🛑 녹음음성 재생 중지');
       recordedAudioRef.current.pause();
       recordedAudioRef.current.currentTime = 0;
       recordedAudioRef.current = null;
@@ -176,23 +177,27 @@ export const useAudioRecording = () => {
       return;
     }
 
+    console.log('▶️ 녹음음성 재생 시작');
     try {
       const audioUrl = URL.createObjectURL(state.recordedBlob);
       const audio = new Audio(audioUrl);
       
       recordedAudioRef.current = audio;
       
-      audio.onplay = () => {
+      // 재생 시작되면 상태 업데이트
+      audio.onloadstart = () => {
         setState(prev => ({ ...prev, isPlayingRecorded: true }));
       };
 
       audio.onended = () => {
+        console.log('🔚 녹음음성 재생 완료');
         setState(prev => ({ ...prev, isPlayingRecorded: false }));
         recordedAudioRef.current = null;
         URL.revokeObjectURL(audioUrl);
       };
 
       audio.onerror = () => {
+        console.log('❌ 녹음음성 재생 오류');
         setState(prev => ({ ...prev, isPlayingRecorded: false }));
         recordedAudioRef.current = null;
         URL.revokeObjectURL(audioUrl);
@@ -200,10 +205,10 @@ export const useAudioRecording = () => {
 
       audio.play();
     } catch (error) {
-      console.error('녹음음성 재생 실패:', error);
+      console.error('❌ 녹음음성 재생 실패:', error);
       setState(prev => ({ ...prev, isPlayingRecorded: false }));
     }
-  }, [state.recordedBlob, state.isPlayingRecorded]);
+  }, [state.recordedBlob]);
 
   const setPitchCallback = useCallback((callback: (frequency: number, timestamp: number) => void) => {
     onPitchDataRef.current = callback;
