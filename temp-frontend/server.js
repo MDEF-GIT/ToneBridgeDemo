@@ -181,10 +181,34 @@ app.get('/', (req, res) => {
         const checkServiceStatus = async () => {
             try {
                 const response = await fetch('/api/reference_files');
+                
+                // 응답 상태 확인
+                if (!response.ok) {
+                    console.warn(\`⚠️ ToneBridge Backend Service: HTTP \${response.status} - \${response.statusText}\`);
+                    return;
+                }
+                
+                // Content-Type 확인하여 JSON 응답인지 검증
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.warn('⚠️ ToneBridge Backend Service: 응답이 JSON이 아님 (서버 재시작 중일 수 있음)');
+                    return;
+                }
+                
                 const data = await response.json();
-                console.log('✅ ToneBridge Backend Service: 연결됨 (초기 체크)');
+                if (data.files && Array.isArray(data.files)) {
+                    console.log(\`✅ ToneBridge Backend Service: 연결됨 (참조 파일 \${data.files.length}개 로드됨)\`);
+                } else {
+                    console.log('✅ ToneBridge Backend Service: 연결됨 (초기 체크)');
+                }
             } catch (error) {
-                console.error('❌ ToneBridge Backend Service: 연결 실패', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    console.warn('⚠️ ToneBridge Backend Service: 네트워크 연결 중... (재시도 대기)');
+                } else if (error.message.includes('Unexpected token')) {
+                    console.warn('⚠️ ToneBridge Backend Service: 서버 응답 형식 오류 (재시작 중일 수 있음)');
+                } else {
+                    console.error('❌ ToneBridge Backend Service: 연결 실패', error.message);
+                }
             }
         };
         
