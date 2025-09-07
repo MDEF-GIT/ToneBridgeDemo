@@ -178,63 +178,62 @@ export const useAudioRecording = () => {
   const playRecordedAudio = useCallback(() => {
     console.log('🎯 playRecordedAudio 함수 호출됨!');
     
-    // 현재 상태 읽기 (클로저 문제 해결)
-    setState((currentState) => {
-      console.log('🎯 currentState.recordedBlob:', !!currentState.recordedBlob);
-      console.log('🎯 currentState.isPlayingRecorded:', currentState.isPlayingRecorded);
-      if (!currentState.recordedBlob) {
-        console.log("❌ 녹음된 음성이 없습니다");
-        return currentState;
+    // 현재 상태 확인
+    if (!state.recordedBlob) {
+      console.log("❌ 녹음된 음성이 없습니다");
+      return;
+    }
+
+    // 현재 재생 중이면 정지
+    if (state.isPlayingRecorded) {
+      console.log("🛑 녹음음성 재생 중지");
+      if (recordedAudioRef.current) {
+        recordedAudioRef.current.pause();
+        recordedAudioRef.current.currentTime = 0;
+        recordedAudioRef.current = null;
       }
+      setState(prev => ({ ...prev, isPlayingRecorded: false }));
+      return;
+    }
 
-      // 현재 재생 중이면 정지
-      if (currentState.isPlayingRecorded) {
-        console.log("🛑 녹음음성 재생 중지");
-        if (recordedAudioRef.current) {
-          recordedAudioRef.current.pause();
-          recordedAudioRef.current.currentTime = 0;
-          recordedAudioRef.current = null;
-        }
-        return { ...currentState, isPlayingRecorded: false };
-      }
-      console.log("🎯 playRecordedAudio 함수 호출됨!");
-      // 재생 시작
-      console.log("▶️ 녹음음성 재생 시작");
-      try {
-        const audioUrl = URL.createObjectURL(currentState.recordedBlob);
-        const audio = new Audio(audioUrl);
+    // 재생 시작
+    console.log("▶️ 녹음음성 재생 시작");
+    try {
+      const audioUrl = URL.createObjectURL(state.recordedBlob);
+      const audio = new Audio(audioUrl);
 
-        recordedAudioRef.current = audio;
+      recordedAudioRef.current = audio;
 
-        audio.onended = () => {
-          console.log("🔚 녹음음성 재생 완료");
-          setState((prev) => ({ ...prev, isPlayingRecorded: false }));
-          recordedAudioRef.current = null;
-          URL.revokeObjectURL(audioUrl);
-        };
+      audio.onended = () => {
+        console.log("🔚 녹음음성 재생 완료");
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        recordedAudioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      };
 
-        audio.onerror = () => {
-          console.log("❌ 녹음음성 재생 오류");
-          setState((prev) => ({ ...prev, isPlayingRecorded: false }));
-          recordedAudioRef.current = null;
-          URL.revokeObjectURL(audioUrl);
-        };
+      audio.onerror = () => {
+        console.log("❌ 녹음음성 재생 오류");
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        recordedAudioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      };
 
-        // 비동기 재생 시작
-        audio.play().catch((error) => {
-          console.error("❌ 재생 실패:", error);
-          setState((prev) => ({ ...prev, isPlayingRecorded: false }));
-          recordedAudioRef.current = null;
-          URL.revokeObjectURL(audioUrl);
-        });
+      // 비동기 재생 시작
+      audio.play().then(() => {
+        console.log("✅ 녹음음성 재생 시작됨");
+        setState(prev => ({ ...prev, isPlayingRecorded: true }));
+      }).catch((error) => {
+        console.error("❌ 재생 실패:", error);
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        recordedAudioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      });
 
-        return { ...currentState, isPlayingRecorded: true };
-      } catch (error) {
-        console.error("❌ 녹음음성 재생 실패:", error);
-        return { ...currentState, isPlayingRecorded: false };
-      }
-    });
-  }, []); // 의존성 제거 - setState 함수형 업데이트 사용
+    } catch (error) {
+      console.error("❌ 녹음음성 재생 실패:", error);
+      setState(prev => ({ ...prev, isPlayingRecorded: false }));
+    }
+  }, [state.recordedBlob, state.isPlayingRecorded]);
 
   const setPitchCallback = useCallback(
     (callback: (frequency: number, timestamp: number) => void) => {
