@@ -176,8 +176,12 @@ export const useAudioRecording = () => {
   };
 
   const playRecordedAudio = useCallback(() => {
+    console.log('🎯 playRecordedAudio 함수 호출됨!');
+    
     // 현재 상태 읽기 (클로저 문제 해결)
     setState((currentState) => {
+      console.log('🎯 currentState.recordedBlob:', !!currentState.recordedBlob);
+      console.log('🎯 currentState.isPlayingRecorded:', currentState.isPlayingRecorded);
       if (!currentState.recordedBlob) {
         console.log("❌ 녹음된 음성이 없습니다");
         return currentState;
@@ -193,7 +197,7 @@ export const useAudioRecording = () => {
         }
         return { ...currentState, isPlayingRecorded: false };
       }
-      console.log("❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌777");
+      console.log("🎯 playRecordedAudio 함수 호출됨!");
       // 재생 시작
       console.log("▶️ 녹음음성 재생 시작");
       try {
