@@ -1,0 +1,42 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 2.5 
+tiers? <exists> 
+size = 1 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "syllables" 
+        xmin = 0 
+        xmax = 2.5 
+        intervals: size = 7 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.2 
+            text = "" 
+        intervals [2]:
+            xmin = 0.2 
+            xmax = 0.6 
+            text = "안" 
+        intervals [3]:
+            xmin = 0.6 
+            xmax = 1.0 
+            text = "녕" 
+        intervals [4]:
+            xmin = 1.0 
+            xmax = 1.4 
+            text = "하" 
+        intervals [5]:
+            xmin = 1.4 
+            xmax = 1.8 
+            text = "세" 
+        intervals [6]:
+            xmin = 1.8 
+            xmax = 2.2 
+            text = "요" 
+        intervals [7]:
+            xmin = 2.2 
+            xmax = 2.5 
+            text = "" 

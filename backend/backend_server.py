@@ -1420,8 +1420,8 @@ async def save_reference_file(
 async def get_reference_files():
     """저장된 참조 파일 목록 조회 - 파일 시스템 기반"""
     try:
-        # 직접 파일 시스템에서 파일 목록 조회
-        reference_dir = "reference_files"
+        # 직접 파일 시스템에서 파일 목록 조회 - 마이크로서비스 구조 반영
+        reference_dir = "static/reference_files"
         if not os.path.exists(reference_dir):
             return JSONResponse({"files": []})
         
