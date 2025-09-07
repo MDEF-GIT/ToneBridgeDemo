@@ -32,9 +32,6 @@ const VoiceAnalysisApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
   
-  // 🎯 파일 업로드 상태
-  const [uploadedWavFile, setUploadedWavFile] = useState<File | null>(null);
-  const [uploadedTextGridFile, setUploadedTextGridFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [syllableData, setSyllableData] = useState<SyllableData[]>([]);
   
