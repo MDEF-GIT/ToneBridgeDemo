@@ -202,9 +202,55 @@ const VoiceAnalysisApp: React.FC = () => {
 
 
   return (
-    <div className="container">
-      <div className="row justify-content-center">
-        <div className="col-lg-10">
+    <>
+      {/* 🎯 ToneBridge 브랜딩 헤더 - base.html 완전 재현 */}
+      <div className="py-5 mb-4" style={{
+        background: 'linear-gradient(135deg, #e67e22 0%, #d35400 100%)',
+        boxShadow: '0 4px 20px rgba(230, 126, 34, 0.25)',
+        position: 'relative'
+      }}>
+        <div className="container">
+          <div className="text-center">
+            <h1 className="display-3 fw-bold mb-3" style={{
+              color: 'white',
+              fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
+              textShadow: '0 3px 6px rgba(0,0,0,0.3)'
+            }}>
+              <i className="fas fa-microphone me-3" style={{color: 'white'}}></i>
+              Tone-Bridge
+            </h1>
+            <p className="lead mb-4" style={{
+              color: 'white',
+              fontWeight: 'bold',
+              fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
+              opacity: 0.95
+            }}>
+              실시간 피드백 한국어 억양학습 솔루션 <span style={{fontSize: '0.95em'}}>데모ver.</span>
+            </p>
+            <div className="text-end">
+              <div className="mb-1" style={{
+                color: 'white',
+                fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
+                marginTop: '1.5rem'
+              }}>
+                <small style={{fontWeight: 600, fontSize: '0.85rem'}}>THE소리LAB</small>
+              </div>
+              <div style={{
+                color: 'white',
+                fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif"
+              }}>
+                <small style={{fontStyle: 'italic', fontSize: '0.8rem'}}>"당신만의 소리를 위해 끊임없이 연구합니다"</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🎯 메인 컨텐츠 */}
+      <main className="container-fluid px-2 py-4">
+        <div className="container">
+          <div className="row justify-content-center">
+            <div className="col-lg-10">
 
           {/* 🎯 개인화 코칭 설문 CTA */}
           <div className="alert alert-primary d-flex align-items-center mb-4 survey-cta">
