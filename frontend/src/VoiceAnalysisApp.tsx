@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
+import ChartControls from './components/ChartControls';
 import './custom.css';
 
 // Types
@@ -511,9 +512,16 @@ const VoiceAnalysisApp: React.FC = () => {
               <h5 className="mb-0 fw-bold" style={{ color: '#ff6b35' }}>
                 <i className="fas fa-chart-line me-2"></i>실시간 음성 분석
               </h5>
-              <div className="btn-group btn-group-sm">
+              <div className="d-flex gap-2">
+                {/* 🎯 새로운 차트 컨트롤 */}
+                <ChartControls 
+                  chartInstance={pitchChart.chartInstance}
+                  onZoom={(factor, range) => console.log('Chart zoomed:', factor, range)}
+                  onScroll={(direction, range) => console.log('Chart scrolled:', direction, range)}
+                  onReset={() => console.log('Chart reset')}
+                />
                 <button 
-                  className="btn btn-outline-secondary" 
+                  className="btn btn-outline-secondary btn-sm" 
                   onClick={pitchChart.clearChart}
                 >
                   <i className="fas fa-eraser me-1"></i>차트 지우기

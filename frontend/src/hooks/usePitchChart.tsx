@@ -225,6 +225,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     clearChart,
     loadReferenceData,
     resetForNewRecording,
-    pitchData: pitchDataRef.current
+    pitchData: pitchDataRef.current,
+    // 🎯 차트 인스턴스 노출 (ChartControls에서 사용)
+    chartInstance: chartRef.current
   };
 };
