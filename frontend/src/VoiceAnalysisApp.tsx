@@ -13,37 +13,37 @@ import './custom.css';
 
 const VoiceAnalysisApp: React.FC = () => {
   // 🎯 학습자 정보 및 학습 방법
-  const [learnerInfo, setLearnerInfo] = React.useState<LearnerInfo>({
+  const [learnerInfo, setLearnerInfo] = useState<LearnerInfo>({
     name: '',
     gender: '',
     ageGroup: ''
   });
-  const [learningMethod, setLearningMethod] = React.useState<LearningMethod>('');
+  const [learningMethod, setLearningMethod] = useState<LearningMethod>('');
   
   // 🎯 UI 상태 관리
-  const [showSentenceDetails, setShowSentenceDetails] = React.useState<boolean>(false);
-  const [showPitchDetails, setShowPitchDetails] = React.useState<boolean>(false);
-  const [showAudioAnalysisSection, setShowAudioAnalysisSection] = React.useState<boolean>(false);
-  const [showSyllableAnalysis] = React.useState<boolean>(false);
-  const [showGenderModal, setShowGenderModal] = React.useState<boolean>(false);
-  const [selectedGender, setSelectedGender] = React.useState<string>('');
+  const [showSentenceDetails, setShowSentenceDetails] = useState<boolean>(false);
+  const [showPitchDetails, setShowPitchDetails] = useState<boolean>(false);
+  const [showAudioAnalysisSection, setShowAudioAnalysisSection] = useState<boolean>(false);
+  const [showSyllableAnalysis] = useState<boolean>(false);
+  const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
+  const [selectedGender, setSelectedGender] = useState<string>('');
   
   // 🎯 참조 파일 및 분석 상태
-  const [referenceFiles, setReferenceFiles] = React.useState<ReferenceFile[]>([]);
-  const [selectedFile, setSelectedFile] = React.useState<string>('');
-  const [isLoading, setIsLoading] = React.useState<boolean>(false);
-  const [status, setStatus] = React.useState<string>('');
+  const [referenceFiles, setReferenceFiles] = useState<ReferenceFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<string>('');
   
-  // const [analysisResult] = React.useState<AnalysisResult | null>(null);
-  const [syllableData] = React.useState<SyllableData[]>([]);
+  // const [analysisResult] = useState<AnalysisResult | null>(null);
+  const [syllableData] = useState<SyllableData[]>([]);
   
   // 🎯 차트 설정
-  const [semitoneMin, setSemitoneMin] = React.useState<number>(-12);
-  const [semitoneMax, setSemitoneMax] = React.useState<number>(15);
-  const [yAxisUnit, setYAxisUnit] = React.useState<string>('semitone');
+  const [semitoneMin, setSemitoneMin] = useState<number>(-12);
+  const [semitoneMax, setSemitoneMax] = useState<number>(15);
+  const [yAxisUnit, setYAxisUnit] = useState<string>('semitone');
   
   // 🎯 Refs
-  const chartRef = React.useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<HTMLCanvasElement>(null);
   
   // 🎯 Hooks  
   const audioRecording = useAudioRecording();
@@ -53,7 +53,7 @@ const VoiceAnalysisApp: React.FC = () => {
   const API_BASE = '';
   
   // 🎯 애니메이션 스타일 주입
-  React.useEffect(() => {
+  useEffect(() => {
     const styleElement = document.createElement('style');
     styleElement.textContent = `
       .shake-animation { animation: shake 4s infinite; }
@@ -74,7 +74,7 @@ const VoiceAnalysisApp: React.FC = () => {
   }, []);
 
   // 🎯 초기화
-  React.useEffect(() => {
+  useEffect(() => {
     loadReferenceFiles();
     
     if (audioRecording && audioRecording.setPitchCallback) {
@@ -113,12 +113,12 @@ const VoiceAnalysisApp: React.FC = () => {
   };
 
   // 🎯 학습자 정보 업데이트
-  const updateLearnerInfo = React.useCallback((field: keyof LearnerInfo, value: string) => {
+  const updateLearnerInfo = useCallback((field: keyof LearnerInfo, value: string) => {
     setLearnerInfo(prev => ({ ...prev, [field]: value }));
   }, []);
   
   // 🎯 학습 방법 선택
-  const handleLearningMethodChange = React.useCallback((method: LearningMethod) => {
+  const handleLearningMethodChange = useCallback((method: LearningMethod) => {
     // 🎯 성별 선택 필수 검증 (원본 로직)
     if (!learnerInfo.gender) {
       alert('먼저 학습자 성별을 선택해주세요.\n성별 정보는 정확한 음성 분석을 위해 필요합니다.');
@@ -143,7 +143,7 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [learnerInfo.gender]);
   
   // 🎯 연습 문장 선택
-  const handleSentenceSelection = React.useCallback(async (fileId: string) => {
+  const handleSentenceSelection = useCallback(async (fileId: string) => {
     if (!fileId) return;
     
     setSelectedFile(fileId);
@@ -170,7 +170,7 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [pitchChart, API_BASE]);
   
   // 🎯 녹음 제어
-  const handleRecording = React.useCallback(() => {
+  const handleRecording = useCallback(() => {
     if (audioRecording.isRecording) {
       audioRecording.stopRecording();
       setStatus('녹음이 완료되었습니다.');
@@ -181,7 +181,7 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [audioRecording]);
   
   // 🎯 재생 기능
-  const handlePlayRecording = React.useCallback(() => {
+  const handlePlayRecording = useCallback(() => {
     if (audioRecording.recordedBlob) {
       audioRecording.playRecordedAudio();
       setStatus('🔊 녹음된 음성을 재생합니다.');
@@ -190,7 +190,7 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   }, [audioRecording]);
   
-  const handlePlayReference = React.useCallback(() => {
+  const handlePlayReference = useCallback(() => {
     if (selectedFile) {
       const audio = new Audio(`${API_BASE}/static/reference_files/${selectedFile}.wav`);
       audio.play().catch(err => console.error('참조 음성 재생 실패:', err));
@@ -201,17 +201,17 @@ const VoiceAnalysisApp: React.FC = () => {
 
   
   // 🎯 차트 범위 업데이트
-  const updateChartRange = React.useCallback(() => {
+  const updateChartRange = useCallback(() => {
     // pitchChart.updateRange(semitoneMin, semitoneMax); // 훅에 구현 필요
     console.log('차트 범위 업데이트:', semitoneMin, semitoneMax);
   }, [semitoneMin, semitoneMax]);
   
   // 🎯 성별 선택 모달
-  const handleGenderSelection = React.useCallback((gender: string) => {
+  const handleGenderSelection = useCallback((gender: string) => {
     setSelectedGender(gender);
   }, []);
   
-  const confirmGenderSelection = React.useCallback(() => {
+  const confirmGenderSelection = useCallback(() => {
     if (selectedGender) {
       updateLearnerInfo('gender', selectedGender);
       setShowGenderModal(false);

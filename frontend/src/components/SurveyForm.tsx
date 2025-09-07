@@ -10,13 +10,13 @@ interface SurveyFormProps {
 }
 
 const SurveyForm: React.FC<SurveyFormProps> = ({ onSubmit, className = '' }) => {
-  const [formData, setFormData] = React.useState<SurveyData>({});
-  const [isSubmitted, setIsSubmitted] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [showLossAge, setShowLossAge] = React.useState(false);
+  const [formData, setFormData] = useState<SurveyData>({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showLossAge, setShowLossAge] = useState(false);
 
   // 🎯 자동 저장 (draft) 기능
-  const saveDraft = React.useCallback(() => {
+  const saveDraft = useCallback(() => {
     try {
       localStorage.setItem('tonebridge_survey_draft', JSON.stringify(formData));
       console.log('📝 설문 임시저장 완료');
@@ -26,13 +26,13 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ onSubmit, className = '' }) => 
   }, [formData]);
 
   // 🎯 자동 저장 타이머
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(saveDraft, 2000);
     return () => clearTimeout(timer);
   }, [formData, saveDraft]);
 
   // 🎯 초기 데이터 로드 (임시저장된 데이터)
-  React.useEffect(() => {
+  useEffect(() => {
     try {
       const draft = localStorage.getItem('tonebridge_survey_draft');
       if (draft) {

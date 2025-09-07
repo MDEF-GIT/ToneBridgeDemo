@@ -16,7 +16,7 @@ interface AudioRecordingState {
 }
 
 export const useAudioRecording = () => {
-  const [state, setState] = React.useState<AudioRecordingState>({
+  const [state, setState] = useState<AudioRecordingState>({
     isRecording: false,
     audioStream: null,
     audioContext: null,
@@ -29,20 +29,20 @@ export const useAudioRecording = () => {
     currentPitchConfidence: 0,
   });
 
-  const animationFrameRef = React.useRef<number | undefined>(undefined);
-  const onPitchDataRef = React.useRef<
+  const animationFrameRef = useRef<number | undefined>(undefined);
+  const onPitchDataRef = useRef<
     ((frequency: number, timestamp: number) => void) | null
   >(null);
-  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
-  const audioChunksRef = React.useRef<Blob[]>([]);
-  const recordedAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
   
   // 🎯 새로운 고급 피치 분석 엔진
-  const yinDetectorRef = React.useRef<YINPitchDetector | null>(null);
-  const audioPlaybackRef = React.useRef<AudioPlaybackController>(new AudioPlaybackController());
+  const yinDetectorRef = useRef<YINPitchDetector | null>(null);
+  const audioPlaybackRef = useRef<AudioPlaybackController>(new AudioPlaybackController());
 
   // 🎯 상태 변화 추적 로그
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('🎯 [STEP 3] Hook 상태 변화 감지:', {
       'state.isPlayingRecorded': state.isPlayingRecorded,
       'state.recordedBlob': !!state.recordedBlob,
@@ -50,7 +50,7 @@ export const useAudioRecording = () => {
     });
   }, [state.isPlayingRecorded, state.recordedBlob]);
 
-  const startRecording = React.useCallback(async () => {
+  const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -149,7 +149,7 @@ export const useAudioRecording = () => {
     }
   }, []);
 
-  const stopRecording = React.useCallback(() => {
+  const stopRecording = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -201,7 +201,7 @@ export const useAudioRecording = () => {
     }
   };
 
-  const playRecordedAudio = React.useCallback(() => {
+  const playRecordedAudio = useCallback(() => {
     console.log('🎯🎯🎯 [STEP 2] playRecordedAudio 함수 진입!');
     
     // 현재 상태 상세 로깅
@@ -272,7 +272,7 @@ export const useAudioRecording = () => {
     console.log('🎯🎯🎯 [STEP 2] playRecordedAudio 함수 종료');
   }, [state.recordedBlob, state.isPlayingRecorded]);
 
-  const setPitchCallback = React.useCallback(
+  const setPitchCallback = useCallback(
     (callback: (frequency: number, timestamp: number) => void) => {
       onPitchDataRef.current = callback;
     },

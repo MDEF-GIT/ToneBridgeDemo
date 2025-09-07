@@ -37,7 +37,7 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   onReset,
   className = ''
 }) => {
-  const viewStateRef = React.useRef<ChartViewState>({
+  const viewStateRef = useRef<ChartViewState>({
     currentZoom: 1,
     minX: 0,
     maxX: 100,
@@ -47,7 +47,7 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   });
 
   // 차트 인스턴스 변경 시 원본 범위 저장
-  React.useEffect(() => {
+  useEffect(() => {
     if (chartInstance && chartInstance.data.datasets.length > 0) {
       const dataset = chartInstance.data.datasets[0];
       if (dataset.data.length > 0) {
@@ -203,7 +203,7 @@ export const ChartControls: React.FC<ChartControlsProps> = ({
   };
 
   // 키보드 단축키 처리
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!chartInstance) return;
       
