@@ -215,7 +215,7 @@ const VoiceAnalysisApp: React.FC = () => {
         
         // 피치 차트 업데이트
         pitchChart.clearChart();
-        pitchChart.updateReferenceData(data.reference_curve || [], data.syllables || []);
+        pitchChart.loadReferenceData(selectedFile);
         
         setStatus(`✅ 분석 완료: ${data.statistics?.duration || 0}초 음성 분석됨`);
       } else {
