@@ -29,6 +29,19 @@ app.use('/static', createProxyMiddleware({
   logLevel: 'info'
 }));
 
+// FastAPI Docs 프록시 (/docs, /redoc)
+app.use('/docs', createProxyMiddleware({
+  target: 'http://localhost:8000',
+  changeOrigin: true,
+  logLevel: 'info'
+}));
+
+app.use('/redoc', createProxyMiddleware({
+  target: 'http://localhost:8000',
+  changeOrigin: true,
+  logLevel: 'info'
+}));
+
 // 메인 페이지 - ToneBridge 앱 임베드
 app.get('/', (req, res) => {
   res.send(`
@@ -131,7 +144,7 @@ app.get('/', (req, res) => {
             <a href="javascript:openToneBridge()" class="btn">
                 🎯 새 창에서 열기
             </a>
-            <a href="/api/docs" target="_blank" class="btn btn-secondary">
+            <a href="/docs" target="_blank" class="btn btn-secondary">
                 🔧 Backend API 문서
             </a>
             <button onclick="toggleIframe()" class="btn btn-secondary">

@@ -1,8 +1,10 @@
-# ToneBridge Voice Analysis Demo
+# ToneBridge Voice Analysis Microservices
 
 ## Overview
 
-ToneBridge is a Korean prosody learning platform designed as a complete standalone demo for voice analysis and pronunciation training. The application focuses on helping users, particularly those in deaf education and language therapy, analyze and improve Korean speech patterns through real-time audio processing and visualization.
+ToneBridge is a Korean prosody learning platform built with microservices architecture for voice analysis and pronunciation training. The application focuses on helping users, particularly those in deaf education and language therapy, analyze and improve Korean speech patterns through real-time audio processing and visualization.
+
+The platform is designed as independent microservices that can be deployed separately and integrated into larger systems.
 
 The system implements authentic Praat pitch extraction algorithms using parselmouth (Praat Python) for accurate voice analysis, combined with a modern React frontend for interactive user experiences. The platform serves both language therapists and general users with specialized survey systems to gather feedback for service improvement.
 
@@ -10,21 +12,29 @@ The system implements authentic Praat pitch extraction algorithms using parselmo
 
 Preferred communication style: Simple, everyday language.
 
-## System Architecture
+## Microservices Architecture
 
-### Backend Architecture
+### Backend API Service (Port 8000)
 - **Framework**: FastAPI with Python 3.8+ for high-performance API development
 - **Audio Processing**: Parselmouth (Praat Python) integration for authentic pitch extraction and prosodic analysis
-- **Template Engine**: Jinja2 for server-side rendering of HTML templates
+- **API Design**: RESTful endpoints for voice analysis, reference files, and audio processing
 - **File Handling**: Supports WAV and TextGrid file processing for audio analysis
-- **Static Assets**: FastAPI StaticFiles mounting for serving frontend resources
+- **Database**: SQLAlchemy ORM with configurable database backends
+- **Location**: `backend/` directory
 
-### Frontend Architecture
-- **Primary Interface**: React 18+ with TypeScript for modern, interactive user interfaces
+### Frontend Service (Standalone React App)
+- **Framework**: React 18+ with TypeScript for modern, interactive user interfaces
 - **Charts and Visualization**: Chart.js with annotation plugins for real-time audio data visualization
 - **Styling**: Bootstrap 5.3+ with Pretendard Korean font for optimal readability
 - **Build System**: Create React App with standard React toolchain
-- **Development Proxy**: React dev server proxies to backend on localhost:8000
+- **API Integration**: Configurable backend API endpoint (default: localhost:8000)
+- **Location**: `frontend/` directory
+
+### Client Proxy Service (Port 5000)
+- **Framework**: Express.js with CORS and proxy middleware
+- **Purpose**: Demonstration client that proxies requests to backend API
+- **Features**: Web interface with direct app access, API docs, and iframe embedding
+- **Location**: `temp-frontend/` directory
 
 ### Data Storage
 - **Database**: SQLAlchemy ORM with configurable database backends (default SQLite)
