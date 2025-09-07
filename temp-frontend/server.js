@@ -241,15 +241,27 @@ app.get('/', (req, res) => {
   `);
 });
 
-// ToneBridge 앱 페이지 프록시
-app.use('/tonebridge-app', createProxyMiddleware({
-  target: 'http://localhost:8000',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/tonebridge-app': '' // /tonebridge-app를 제거하고 백엔드 루트로 전달
-  },
-  logLevel: 'info'
+// ToneBridge React 앱의 정적 파일들 서빙 (CSS, JS, 이미지 등)
+app.use('/tonebridge-app/static', express.static(path.join(__dirname, '../frontend/build/static'), {
+  setHeaders: (res, path) => {
+    // React 앱 캐시 방지
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+  }
 }));
+
+// ToneBridge React 앱 메인 페이지 서빙
+app.get('/tonebridge-app', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+});
+
+// React Router용 fallback (SPA 라우팅 지원)
+app.get('/tonebridge-app/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+});
 
 // 🔄 서버 시작 전 React 빌드 실행
 const buildReactApp = () => {

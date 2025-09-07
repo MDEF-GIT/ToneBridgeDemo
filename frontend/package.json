@@ -2,6 +2,7 @@
   "name": "tonebridge-frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/tonebridge-app",
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
     "@testing-library/dom": "^10.4.1",
