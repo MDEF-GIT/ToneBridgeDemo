@@ -87,42 +87,67 @@ const VoiceAnalysisApp: React.FC = () => {
   };
 
   const handlePlayReference = async () => {
-    if (isPlayingReference) {
+    if (isPlayingReference && currentAudioRef.current) {
       // 현재 재생 중이면 정지
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current.currentTime = 0;
-        currentAudioRef.current = null;
-      }
+      console.log('🛑 참조음성 정지 요청');
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
       setIsPlayingReference(false);
       return;
     }
 
-    if (selectedSentence) {
-      try {
-        const audio = new Audio(`${API_BASE}/api/reference_files/${selectedSentence}/wav`);
-        currentAudioRef.current = audio;
-        
-        audio.onplay = () => {
-          setIsPlayingReference(true);
-        };
-        
-        audio.onended = () => {
-          setIsPlayingReference(false);
-          currentAudioRef.current = null;
-        };
-        
-        audio.onerror = () => {
-          setIsPlayingReference(false);
-          currentAudioRef.current = null;
-        };
-        
-        await audio.play();
-      } catch (error) {
-        console.error('Failed to play reference audio:', error);
-        setIsPlayingReference(false);
+    if (!selectedSentence) {
+      console.log('⚠️ 선택된 문장이 없습니다');
+      return;
+    }
+
+    try {
+      console.log('▶️ 참조음성 재생 시작:', selectedSentence);
+      
+      // 기존 오디오가 있다면 정리
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
         currentAudioRef.current = null;
       }
+
+      const audio = new Audio(`${API_BASE}/api/reference_files/${selectedSentence}/wav`);
+      currentAudioRef.current = audio;
+      
+      audio.onloadstart = () => {
+        console.log('📥 오디오 로딩 시작');
+      };
+
+      audio.oncanplay = () => {
+        console.log('✅ 오디오 재생 준비 완료');
+      };
+      
+      audio.onplay = () => {
+        console.log('🎵 오디오 재생 시작됨');
+        setIsPlayingReference(true);
+      };
+      
+      audio.onended = () => {
+        console.log('🏁 오디오 재생 완료');
+        setIsPlayingReference(false);
+        currentAudioRef.current = null;
+      };
+      
+      audio.onpause = () => {
+        console.log('⏸️ 오디오 일시정지됨');
+      };
+      
+      audio.onerror = (e) => {
+        console.error('❌ 오디오 재생 오류:', e);
+        setIsPlayingReference(false);
+        currentAudioRef.current = null;
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error('❌ 참조음성 재생 실패:', error);
+      setIsPlayingReference(false);
+      currentAudioRef.current = null;
     }
   };
 
