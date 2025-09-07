@@ -868,7 +868,12 @@ const VoiceAnalysisApp: React.FC = () => {
         </div>
       )}
 
-    </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+    </>
   );
 };
 
