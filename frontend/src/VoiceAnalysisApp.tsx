@@ -50,6 +50,27 @@ const VoiceAnalysisApp: React.FC = () => {
     });
   }, [audioRecording, pitchChart]);
 
+  // Clean up audio when component unmounts or selectedSentence changes
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      setIsPlayingReference(false);
+    };
+  }, [selectedSentence]);
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+    };
+  }, []);
+
   const loadReferenceFiles = async () => {
     try {
       const response = await fetch(`${API_BASE}/api/reference_files`);
@@ -86,14 +107,25 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   };
 
-  const handlePlayReference = async () => {
-    if (isPlayingReference && currentAudioRef.current) {
-      // 현재 재생 중이면 정지
-      console.log('🛑 참조음성 정지 요청');
+  const stopCurrentAudio = () => {
+    if (currentAudioRef.current) {
+      console.log('🛑 오디오 강제 정지');
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current.removeEventListener('ended', () => {});
+      currentAudioRef.current.removeEventListener('error', () => {});
       currentAudioRef.current = null;
-      setIsPlayingReference(false);
+    }
+    setIsPlayingReference(false);
+  };
+
+  const handlePlayReference = async () => {
+    console.log('🔄 참조음성 버튼 클릭, 현재상태:', { isPlayingReference, hasAudio: !!currentAudioRef.current });
+    
+    // 현재 재생 중이면 무조건 정지
+    if (isPlayingReference) {
+      console.log('🛑 참조음성 정지 실행');
+      stopCurrentAudio();
       return;
     }
 
@@ -105,45 +137,50 @@ const VoiceAnalysisApp: React.FC = () => {
     try {
       console.log('▶️ 참조음성 재생 시작:', selectedSentence);
       
-      // 기존 오디오가 있다면 정리
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
+      // 기존 오디오 완전 정리
+      stopCurrentAudio();
 
-      const audio = new Audio(`${API_BASE}/api/reference_files/${selectedSentence}/wav`);
+      const audioUrl = `${API_BASE}/api/reference_files/${selectedSentence}/wav`;
+      console.log('🎵 오디오 URL:', audioUrl);
+      
+      const audio = new Audio(audioUrl);
       currentAudioRef.current = audio;
       
-      audio.onloadstart = () => {
-        console.log('📥 오디오 로딩 시작');
-      };
-
-      audio.oncanplay = () => {
-        console.log('✅ 오디오 재생 준비 완료');
-      };
+      // 즉시 재생 상태로 변경 (로딩 시작과 함께)
+      setIsPlayingReference(true);
       
-      audio.onplay = () => {
+      audio.addEventListener('loadstart', () => {
+        console.log('📥 오디오 로딩 시작');
+      });
+
+      audio.addEventListener('canplay', () => {
+        console.log('✅ 오디오 재생 준비 완료');
+      });
+      
+      audio.addEventListener('play', () => {
         console.log('🎵 오디오 재생 시작됨');
         setIsPlayingReference(true);
-      };
+      });
       
-      audio.onended = () => {
+      audio.addEventListener('ended', () => {
         console.log('🏁 오디오 재생 완료');
         setIsPlayingReference(false);
         currentAudioRef.current = null;
-      };
+      });
       
-      audio.onpause = () => {
+      audio.addEventListener('pause', () => {
         console.log('⏸️ 오디오 일시정지됨');
-      };
+      });
       
-      audio.onerror = (e) => {
+      audio.addEventListener('error', (e) => {
         console.error('❌ 오디오 재생 오류:', e);
         setIsPlayingReference(false);
         currentAudioRef.current = null;
-      };
+      });
       
       await audio.play();
+      console.log('🎯 audio.play() 호출 완료');
+      
     } catch (error) {
       console.error('❌ 참조음성 재생 실패:', error);
       setIsPlayingReference(false);
@@ -152,6 +189,9 @@ const VoiceAnalysisApp: React.FC = () => {
   };
 
   const handleSentenceChange = (sentenceId: string) => {
+    // 문장 변경 시 현재 재생중인 오디오 정지
+    stopCurrentAudio();
+    
     setSelectedSentence(sentenceId);
     if (sentenceId) {
       pitchChart.loadReferenceData(sentenceId);
