@@ -22,7 +22,7 @@ const VoiceAnalysisApp: React.FC = () => {
   const [showSentenceDetails, setShowSentenceDetails] = useState<boolean>(false);
   const [showPitchDetails, setShowPitchDetails] = useState<boolean>(false);
   const [showAudioAnalysisSection, setShowAudioAnalysisSection] = useState<boolean>(false);
-  const [showSyllableAnalysis, setShowSyllableAnalysis] = useState<boolean>(false);
+  const [showSyllableAnalysis] = useState<boolean>(false);
   const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
   const [selectedGender, setSelectedGender] = useState<string>('');
   
@@ -32,8 +32,8 @@ const VoiceAnalysisApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('');
   
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [syllableData, setSyllableData] = useState<SyllableData[]>([]);
+  // const [analysisResult] = useState<AnalysisResult | null>(null);
+  const [syllableData] = useState<SyllableData[]>([]);
   
   // 🎯 차트 설정
   const [semitoneMin, setSemitoneMin] = useState<number>(-12);
@@ -183,51 +183,7 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   }, [selectedFile, API_BASE]);
 
-  // 🎯 분석 버튼 상태 업데이트 (원본 방식)
-  const updateAnalyzeButtonState = useCallback(() => {
-    const hasSelectedSentence = !!selectedFile;
-    
-    if (!hasSelectedSentence) {
-      setStatus('📝 연습할 문장을 선택해주세요.');
-    } else {
-      setStatus('✅ 분석 준비 완료! 선택한 문장으로 분석을 시작합니다.');
-    }
-  }, [selectedFile]);
 
-  // 🎯 원본 방식 분석 함수 (문장 선택)
-  const handleAnalysis = useCallback(async () => {
-    if (!selectedFile) {
-      alert('연습할 문장을 선택해주세요.');
-      return;
-    }
-
-    setIsLoading(true);
-    setStatus('선택한 문장을 분석 중입니다...');
-
-    try {
-      // 🎯 원본 방식: 참조 파일 분석
-      const response = await fetch(`${API_BASE}/api/analyze/${selectedFile}?gender=${learnerInfo.gender || 'female'}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setAnalysisResult(data);
-        setSyllableData(data.syllables || []);
-        
-        // 피치 차트 업데이트
-        pitchChart.clearChart();
-        pitchChart.loadReferenceData(selectedFile);
-        
-        setStatus(`✅ 분석 완료: ${data.statistics?.duration || 0}초 음성 분석됨`);
-      } else {
-        setStatus('❌ 분석 실패: ' + (data.error || '알 수 없는 오류'));
-      }
-    } catch (error: any) {
-      console.error('❌ 분석 실패:', error);
-      setStatus('분석에 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedFile, learnerInfo.gender, pitchChart, API_BASE]);
   
   // 🎯 차트 범위 업데이트
   const updateChartRange = useCallback(() => {
