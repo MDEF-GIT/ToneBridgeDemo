@@ -27,12 +27,14 @@ const VoiceAnalysisApp: React.FC = () => {
   const [learningMethod, setLearningMethod] = useState<string>('');
   const [referenceFiles, setReferenceFiles] = useState<ReferenceFile[]>([]);
   const [selectedSentence, setSelectedSentence] = useState<string>('');
+  const [isPlayingReference, setIsPlayingReference] = useState<boolean>(false);
   
   // API base URL (voice-analysis-demo 독립성 유지)
   const API_BASE = '';
   
   // Refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   
   // Custom hooks
   const audioRecording = useAudioRecording();
@@ -70,6 +72,14 @@ const VoiceAnalysisApp: React.FC = () => {
   const handleRecordingToggle = async () => {
     if (audioRecording.isRecording) {
       audioRecording.stopRecording();
+      
+      // 녹음 중지 시 참조음성도 정지
+      if (isPlayingReference && currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+        currentAudioRef.current = null;
+        setIsPlayingReference(false);
+      }
     } else {
       pitchChart.resetForNewRecording();
       await audioRecording.startRecording();
@@ -77,12 +87,41 @@ const VoiceAnalysisApp: React.FC = () => {
   };
 
   const handlePlayReference = async () => {
+    if (isPlayingReference) {
+      // 현재 재생 중이면 정지
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+        currentAudioRef.current = null;
+      }
+      setIsPlayingReference(false);
+      return;
+    }
+
     if (selectedSentence) {
       try {
         const audio = new Audio(`${API_BASE}/api/reference_files/${selectedSentence}/wav`);
+        currentAudioRef.current = audio;
+        
+        audio.onplay = () => {
+          setIsPlayingReference(true);
+        };
+        
+        audio.onended = () => {
+          setIsPlayingReference(false);
+          currentAudioRef.current = null;
+        };
+        
+        audio.onerror = () => {
+          setIsPlayingReference(false);
+          currentAudioRef.current = null;
+        };
+        
         await audio.play();
       } catch (error) {
         console.error('Failed to play reference audio:', error);
+        setIsPlayingReference(false);
+        currentAudioRef.current = null;
       }
     }
   };
@@ -416,11 +455,12 @@ const VoiceAnalysisApp: React.FC = () => {
                 </div>
                 <div className="col-md-6">
                   <button 
-                    className="btn btn-info btn-lg w-100" 
+                    className={`btn btn-lg w-100 ${isPlayingReference ? 'btn-danger' : 'btn-info'}`}
                     disabled={!selectedSentence}
                     onClick={handlePlayReference}
                   >
-                    <i className="fas fa-play me-2"></i>참조음성 재생
+                    <i className={`fas ${isPlayingReference ? 'fa-stop' : 'fa-play'} me-2`}></i>
+                    {isPlayingReference ? '참조음성 중지' : '참조음성 재생'}
                   </button>
                 </div>
               </div>
