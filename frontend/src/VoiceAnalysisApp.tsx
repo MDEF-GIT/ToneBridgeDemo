@@ -74,6 +74,7 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 초기화
   React.useEffect(() => {
     loadReferenceFiles();
+    
     if (audioRecording && audioRecording.setPitchCallback) {
       audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
         if (pitchChart && pitchChart.addPitchData) {
@@ -81,7 +82,9 @@ const VoiceAnalysisApp: React.FC = () => {
         }
       });
     }
-  }, [audioRecording, pitchChart]);
+    
+    console.log('🎯 ToneBridge Voice Analysis App initialized');
+  }, []);
 
   // 🎯 참조 파일 로딩
   const loadReferenceFiles = async () => {
@@ -114,6 +117,12 @@ const VoiceAnalysisApp: React.FC = () => {
   
   // 🎯 학습 방법 선택
   const handleLearningMethodChange = React.useCallback((method: LearningMethod) => {
+    // 🎯 성별 선택 필수 검증 (원본 로직)
+    if (!learnerInfo.gender) {
+      alert('먼저 학습자 성별을 선택해주세요.\n성별 정보는 정확한 음성 분석을 위해 필요합니다.');
+      return;
+    }
+    
     setLearningMethod(method);
     
     if (method === 'pitch') {
@@ -129,7 +138,7 @@ const VoiceAnalysisApp: React.FC = () => {
       setShowPitchDetails(false);
       setShowAudioAnalysisSection(false);
     }
-  }, []);
+  }, [learnerInfo.gender]);
   
   // 🎯 연습 문장 선택
   const handleSentenceSelection = React.useCallback(async (fileId: string) => {
@@ -380,7 +389,7 @@ const VoiceAnalysisApp: React.FC = () => {
                   <div 
                     className={`d-flex align-items-center p-2 border rounded learning-method-toggle ${!learnerInfo.gender ? 'disabled' : ''} ${learningMethod === 'pitch' ? 'border-primary' : ''}`}
                     style={{cursor: learnerInfo.gender ? 'pointer' : 'not-allowed'}}
-                    onClick={() => learnerInfo.gender && handleLearningMethodChange('pitch')}
+                    onClick={() => handleLearningMethodChange('pitch')}
                   >
                     <div className="form-check me-3">
                       <input 
@@ -443,7 +452,7 @@ const VoiceAnalysisApp: React.FC = () => {
                   <div 
                     className={`d-flex align-items-center p-2 border rounded learning-method-toggle ${!learnerInfo.gender ? 'disabled' : ''} ${learningMethod === 'sentence' ? 'border-primary' : ''}`}
                     style={{cursor: learnerInfo.gender ? 'pointer' : 'not-allowed'}}
-                    onClick={() => learnerInfo.gender && handleLearningMethodChange('sentence')}
+                    onClick={() => handleLearningMethodChange('sentence')}
                   >
                     <div className="form-check me-3">
                       <input 
