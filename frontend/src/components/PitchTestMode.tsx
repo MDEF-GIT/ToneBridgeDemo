@@ -492,7 +492,8 @@ export const PitchTestMode: React.FC<PitchTestModeProps> = ({
         }
         
         // 🎯 VocalPitchMonitor 급 정밀 피치 검출
-        let f0 = yinDetectorRef.current.getPitch(frame);
+        const result = yinDetectorRef.current.detectPitch(frame, timeRef.current);
+        let f0 = result.f0;
         
         // 🎯 신뢰도 및 스무딩 적용
         if (f0 > 0) {

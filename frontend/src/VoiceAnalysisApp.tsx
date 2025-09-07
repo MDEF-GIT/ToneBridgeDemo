@@ -792,6 +792,8 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           </div>
 
+            </div>
+          </div>
         </div>
       </main>
 
@@ -867,7 +869,7 @@ const VoiceAnalysisApp: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
