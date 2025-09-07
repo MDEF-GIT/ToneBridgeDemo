@@ -272,44 +272,76 @@ const VoiceAnalysisApp: React.FC = () => {
             <div className="col-lg-10">
 
 
-          {/* 🎯 개인화 코칭 설문 CTA */}
-          <div className="alert alert-primary d-flex align-items-center mb-4" style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+          {/* 🎯 설문 조사 섹션 - 대상별 구분 */}
+          <div className="card mb-4" style={{
             border: 'none', 
-            borderRadius: '12px', 
-            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)', 
+            borderRadius: '15px'
           }}>
-            <div className="flex-grow-1 text-white">
-              <div className="d-flex align-items-center mb-2">
-                <i className="fas fa-graduation-cap fa-2x me-3" style={{color: '#ffd700'}}></i>
+            <div className="card-header" style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+              borderRadius: '15px 15px 0 0',
+              border: 'none'
+            }}>
+              <div className="d-flex align-items-center">
+                <i className="fas fa-clipboard-list fa-2x me-3" style={{color: '#ffd700'}}></i>
                 <div>
-                  <h5 className="mb-1 fw-bold">데모학습 후, 더 정확한 개인화 코칭을 위해</h5>
-                  <p className="mb-0 small opacity-90">3분 설문 참여로 서비스 품질 향상에 힘을 보태주세요!</p>
+                  <h5 className="mb-1 fw-bold text-white">서비스 품질 향상을 위한 설문 참여</h5>
+                  <p className="mb-0 small text-white opacity-90">귀하에게 해당하는 대상을 선택하여 맞춤형 설문에 참여해주세요</p>
                 </div>
               </div>
-              <div className="d-flex flex-wrap gap-2 small">
-                <span className="badge bg-warning text-dark">
-                  <i className="fas fa-check me-1"></i>개선 의견 남기기
-                </span>
-                <span className="badge bg-info">
-                  <i className="fas fa-bell me-1"></i>신기능 알림 신청
-                </span>
-                <span className="badge bg-success">
-                  <i className="fas fa-users me-1"></i>파일럿 프로그램 참여
-                </span>
-              </div>
             </div>
-            <div className="ms-3">
-              <Link 
-                to="/survey" 
-                className="btn btn-warning btn-lg fw-bold px-4 py-2"
-                style={{
-                  borderRadius: '25px', 
-                  boxShadow: '0 3px 10px rgba(255, 193, 7, 0.4)'
-                }}
-              >
-                <i className="fas fa-clipboard-list me-2"></i>3분 설문하기
-              </Link>
+            <div className="card-body p-4">
+              <div className="row g-3">
+                <div className="col-md-6 col-lg-4">
+                  <a 
+                    href="https://naver.me/FfBegQQP" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3 text-decoration-none"
+                    style={{minHeight: '120px'}}
+                  >
+                    <i className="fas fa-user-md fa-2x mb-2 text-primary"></i>
+                    <h6 className="fw-bold mb-1">언어치료사</h6>
+                    <small className="text-muted mb-1">언어치료 전문가</small>
+                    <span className="badge bg-success">설문 준비완료</span>
+                  </a>
+                </div>
+                <div className="col-md-6 col-lg-4">
+                  <a 
+                    href="https://naver.me/xJGG2Fl8" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3 text-decoration-none"
+                    style={{minHeight: '120px'}}
+                  >
+                    <i className="fas fa-user fa-2x mb-2 text-primary"></i>
+                    <h6 className="fw-bold mb-1">일반인</h6>
+                    <small className="text-muted mb-1">일반 사용자</small>
+                    <span className="badge bg-success">설문 준비완료</span>
+                  </a>
+                </div>
+                <div className="col-md-6 col-lg-4">
+                  <a 
+                    href="https://naver.me/F8uu1Q3G" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3 text-decoration-none"
+                    style={{minHeight: '120px'}}
+                  >
+                    <i className="fas fa-globe-asia fa-2x mb-2 text-primary"></i>
+                    <h6 className="fw-bold mb-1">다문화가정</h6>
+                    <small className="text-muted mb-1">억양학습 필요 대상</small>
+                    <span className="badge bg-success">설문 준비완료</span>
+                  </a>
+                </div>
+              </div>
+              <div className="text-center mt-3">
+                <small className="text-muted">
+                  <i className="fas fa-clock me-1"></i>약 3분 소요 | 
+                  <i className="fas fa-shield-alt ms-2 me-1"></i>개인정보는 안전하게 보호됩니다
+                </small>
+              </div>
             </div>
           </div>
 
@@ -583,7 +615,7 @@ const VoiceAnalysisApp: React.FC = () => {
                         <option value="">연습할 문장을 선택하세요...</option>
                         {referenceFiles.map((file) => (
                           <option key={file.id} value={file.id}>
-                            {file.title}
+                            {file.title} ({file.duration.toFixed(1)}초)
                           </option>
                         ))}
                       </select>
