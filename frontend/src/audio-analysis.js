@@ -356,11 +356,17 @@ function updateButtons() {
     const hasRecording = recordedAudioBlob !== null;
     const canSave = hasWav && hasTextGrid;
     
+    // 🎯 녹음/재생 상태 확인 (상호 배타적 제어)
+    const isCurrentlyRecording = isRecording || (typeof window !== 'undefined' && window.audioRecordingState?.isRecording);
+    const isCurrentlyPlaying = currentlyPlaying !== null;
+    
     console.log('Updating buttons:', {
         hasWav,
         hasTextGrid,
         hasRefData,
         hasRecording,
+        isCurrentlyRecording,
+        isCurrentlyPlaying,
         wavFiles: $wav ? $wav.files.length : 0,
         tgFiles: $tg ? $tg.files.length : 0
     });
@@ -398,14 +404,16 @@ function updateButtons() {
     }
     
     if ($btnPlayRef) {
-        // 선택된 문장이 있거나 WAV 파일이 있으면 활성화
+        // 🎯 참조음성 재생: 문장이나 WAV가 있어야 하고, 녹음 중이 아니어야 함
         const hasSelectedSentence = window.currentSelectedSentence;
-        $btnPlayRef.disabled = !(hasWav || hasSelectedSentence);
-        console.log(`🎵 참조음성 재생 버튼 상태: ${$btnPlayRef.disabled ? '비활성화' : '활성화'} (WAV: ${hasWav}, 선택된문장: ${hasSelectedSentence})`);
+        $btnPlayRef.disabled = !(hasWav || hasSelectedSentence) || isCurrentlyRecording;
+        console.log(`🎵 참조음성 재생 버튼 상태: ${$btnPlayRef.disabled ? '비활성화' : '활성화'} (WAV: ${hasWav}, 문장: ${hasSelectedSentence}, 녹음중: ${isCurrentlyRecording})`);
     }
     
     if ($btnPlayRec) {
-        $btnPlayRec.disabled = !hasRecording;
+        // 🎯 녹음음성 재생: 녹음 파일이 있어야 하고, 녹음 중이 아니어야 함
+        $btnPlayRec.disabled = !hasRecording || isCurrentlyRecording;
+        console.log(`🎵 녹음음성 재생 버튼 상태: ${$btnPlayRec.disabled ? '비활성화' : '활성화'} (녹음파일: ${hasRecording}, 녹음중: ${isCurrentlyRecording})`);
     }
     
     
