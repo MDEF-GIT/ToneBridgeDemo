@@ -9,6 +9,11 @@ const PORT = 5000;
 // CORS 설정
 app.use(cors());
 
+// Favicon 요청 무시 (프록시 서버에서는 불필요)
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // 🎯 캐시 방지 헤더 추가 (중요!)
 app.use((req, res, next) => {
     res.set({
