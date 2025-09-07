@@ -205,15 +205,14 @@ app.get('/', (req, res) => {
 });
 
 // ToneBridge 앱 페이지 프록시
-app.get('/tonebridge-app', (req, res) => {
-  // 직접 리다이렉트 대신 프록시로 전달
-  req.url = '/';
-  createProxyMiddleware({
-    target: 'http://localhost:8000',
-    changeOrigin: true,
-    followRedirects: true
-  })(req, res);
-});
+app.use('/tonebridge-app', createProxyMiddleware({
+  target: 'http://localhost:8000',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/tonebridge-app': '' // /tonebridge-app를 제거하고 백엔드 루트로 전달
+  },
+  logLevel: 'info'
+}));
 
 // 서버 시작
 app.listen(PORT, '0.0.0.0', () => {
