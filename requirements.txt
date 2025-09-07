@@ -6,3 +6,6 @@ aiofiles==23.2.1
 sqlalchemy==2.0.23
 numpy==1.25.2
 praat-parselmouth==0.4.3
+flask-login
+pydantic
+werkzeug

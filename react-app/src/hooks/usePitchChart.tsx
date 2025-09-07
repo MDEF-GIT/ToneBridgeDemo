@@ -30,7 +30,7 @@ interface PitchData {
   type: 'reference' | 'live';
 }
 
-export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement>) => {
+export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>) => {
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);

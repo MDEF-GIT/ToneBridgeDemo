@@ -17,7 +17,7 @@ export const useAudioRecording = () => {
     error: null
   });
 
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const onPitchDataRef = useRef<((frequency: number, timestamp: number) => void) | null>(null);
 
   const startRecording = useCallback(async () => {
