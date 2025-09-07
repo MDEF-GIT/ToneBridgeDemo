@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { YINPitchDetector, PitchResult } from '../utils/pitchAnalysis';
 import { AudioPlaybackController } from '../utils/audioUtils';
 
