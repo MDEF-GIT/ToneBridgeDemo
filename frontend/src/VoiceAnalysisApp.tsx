@@ -3,11 +3,11 @@
  * 한국어 억양 학습 플랫폼의 모든 기능 구현
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { ReferenceFile, LearnerInfo, LearningMethod, AnalysisResult, SyllableData } from './types/api';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import './custom.css';
-import SurveyForm from './components/SurveyForm';
 
 const VoiceAnalysisApp: React.FC = () => {
   // 🎯 학습자 정보 및 학습 방법
@@ -283,6 +283,20 @@ const VoiceAnalysisApp: React.FC = () => {
             }}>
               실시간 피드백 한국어 억양학습 솔루션 <span style={{fontSize: '0.95em'}}>데모ver.</span>
             </p>
+            {/* 🎯 네비게이션 링크 */}
+            <div className="text-center mb-3">
+              <Link 
+                to="/survey" 
+                className="btn btn-outline-light btn-lg fw-bold px-4 py-2 me-3"
+                style={{
+                  borderRadius: '25px',
+                  borderWidth: '2px',
+                  boxShadow: '0 3px 10px rgba(255, 255, 255, 0.2)'
+                }}
+              >
+                <i className="fas fa-clipboard-list me-2"></i>사용자 설문
+              </Link>
+            </div>
             <div className="text-end">
               <div className="mb-1" style={{
                 color: 'white',
@@ -308,46 +322,6 @@ const VoiceAnalysisApp: React.FC = () => {
           <div className="row justify-content-center">
             <div className="col-lg-10">
 
-          {/* 🎯 개인화 코칭 설문 CTA */}
-          <div className="alert d-flex align-items-center mb-4 survey-cta" style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            border: 'none',
-            borderRadius: '15px',
-            boxShadow: '0 5px 15px rgba(102, 126, 234, 0.3)'
-          }}>
-            <div className="flex-grow-1 text-white">
-              <div className="d-flex align-items-center mb-2">
-                <i className="fas fa-graduation-cap fa-2x me-3" style={{color: '#ffd700'}}></i>
-                <div>
-                  <h5 className="mb-1 fw-bold">데모학습 후, 더 정확한 개인화 코칭을 위해</h5>
-                  <p className="mb-0 small opacity-90">3분 설문 참여로 서비스 품질 향상에 힘을 보태주세요!</p>
-                </div>
-              </div>
-              <div className="d-flex flex-wrap gap-2 small">
-                <span className="badge bg-warning text-dark">
-                  <i className="fas fa-check me-1"></i>개선 의견 남기기
-                </span>
-                <span className="badge bg-info">
-                  <i className="fas fa-bell me-1"></i>신기능 알림 신청
-                </span>
-                <span className="badge bg-success">
-                  <i className="fas fa-users me-1"></i>파일럿 프로그램 참여
-                </span>
-              </div>
-            </div>
-            <div className="ms-3">
-              <a 
-                href="/survey" 
-                className="btn btn-warning btn-lg fw-bold px-4 py-2"
-                style={{
-                  borderRadius: '25px',
-                  boxShadow: '0 3px 10px rgba(255, 193, 7, 0.4)'
-                }}
-              >
-                <i className="fas fa-clipboard-list me-2"></i>3분 설문하기
-              </a>
-            </div>
-          </div>
 
           {/* 🎯 휴대폰 가로보기 안내 */}
           <div className="alert text-center mb-4 mobile-warning shake-animation" style={{
@@ -912,55 +886,6 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           )}
 
-          {/* 📋 설문조사 CTA 섹션 */}
-          <div className="row mb-5">
-            <div className="col-12">
-              <div className="survey-cta p-4 rounded shadow-sm" style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '20px'
-              }}>
-                <div className="text-white text-center">
-                  <div className="d-flex align-items-center justify-content-center flex-wrap">
-                    <div className="me-3 mb-2 mb-md-0">
-                      <i className="fas fa-lightbulb fa-2x pulse" style={{color: '#ffc107'}}></i>
-                    </div>
-                    <div className="flex-grow-1 text-start text-md-start text-center">
-                      <h5 className="mb-1">
-                        <i className="fas fa-clipboard-list me-2"></i>
-                        ToneBridge 사용자 설문조사
-                      </h5>
-                      <p className="mb-0 small">
-                        귀하의 소중한 의견으로 ToneBridge를 더욱 발전시켜주세요!
-                      </p>
-                    </div>
-                    <div className="ms-3">
-                      <button 
-                        className="btn btn-warning btn-lg fw-bold"
-                        onClick={() => {
-                          document.getElementById('survey-section')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        설문 참여하기
-                        <i className="fas fa-arrow-down ms-2"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 📋 설문 섹션 */}
-          <div id="survey-section" className="row mb-5">
-            <div className="col-12">
-              <SurveyForm 
-                onSubmit={(data) => {
-                  console.log('설문 데이터 제출:', data);
-                }}
-                className="mb-4"
-              />
-            </div>
-          </div>
 
           {/* 🎯 하단 연락처 섹션 */}
           <div className="mt-5 py-4 contact-section" style={{
