@@ -1407,49 +1407,85 @@ function playReferenceAudio() {
 }
 
 function playRecordedAudio() {
-    if (!recordedAudioBlob) {
-        console.log('No recorded audio available');
+    console.log('🎯 녹음음성 재생 버튼 클릭, 현재 재생 상태:', !!currentlyPlaying);
+    
+    // 현재 재생 중이면 정지
+    if (currentlyPlaying) {
+        console.log('🛑 녹음음성 정지 실행');
+        currentlyPlaying.pause();
+        currentlyPlaying.currentTime = 0;
+        currentlyPlaying = null;
+        
+        // 버튼 상태를 재생 모드로 변경
+        $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+        $btnPlayRec.classList.remove('btn-danger');
+        $btnPlayRec.classList.add('btn-warning');
         return;
     }
     
-    stopAllAudio();
+    if (!recordedAudioBlob) {
+        console.log('⚠️ 녹음된 음성이 없습니다');
+        return;
+    }
     
-    const audioUrl = URL.createObjectURL(recordedAudioBlob);
-    const audio = new Audio(audioUrl);
-    
-    audio.onplay = () => {
+    try {
+        console.log('▶️ 녹음음성 재생 시작');
+        
+        // 다른 오디오 정지
+        stopAllAudio();
+        
+        const audioUrl = URL.createObjectURL(recordedAudioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // 즉시 재생 상태로 변경
         currentlyPlaying = audio;
         $btnPlayRec.innerHTML = '<i class="fas fa-stop me-1"></i> 녹음음성 정지';
         $btnPlayRec.classList.remove('btn-warning');
         $btnPlayRec.classList.add('btn-danger');
-    };
-    
-    audio.onended = audio.onpause = () => {
-        currentlyPlaying = null;
-        $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
-        $btnPlayRec.classList.remove('btn-danger');
-        $btnPlayRec.classList.add('btn-warning');
-        URL.revokeObjectURL(audioUrl);
-    };
-    
-    audio.onerror = () => {
-        console.error('Error playing recorded audio');
-        $status.textContent = '녹음 음성 재생 오류';
-        currentlyPlaying = null;
-        $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
-        $btnPlayRec.classList.remove('btn-danger');
-        $btnPlayRec.classList.add('btn-warning');
-        URL.revokeObjectURL(audioUrl);
-    };
-    
-    if (currentlyPlaying === audio) {
-        audio.pause();
-        currentlyPlaying = null;
-    } else {
-        audio.play().catch(e => {
-            console.error('Error playing audio:', e);
-            $status.textContent = '음성 재생 오류';
+        
+        audio.addEventListener('play', () => {
+            console.log('🎵 녹음음성 재생 시작됨');
         });
+        
+        audio.addEventListener('ended', () => {
+            console.log('🏁 녹음음성 재생 완료');
+            currentlyPlaying = null;
+            $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+            $btnPlayRec.classList.remove('btn-danger');
+            $btnPlayRec.classList.add('btn-warning');
+            URL.revokeObjectURL(audioUrl);
+        });
+        
+        audio.addEventListener('pause', () => {
+            console.log('⏸️ 녹음음성 일시정지됨');
+        });
+        
+        audio.addEventListener('error', (e) => {
+            console.error('❌ 녹음음성 재생 오류:', e);
+            $status.textContent = '녹음 음성 재생 오류';
+            currentlyPlaying = null;
+            $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+            $btnPlayRec.classList.remove('btn-danger');
+            $btnPlayRec.classList.add('btn-warning');
+            URL.revokeObjectURL(audioUrl);
+        });
+        
+        audio.play().catch(e => {
+            console.error('❌ 녹음음성 재생 실패:', e);
+            $status.textContent = '음성 재생 오류';
+            currentlyPlaying = null;
+            $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+            $btnPlayRec.classList.remove('btn-danger');
+            $btnPlayRec.classList.add('btn-warning');
+            URL.revokeObjectURL(audioUrl);
+        });
+        
+    } catch (error) {
+        console.error('❌ playRecordedAudio 오류:', error);
+        currentlyPlaying = null;
+        $btnPlayRec.innerHTML = '<i class="fas fa-play me-1"></i> 녹음음성 재생';
+        $btnPlayRec.classList.remove('btn-danger');
+        $btnPlayRec.classList.add('btn-warning');
     }
 }
 
