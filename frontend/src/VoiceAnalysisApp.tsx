@@ -8,13 +8,16 @@ import { usePitchChart } from './hooks/usePitchChart';
 // ChartControls와 PitchTestMode는 일단 제외하고 기본 기능부터 구현
 import './custom.css';
 
-// Types
+// Types - 백엔드 API 응답에 맞춘 인터페이스
 interface ReferenceFile {
-  filename: string;
-  display_name: string;
+  id: string;
+  title: string;
+  sentence_text: string;
   duration: number;
-  mean_f0: number;
-  gender: 'male' | 'female';
+  detected_gender: string;
+  average_f0: number;
+  wav: string;
+  textgrid: string;
 }
 
 interface AnalysisResult {
@@ -68,15 +71,26 @@ const VoiceAnalysisApp: React.FC = () => {
       const response = await fetch(`${API_BASE}/api/reference_files`);
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ ToneBridge Backend Service: 연결됨 (참조 파일', data.length + '개 로드됨)');
-        setReferenceFiles(data);
-        setBackendConnected(true);
+        console.log('🔍 API 응답 데이터:', data);
+        
+        // API 응답에서 files 배열 추출
+        if (data && data.files && Array.isArray(data.files)) {
+          console.log('✅ ToneBridge Backend Service: 연결됨 (참조 파일', data.files.length + '개 로드됨)');
+          setReferenceFiles(data.files);
+          setBackendConnected(true);
+        } else {
+          console.error('❌ API 응답에 files 배열이 없음:', data);
+          setReferenceFiles([]);
+          setBackendConnected(false);
+        }
       } else {
         console.error('❌ 백엔드 연결 실패');
+        setReferenceFiles([]);
         setBackendConnected(false);
       }
     } catch (error) {
       console.error('❌ 백엔드 연결 오류:', error);
+      setReferenceFiles([]);
       setBackendConnected(false);
     }
   };
@@ -214,8 +228,8 @@ const VoiceAnalysisApp: React.FC = () => {
                   >
                     <option value="">문장을 선택하세요</option>
                     {referenceFiles.map((file) => (
-                      <option key={file.filename} value={file.filename}>
-                        {file.display_name}
+                      <option key={file.id} value={file.id}>
+                        {file.title}
                       </option>
                     ))}
                   </select>
