@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}설문 참여 - ToneBridge{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      
+      <!-- 헤더 -->
+      <div class="text-center mb-5">
+        <div class="d-flex align-items-center justify-content-center mb-3">
+          <i class="fas fa-clipboard-list fa-3x me-3" style="color: #667eea;"></i>
+          <div>
+            <h1 class="fw-bold mb-1" style="color: #2c3e50; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;">설문 참여</h1>
+            <p class="text-muted mb-0">서비스 품질 향상을 위한 3분 설문</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 설명 카드 -->
+      <div class="card mb-5" style="border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-radius: 15px;">
+        <div class="card-body text-center p-5">
+          <h4 class="fw-bold mb-3" style="color: #667eea;">귀하에게 해당하는 항목을 선택해주세요</h4>
+          <p class="text-muted mb-4">
+            ToneBridge 서비스 개선을 위해 다양한 사용자 그룹별로 맞춤화된 설문을 준비했습니다.<br>
+            귀하의 소중한 의견이 더 나은 서비스를 만드는 데 큰 도움이 됩니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- 대상별 선택 버튼 -->
+      <div class="row g-4 mb-5">
+        
+        <!-- 언어치료사 -->
+        <div class="col-md-6">
+          <a href="https://naver.me/FfBegQQP" target="_blank" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-4 text-decoration-none survey-btn">
+            <i class="fas fa-user-md fa-3x mb-3 text-primary"></i>
+            <h5 class="fw-bold mb-2">언어치료사</h5>
+            <p class="text-muted mb-0 small">언어치료 전문가</p>
+            <span class="badge bg-success mt-2">설문 준비완료</span>
+          </a>
+        </div>
+        
+        <!-- 일반인 -->
+        <div class="col-md-6">
+          <a href="https://naver.me/xJGG2Fl8" target="_blank" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-4 text-decoration-none survey-btn">
+            <i class="fas fa-user fa-3x mb-3 text-primary"></i>
+            <h5 class="fw-bold mb-2">일반인</h5>
+            <p class="text-muted mb-0 small">일반 사용자</p>
+            <span class="badge bg-success mt-2">설문 준비완료</span>
+          </a>
+        </div>
+        
+        <!-- 억양학습 필요 대상 - 다문화 -->
+        <div class="col-md-6">
+          <a href="https://naver.me/F8uu1Q3G" target="_blank" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-4 text-decoration-none survey-btn">
+            <i class="fas fa-globe-asia fa-3x mb-3 text-primary"></i>
+            <h5 class="fw-bold mb-2">북한이탈주민, 다문화가정 등</h5>
+            <p class="text-muted mb-0 small">억양학습 필요 대상</p>
+            <span class="badge bg-success mt-2">설문 준비완료</span>
+          </a>
+        </div>
+        
+        <!-- 억양학습 필요 대상 - 장애군 (임시) -->
+        <div class="col-md-6">
+          <div class="btn btn-outline-secondary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-4 survey-btn-disabled">
+            <i class="fas fa-heart fa-3x mb-3 text-secondary"></i>
+            <h5 class="fw-bold mb-2">장애군</h5>
+            <p class="text-muted mb-0 small">억양학습 필요 대상</p>
+            <span class="badge bg-secondary mt-2">준비중</span>
+          </div>
+        </div>
+        
+        <!-- 한국어교원 -->
+        <div class="col-md-6">
+          <a href="https://naver.me/xhllAmbd" target="_blank" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-4 text-decoration-none survey-btn">
+            <i class="fas fa-chalkboard-teacher fa-3x mb-3 text-primary"></i>
+            <h5 class="fw-bold mb-2">한국어교원</h5>
+            <p class="text-muted mb-0 small">한국어 교육 전문가</p>
+            <span class="badge bg-success mt-2">설문 준비완료</span>
+          </a>
+        </div>
+        
+        <!-- 외국인 -->
+        <div class="col-md-6">
+          <div class="btn btn-outline-secondary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-4 survey-btn-disabled">
+            <i class="fas fa-globe fa-3x mb-3 text-secondary"></i>
+            <h5 class="fw-bold mb-2">외국인</h5>
+            <p class="text-muted mb-0 small">외국인 학습자</p>
+            <span class="badge bg-secondary mt-2">준비중</span>
+          </div>
+        </div>
+        
+      </div>
+
+      <!-- 하단 안내 -->
+      <div class="text-center mb-5">
+        <a href="/" class="btn btn-outline-dark">
+          <i class="fas fa-arrow-left me-2"></i>메인페이지로 돌아가기
+        </a>
+      </div>
+
+      <!-- 하단 연락처 섹션 -->
+      <div class="mt-5 py-4" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); border-top: 3px solid #e67e22; border-radius: 8px;">
+        <div class="container">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <div class="d-flex align-items-center">
+                <div class="me-4">
+                  <h6 class="text-white mb-1 fw-bold" style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;">THE소리LAB</h6>
+                  <p class="text-light mb-0 small opacity-75">당신만의 소리를 위해 끊임없이 연구합니다</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 text-md-end">
+              <div class="d-flex align-items-center justify-content-md-end">
+                <i class="fas fa-envelope me-2" style="color: #e67e22;"></i>
+                <a href="mailto:thesorilab@naver.com" class="text-white text-decoration-none fw-medium" style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;">
+                  thesorilab@naver.com
+                </a>
+              </div>
+              <small class="text-light opacity-75 d-block mt-1" style="white-space: nowrap;">문의사항이 있으시면 언제든 연락주세요</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+.survey-btn {
+  transition: all 0.3s ease;
+  border-radius: 15px;
+  min-height: 200px;
+}
+
+.survey-btn:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+}
+
+.survey-btn-disabled {
+  border-radius: 15px;
+  min-height: 200px;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .survey-btn, .survey-btn-disabled {
+    min-height: 160px;
+  }
+}
+</style>
+{% endblock %}
