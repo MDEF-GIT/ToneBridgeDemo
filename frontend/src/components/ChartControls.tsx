@@ -6,7 +6,7 @@
  * Lines: 448-593 in backend/static/js/audio-analysis.js
  */
 
-import * as React from 'react';
+import React from 'react';
 import { Chart as ChartJS } from 'chart.js';
 
 interface ChartControlsProps {

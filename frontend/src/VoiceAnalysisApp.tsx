@@ -2,7 +2,7 @@
  * ToneBridge Voice Analysis - index.html 완전 재현
  * 한국어 억양 학습 플랫폼의 모든 기능 구현
  */
-import * as React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './types/api';
 import { useAudioRecording } from './hooks/useAudioRecording';

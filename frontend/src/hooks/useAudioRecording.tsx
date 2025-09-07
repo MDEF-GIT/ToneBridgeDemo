@@ -1,4 +1,4 @@
-import * as React from "react";
+import React from "react";
 import { YINPitchDetector, PitchResult } from '../utils/pitchAnalysis';
 import { AudioPlaybackController } from '../utils/audioUtils';
 
