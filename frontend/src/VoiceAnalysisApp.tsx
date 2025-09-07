@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import ChartControls from './components/ChartControls';
+import PitchTestMode from './components/PitchTestMode';
 import './custom.css';
 
 // Types
@@ -537,6 +538,17 @@ const VoiceAnalysisApp: React.FC = () => {
               ></canvas>
             </div>
           </div>
+
+          {/* 🎯 피치 테스트 모드 */}
+          {selectedSentence && (
+            <PitchTestMode
+              chartInstance={pitchChart.chartInstance}
+              isActive={false}
+              onStart={() => console.log('피치 테스트 시작')}
+              onStop={() => console.log('피치 테스트 중지')}
+              onTargetHit={(accuracy) => console.log('타겟 적중:', accuracy)}
+            />
+          )}
 
           {/* 제어 버튼들 */}
           <div className="card mb-4">
