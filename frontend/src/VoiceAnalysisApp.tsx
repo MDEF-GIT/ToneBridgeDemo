@@ -228,66 +228,44 @@ const VoiceAnalysisApp: React.FC = () => {
           <div className="col-lg-10">
 
 
-          {/* 🎯 설문 조사 섹션 */}
-          <div className="card mb-4" style={{
+          {/* 🎯 개인화 코칭 설문 CTA (오리지날 HTML 구조) */}
+          <div className="alert alert-primary d-flex align-items-center mb-4 survey-cta" style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
             border: 'none', 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)', 
-            borderRadius: '15px'
+            borderRadius: '12px', 
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
           }}>
-            <div className="card-header" style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-              borderRadius: '15px 15px 0 0',
-              border: 'none'
-            }}>
-              <div className="d-flex align-items-center">
-                <i className="fas fa-clipboard-list fa-2x me-3" style={{color: '#ffd700'}}></i>
+            <div className="flex-grow-1 text-white">
+              <div className="d-flex align-items-center mb-2">
+                <i className="fas fa-graduation-cap fa-2x me-3" style={{color: '#ffd700'}}></i>
                 <div>
-                  <h5 className="mb-1 fw-bold text-white">서비스 품질 향상을 위한 설문 참여</h5>
-                  <p className="mb-0 small text-white opacity-90">ToneBridge 음성 분석 서비스 개선을 위한 사용자 의견을 수집합니다</p>
+                  <h5 className="mb-1 fw-bold">데모학습 후, 더 정확한 개인화 코칭을 위해</h5>
+                  <p className="mb-0 small opacity-90">3분 설문 참여로 서비스 품질 향상에 힘을 보태주세요!</p>
                 </div>
               </div>
-            </div>
-            <div className="card-body p-4 text-center">
-              <div className="mb-3">
-                <p className="text-muted mb-3">
-                  언어치료 전문가와 일반 사용자, 다문화가정을 위한<br />
-                  맞춤형 설문을 통해 더 나은 서비스를 제공하겠습니다.
-                </p>
+              <div className="d-flex flex-wrap gap-2 small">
+                <span className="badge bg-warning text-dark">
+                  <i className="fas fa-check me-1"></i>개선 의견 남기기
+                </span>
+                <span className="badge bg-info">
+                  <i className="fas fa-bell me-1"></i>신기능 알림 신청
+                </span>
+                <span className="badge bg-success">
+                  <i className="fas fa-users me-1"></i>파일럿 프로그램 참여
+                </span>
               </div>
-              
+            </div>
+            <div className="ms-3">
               <Link 
-                to="/survey"
-                className="btn btn-lg text-decoration-none"
+                to="/survey" 
+                className="btn btn-warning btn-lg fw-bold px-4 py-2 text-decoration-none" 
                 style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                  border: 'none',
-                  borderRadius: '12px',
-                  color: 'white',
-                  padding: '15px 40px',
-                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-                  transition: 'all 0.3s ease',
-                  fontSize: '1.1em'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0px)';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                  borderRadius: '25px', 
+                  boxShadow: '0 3px 10px rgba(255, 193, 7, 0.4)'
                 }}
               >
-                <i className="fas fa-clipboard-list me-2"></i>
-                설문 참여하기
+                <i className="fas fa-clipboard-list me-2"></i>3분 설문하기
               </Link>
-              
-              <div className="mt-3">
-                <small className="text-muted">
-                  <i className="fas fa-clock me-1"></i>약 3-5분 소요 | 
-                  <i className="fas fa-shield-alt ms-2 me-1"></i>개인정보는 안전하게 보호됩니다 |
-                  <i className="fas fa-users ms-2 me-1"></i>대상별 맞춤 설문
-                </small>
-              </div>
             </div>
           </div>
 
