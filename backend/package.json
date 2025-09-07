@@ -1,0 +1,13 @@
+{
+  "name": "tonebridge-backend",
+  "version": "1.0.0",
+  "description": "ToneBridge Voice Analysis Backend API Service",
+  "main": "backend_server.py",
+  "scripts": {
+    "start": "uvicorn backend_server:app --host 0.0.0.0 --port 8000 --reload",
+    "dev": "uvicorn backend_server:app --host 0.0.0.0 --port 8000 --reload"
+  },
+  "keywords": ["voice-analysis", "praat", "korean", "fastapi"],
+  "author": "ToneBridge Team",
+  "license": "MIT"
+}

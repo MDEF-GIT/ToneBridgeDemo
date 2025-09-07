@@ -32,9 +32,8 @@ except ImportError as e:
 
 app = FastAPI(title="ToneBridge Praat Analysis API")
 
-# Mount static files and templates
+# 마이크로서비스 아키텍처: 백엔드는 순수 API만 제공
 app.mount("/static", StaticFiles(directory="static"), name="static")
-# 독립 환경이므로 demo-static 마운트는 제거
 templates = Jinja2Templates(directory="templates")
 
 # Database setup
