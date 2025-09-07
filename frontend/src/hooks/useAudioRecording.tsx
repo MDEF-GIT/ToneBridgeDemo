@@ -165,14 +165,19 @@ export const useAudioRecording = () => {
   };
 
   const playRecordedAudio = useCallback(() => {
-    if (!state.recordedBlob) return;
+    if (!state.recordedBlob) {
+      console.log('❌ 녹음된 음성이 없습니다');
+      return;
+    }
 
-    // 현재 재생 중인지 Audio 객체로 직접 확인
-    if (recordedAudioRef.current && !recordedAudioRef.current.paused) {
+    // 현재 재생 중이면 정지
+    if (state.isPlayingRecorded) {
       console.log('🛑 녹음음성 재생 중지');
-      recordedAudioRef.current.pause();
-      recordedAudioRef.current.currentTime = 0;
-      recordedAudioRef.current = null;
+      if (recordedAudioRef.current) {
+        recordedAudioRef.current.pause();
+        recordedAudioRef.current.currentTime = 0;
+        recordedAudioRef.current = null;
+      }
       setState(prev => ({ ...prev, isPlayingRecorded: false }));
       return;
     }
@@ -184,10 +189,8 @@ export const useAudioRecording = () => {
       
       recordedAudioRef.current = audio;
       
-      // 재생 시작되면 상태 업데이트
-      audio.onloadstart = () => {
-        setState(prev => ({ ...prev, isPlayingRecorded: true }));
-      };
+      // 즉시 재생 상태로 설정
+      setState(prev => ({ ...prev, isPlayingRecorded: true }));
 
       audio.onended = () => {
         console.log('🔚 녹음음성 재생 완료');
@@ -203,12 +206,23 @@ export const useAudioRecording = () => {
         URL.revokeObjectURL(audioUrl);
       };
 
-      audio.play();
+      audio.onpause = () => {
+        console.log('⏸️ 녹음음성 일시정지');
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+      };
+
+      // 비동기 재생 시작
+      audio.play().catch(error => {
+        console.error('❌ 재생 실패:', error);
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        recordedAudioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      });
     } catch (error) {
       console.error('❌ 녹음음성 재생 실패:', error);
       setState(prev => ({ ...prev, isPlayingRecorded: false }));
     }
-  }, [state.recordedBlob]);
+  }, [state.recordedBlob, state.isPlayingRecorded]);
 
   const setPitchCallback = useCallback((callback: (frequency: number, timestamp: number) => void) => {
     onPitchDataRef.current = callback;
