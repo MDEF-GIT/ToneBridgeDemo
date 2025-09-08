@@ -355,3 +355,35 @@ export class YINPitchDetector {
     this.pitchBuffer = [];
   }
 }
+
+// 🎯 Global YIN detector instance for consistent pitch analysis
+let globalYinDetector: YINPitchDetector | null = null;
+
+/**
+ * 간단한 피치 검출 함수 - 기존 코드와 호환성 유지
+ * 내부적으로 고급 YIN 알고리즘 사용
+ */
+export function detectPitch(buffer: Float32Array, sampleRate: number): number {
+  if (!globalYinDetector) {
+    globalYinDetector = new YINPitchDetector(sampleRate, {
+      frameMs: 25,
+      hopMs: 10,
+      windowType: 'hanning',
+      maxF0: 500,
+      minF0: 50,
+      voicingThreshold: 0.45,
+      confidenceThreshold: 0.6
+    });
+    console.log('🎯 고급 YIN 피치 검출기 초기화 완료');
+  }
+  
+  const timestamp = Date.now();
+  const result = globalYinDetector.detectPitch(buffer, timestamp);
+  
+  // 🎯 디버그 정보 (필요시 주석 해제)
+  // if (result.f0 > 0) {
+  //   console.log(`🎯 YIN 피치 검출: ${result.f0.toFixed(1)}Hz (신뢰도: ${(result.confidence * 100).toFixed(1)}%)`);
+  // }
+  
+  return result.f0;
+}
