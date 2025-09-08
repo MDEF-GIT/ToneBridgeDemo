@@ -258,7 +258,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       if (convertedValues.length > 0) {
         const minValue = Math.min(...convertedValues);
         const maxValue = Math.max(...convertedValues);
-        const margin = Math.abs(maxValue - minValue) * 0.1 || 2; // 10% 여유분 또는 최소 2
+        const margin = Math.abs(maxValue - minValue) * 0.2 || 3; // 🎯 20% 여유분 (라벨 겹침 방지)
         
         if (chart.options.scales && chart.options.scales.y) {
           const yAxisScale = chart.options.scales.y as any;
@@ -516,7 +516,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         if (convertedValues.length > 0 && chartRef.current?.options?.scales?.y) {
           const minValue = Math.min(...convertedValues);
           const maxValue = Math.max(...convertedValues);
-          const margin = Math.abs(maxValue - minValue) * 0.1 || 2; // 10% 여유분 또는 최소 2
+          const margin = Math.abs(maxValue - minValue) * 0.2 || 3; // 🎯 20% 여유분 (라벨 겹침 방지)
           
           const yScale = chartRef.current.options.scales.y as any;
           yScale.min = Math.floor(minValue - margin);
@@ -608,12 +608,16 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         borderDash: [6, 3]
       };
       
-      // 🔥 보라색 음절 라벨 박스
+      // 🔥 보라색 음절 라벨 박스 (절대 위치 고정)
       const midTime = (sylStart + sylEnd) / 2;
       chart.options.plugins.annotation.annotations[`label_${index}`] = {
         type: 'label',
         xValue: midTime,
-        yValue: labelY,
+        position: {
+          x: 'center',
+          y: 'start'  // 🎯 차트 상단 절대 위치에 고정
+        },
+        yAdjust: 10,  // 상단에서 10px 아래
         content: sylLabel,
         backgroundColor: 'rgba(138, 43, 226, 0.9)',  // 보라색 배경
         borderColor: 'rgba(138, 43, 226, 1)',
@@ -694,7 +698,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       );
       const minValue = Math.min(...convertedValues);
       const maxValue = Math.max(...convertedValues);
-      const margin = Math.abs(maxValue - minValue) * 0.1 || 2;
+      const margin = Math.abs(maxValue - minValue) * 0.2 || 3; // 🎯 20% 여유분 (라벨 겹침 방지)
       
       yScale.min = Math.floor(minValue - margin);
       yScale.max = Math.ceil(maxValue + margin);
