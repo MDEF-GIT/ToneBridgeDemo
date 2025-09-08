@@ -2811,6 +2811,24 @@ async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
         
         # Parselmouth로 피치 추출
         sound = pm.Sound(str(wav_path))
+        
+        # 볼륨 증폭 (RMS가 낮은 경우)
+        values = sound.values[0] if sound.n_channels > 0 else sound.values
+        rms = np.sqrt(np.mean(values**2))
+        if rms < 0.01:  # 볼륨이 작은 경우
+            target_rms = 0.02  # 목표 RMS
+            amplification_factor = target_rms / (rms + 1e-10)  # 0으로 나누기 방지
+            # 최대 10배까지만 증폭
+            amplification_factor = min(amplification_factor, 10.0)
+            
+            print(f"🔊 볼륨 증폭: RMS {rms:.4f} → {target_rms:.4f} (x{amplification_factor:.2f})")
+            
+            # 새로운 오디오 생성
+            amplified_values = values * amplification_factor
+            # 클리핑 방지
+            amplified_values = np.clip(amplified_values, -0.9, 0.9)
+            sound = pm.Sound(amplified_values, sampling_frequency=sound.sampling_frequency)
+        
         pitch = sound.to_pitch()
         
         # 피치 데이터 추출

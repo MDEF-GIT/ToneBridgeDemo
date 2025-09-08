@@ -22,6 +22,14 @@ const UploadedFileTestSection: React.FC = () => {
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const testPitchChart = usePitchChart(chartCanvasRef);
 
+  // 컴포넌트 마운트 시 Hz 단위로 설정
+  useEffect(() => {
+    if (testPitchChart.setYAxisUnit) {
+      testPitchChart.setYAxisUnit('hz'); // Hz 단위로 설정
+      console.log('📊 업로드 파일 테스트: Y축 단위를 Hz로 설정');
+    }
+  }, [testPitchChart]);
+
   // 업로드된 파일 목록 불러오기
   useEffect(() => {
     loadUploadedFiles();
