@@ -145,42 +145,204 @@
 
 ---
 
-## 🔍 **React 앱과 기능 비교 분석**
+## 🚨 **CRITICAL: TextGrid 시각화 기능 완전 누락 발견**
 
-### ✅ **React에 이미 있는 기능**
-1. **오디오 녹음/재생** - `useAudioRecording` 훅
-2. **피치 차트** - `usePitchChart` 훅  
-3. **실시간 피치 분석** - Chart.js 기반
-4. **참조 문장 선택** - 드롭다운 UI
-5. **기본 상태 관리** - React useState
+### 🎯 **오리지널 TextGrid 그리기 시스템 (2253라인)**
 
-### ❌ **React에 없는 중요 기능 (이전 필요)**
-1. **고급 피치 분석** - YINPitchDetector, enhancedYinPitch
-2. **차트 확대/스크롤** - zoomChart, scrollChart  
-3. **피치 테스트 모드** - 2포인트 연습, 범위 설정
-4. **성별 정규화** - 성별별 피치 조정
-5. **음절 주석** - 음절별 분석 테이블
-6. **스펙트로그램** - 고급 시각화
-7. **설문조사 시스템** - 완전한 폼 관리
-8. **자동저장** - 임시저장 기능
-9. **고급 유틸리티** - semitone/Q-tone 변환
-10. **VAD 음절 추적** - 음성 활동 감지
+```javascript
+// 🔥 addSyllableAnnotations() - 핵심 음절 시각화
+function addSyllableAnnotations(syllables) {
+    syllables.forEach((syl, index) => {
+        // 🔥 음절 구간 점선 표시 (빨간색)
+        chart.options.plugins.annotation.annotations[`end_${index}`] = {
+            type: 'line',
+            xMin: sylEnd, xMax: sylEnd,
+            borderColor: 'rgba(255, 99, 132, 0.8)',
+            borderWidth: 3,
+            borderDash: [6, 3]  // 점선 패턴
+        };
+        
+        // 🔥 보라색 음절 라벨 박스
+        chart.options.plugins.annotation.annotations[`label_${index}`] = {
+            type: 'label',
+            content: sylLabel,  // "안녕", "하세", "요"
+            backgroundColor: 'rgba(138, 43, 226, 0.9)',
+            borderRadius: 6,
+            font: { size: 14, weight: 'bold' },
+            color: 'white'
+        };
+    });
+}
+```
+
+### 🔥 **오리지널 음절 분석 테이블 (2348라인)**
+
+```javascript
+// 🎯 updateSyllableAnalysisTable() - 동적 테이블 생성
+function updateSyllableAnalysisTable(syllableAnalysis) {
+    syllableAnalysis.forEach(syl => {
+        const row = `
+            <tr>
+                <td>${syl.label}</td>           <!-- 음절 텍스트 -->
+                <td>${syl.start.toFixed(3)}</td> <!-- 시작 시간 -->
+                <td>${syl.end.toFixed(3)}</td>   <!-- 끝 시간 -->
+                <td>${syl.frequency.toFixed(1)}</td> <!-- 피치 -->
+                <td>${syl.semitone.toFixed(2)}</td>  <!-- 세미톤 -->
+            </tr>
+        `;
+    });
+}
+```
+
+### ❌ **현재 React 구현 (기능 완전 부족)**
+
+```typescript
+// 🔧 loadReferenceData() - 단순한 피치 데이터만
+const loadReferenceData = useCallback(async (fileId: string) => {
+    const response = await fetch(`/api/reference_files/${fileId}/pitch`);
+    const pitchData = await response.json();
+    
+    // ❌ 음절 정보 완전히 무시
+    pitchData.forEach((point: {time: number, frequency: number}) => {
+        addPitchData(point.frequency, point.time * 1000, 'reference');
+    });
+    // ❌ Chart.js annotation 기능 전혀 사용 안함
+    // ❌ 음절 구간 표시 없음
+    // ❌ 음절 라벨 없음
+}, [addPitchData]);
+```
 
 ---
 
-## 🚀 **TypeScript 변환 전략**
+## 🔍 **React 앱과 기능 비교 분석**
 
-### Phase 1: Core 기능 변환
-- YINPitchDetector 클래스 → TypeScript 클래스
-- 피치 분석 함수들 → 별도 유틸리티 모듈
-- 오디오 재생/녹음 → 기존 훅 확장
+### ✅ **React에 이미 있는 기능 (기본 수준)**
+1. **오디오 녹음/재생** - `useAudioRecording` 훅 (기본 기능만)
+2. **피치 차트** - `usePitchChart` 훅 (단순 피치 곡선만)
+3. **실시간 피치 분석** - Chart.js 기반 (기본 autocorrelation)
+4. **참조 문장 선택** - 드롭다운 UI
+5. **기본 상태 관리** - React useState
 
-### Phase 2: UI 컴포넌트 변환  
-- 차트 확대/스크롤 → Chart.js 플러그인
-- 피치 테스트 → 별도 컴포넌트
-- 성별 선택 → 모달 컴포넌트
+### 🚨 **React에 완전히 없는 핵심 기능 (42개 중 주요)**
 
-### Phase 3: 고급 기능 변환
-- 설문조사 → React 폼 컴포넌트  
-- 음절 분석 → 테이블 컴포넌트
-- 스펙트로그램 → Canvas 컴포넌트
+#### **1. TextGrid 시각화 시스템 (최우선)**
+- ❌ Chart.js annotation 플러그인 미사용
+- ❌ 음절 구간 점선 표시 없음 (`rgba(255, 99, 132, 0.8)`)
+- ❌ 보라색 음절 라벨 박스 없음 (`rgba(138, 43, 226, 0.9)`)
+- ❌ 음절별 분석 테이블 컴포넌트 완전 누락
+- ❌ syllable_analysis API 데이터 활용 안함
+
+#### **2. 차트 상호작용 시스템**
+- ❌ 차트 확대/스크롤 (`zoomChart`, `scrollChart`)
+- ❌ 피치 조정 버튼 (⬆️⬇️) 없음
+- ❌ 피치 테스트 모드 (2포인트 연습) 없음
+- ❌ 차트 클릭 이벤트 처리 없음
+
+#### **3. 고급 피치 분석**
+- ❌ YIN 알고리즘 클래스 (`YINPitchDetector`) 없음
+- ❌ 향상된 피치 검출 (`enhancedYinPitch`) 없음
+- ❌ 피치 신뢰도 필터링 없음
+- ❌ 성별 자동 피치 정규화 없음
+
+#### **4. UI/UX 완성도**
+- ❌ 모바일 가로보기 안내 애니메이션 없음
+- ❌ 설문조사 CTA 그라디언트 배너 없음
+- ❌ shake, bounce, glow 애니메이션 효과 없음
+- ❌ 성별 선택 모달 시스템 없음
+
+#### **5. 백엔드 API 차이**
+
+**오리지널 API 응답:**
+```json
+{
+    "pitch_data": [...],
+    "syllable_analysis": [        // ← 핵심 누락!
+        {
+            "label": "안녕",
+            "start": 0.000,
+            "end": 0.421,
+            "frequency": 185.4,
+            "semitone": 2.3
+        }
+    ]
+}
+```
+
+**현재 React API 응답:**
+```json
+{
+    "pitch_data": [...]          // ← 이것만 있음
+}
+```
+
+---
+
+## 🎯 **시각적 차이점 비교**
+
+### **🔥 오리지널 결과 (완전한 기능):**
+```
+차트에 표시되는 것:
+├── 피치 곡선 (파란색)
+├── 🔥 음절 구간 점선 (빨간색 점선)
+│   ├── "안녕" 구간 | 점선 | "하세" 구간 | 점선 | "요" 구간
+├── 🔥 보라색 음절 라벨 박스
+│   ├── [안녕] [하세] [요] ← 보라색 배경
+└── 🔥 음절별 분석 테이블
+    ├── 안녕: 0.000s-0.421s, 185.4Hz, +2.3세미톤
+    ├── 하세: 0.421s-0.832s, 220.1Hz, +5.7세미톤
+    └── 요: 0.832s-1.110s, 165.3Hz, -1.2세미톤
+```
+
+### **❌ 현재 React 결과 (기본 수준):**
+```
+차트에 표시되는 것:
+├── 피치 곡선 (파란색) ← 이것만 있음
+└── ❌ 음절 정보 완전히 없음
+```
+
+---
+
+## 🚨 **심각성 평가: ToneBridge 핵심 가치 누락**
+
+이는 **ToneBridge의 핵심 가치**인 다음 기능들이 완전히 누락된 상황입니다:
+
+1. **음절별 억양 분석** - 한국어 학습의 핵심
+2. **TextGrid 파일 활용** - Praat 표준 형식
+3. **시각적 음절 구간 표시** - 학습자 편의성
+4. **정확한 음절 타이밍** - 발음 교정 핵심
+
+**결론**: 현재 React 구현은 "기본 피치 표시기" 수준이며, 전문적인 **한국어 억양 학습 플랫폼**으로서의 핵심 기능이 완전히 부족한 상황입니다.
+
+---
+
+## 🚀 **100% 기능 일치 구현 전략**
+
+### Phase 1: 긴급 수정 (핵심 기능)
+1. **Chart.js annotation 플러그인 설치**
+2. **음절 구간 표시 기능 구현** (`addSyllableAnnotations`)
+3. **음절별 분석 테이블 React 컴포넌트**
+4. **백엔드 syllable_analysis API 엔드포인트 추가**
+
+### Phase 2: 차트 상호작용
+1. **차트 확대/스크롤 버튼** (`zoomChart`, `scrollChart`)
+2. **피치 조정 버튼** (⬆️⬇️)
+3. **피치 테스트 모드** (2포인트 연습)
+4. **차트 클릭 이벤트 처리**
+
+### Phase 3: 고급 분석 엔진
+1. **YIN 피치 검출 알고리즘** (`YINPitchDetector` 클래스)
+2. **성별 자동 피치 정규화** (`applyGenderNormalization`)
+3. **피치 신뢰도 필터링** (`pitchConfidenceFilter`)
+4. **고급 유틸리티 함수들** (semitone/Q-tone 변환)
+
+### Phase 4: UI/UX 완성
+1. **모바일 최적화** (가로보기 안내, 애니메이션)
+2. **성별 선택 모달** 시스템
+3. **설문조사 CTA 배너** (그라디언트 효과)
+4. **고급 애니메이션** (shake, bounce, glow)
+
+### Phase 5: 완전성 검증
+1. **전체 기능 통합 테스트**
+2. **오리지널과 1:1 기능 비교 검증**
+3. **성능 최적화**
+4. **사용자 경험 일치 확인**
