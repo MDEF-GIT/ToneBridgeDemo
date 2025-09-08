@@ -42,15 +42,15 @@ const VoiceAnalysisApp: React.FC = () => {
   const [semitoneMax, setSemitoneMax] = useState<number>(15);
   const [yAxisUnit, setYAxisUnit] = useState<string>('semitone');
   
+  // 🎯 API Base URL
+  const API_BASE = '';
+  
   // 🎯 Refs
   const chartRef = useRef<HTMLCanvasElement>(null);
   
   // 🎯 Hooks  
   const audioRecording = useAudioRecording();
-  const pitchChart = usePitchChart(chartRef);
-
-  // 🎯 API Base URL
-  const API_BASE = '';
+  const pitchChart = usePitchChart(chartRef, API_BASE);
   
   // 🎯 애니메이션 스타일 주입
   useEffect(() => {

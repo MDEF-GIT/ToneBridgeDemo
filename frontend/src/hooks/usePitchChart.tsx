@@ -40,7 +40,7 @@ interface SyllableData {
   semitone?: number;
 }
 
-export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>) => {
+export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '') => {
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);
@@ -217,8 +217,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     try {
       // 🎯 Load syllable-only pitch data (오리지널과 동일한 음절별 대표값)
       const [pitchResponse, syllableResponse] = await Promise.all([
-        fetch(`/api/reference_files/${fileId}/pitch?syllable_only=true`),
-        fetch(`/api/reference_files/${fileId}/syllables`)
+        fetch(`${API_BASE}/api/reference_files/${fileId}/pitch?syllable_only=true`),
+        fetch(`${API_BASE}/api/reference_files/${fileId}/syllables`)
       ]);
       
       const pitchData = await pitchResponse.json();
@@ -251,11 +251,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         
         console.log(`🎯 Loaded ${pitchData.length} reference pitch points, maxTime: ${maxTime}s`);
         
-        // 🎯 참조 데이터 길이에 맞게 x축 범위 조정
+        // 🎯 참조 데이터 길이에 맞게 x축 범위 조정 (TextGrid 시간에 맞춤)
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
           chartRef.current.options.scales.x.min = 0;
-          chartRef.current.options.scales.x.max = Math.max(maxTime + 0.5, 3); // 여유 0.5초, 최소 3초
-          console.log(`🎯 X-axis adjusted: 0 - ${chartRef.current.options.scales.x.max} seconds`);
+          // 실제 음성 길이에 맞게 조정 (최소 여유 0.2초, 최소 범위 2초)
+          chartRef.current.options.scales.x.max = Math.max(maxTime + 0.2, 2);
+          console.log(`🎯 X-axis adjusted to audio duration: 0 - ${chartRef.current.options.scales.x.max} seconds (maxTime: ${maxTime}s)`);
           chartRef.current.update('none');
         }
         
