@@ -930,23 +930,24 @@ const VoiceAnalysisApp: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 확대/스크롤 컨트롤 - 우측 상단 */}
-                <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
-                  <div className="d-flex gap-1 align-items-center">
-                    <button 
-                      className="btn btn-sm btn-outline-primary" 
-                      title="확대 (마우스 휠로도 가능)"
-                      onClick={() => pitchChart.zoomIn()}
-                    >
-                      <i className="fas fa-search-plus"></i>
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-outline-primary" 
-                      title="축소 (마우스 휠로도 가능)"
-                      onClick={() => pitchChart.zoomOut()}
-                    >
-                      <i className="fas fa-search-minus"></i>
-                    </button>
+                {/* 확대/스크롤 컨트롤 - 우측 상단 (차트 로드 후에만 표시) */}
+                {selectedFile && (
+                  <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
+                    <div className="d-flex gap-1 align-items-center">
+                      <button 
+                        className="btn btn-sm btn-outline-primary" 
+                        title="확대 (마우스 휠로도 가능)"
+                        onClick={() => pitchChart.zoomIn()}
+                      >
+                        <i className="fas fa-search-plus"></i>
+                      </button>
+                      <button 
+                        className="btn btn-sm btn-outline-primary" 
+                        title="축소 (마우스 휠로도 가능)"
+                        onClick={() => pitchChart.zoomOut()}
+                      >
+                        <i className="fas fa-search-minus"></i>
+                      </button>
                     <button 
                       className="btn btn-sm btn-outline-info" 
                       title="왼쪽으로 스크롤"
@@ -969,7 +970,8 @@ const VoiceAnalysisApp: React.FC = () => {
                       <i className="fas fa-expand-arrows-alt"></i>
                     </button>
                   </div>
-                </div>
+                  </div>
+                )}
 
                 {/* 초기화 버튼 - 왼쪽 하단 */}
                 <div style={{position: 'absolute', bottom: '10px', left: '10px', zIndex: 1000}}>
