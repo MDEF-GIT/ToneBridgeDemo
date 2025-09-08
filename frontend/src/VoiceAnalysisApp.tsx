@@ -256,7 +256,10 @@ const VoiceAnalysisApp: React.FC = () => {
 
   // 🎯 Y축 단위 변경을 pitchChart에 전달
   useEffect(() => {
-    pitchChart.setYAxisUnit(yAxisUnit);
+    console.log(`🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 ${yAxisUnit}, pitchChart.setYAxisUnit 호출`);
+    if (pitchChart && pitchChart.setYAxisUnit) {
+      pitchChart.setYAxisUnit(yAxisUnit);
+    }
   }, [yAxisUnit, pitchChart]);
   
   // 🎯 성별 선택 모달
