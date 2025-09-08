@@ -68,10 +68,10 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         {
           label: '참조 음성',
           data: [],
-          borderColor: 'rgb(54, 162, 235)',
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgb(255, 159, 64)',  // 🟠 오렌지색 (기존 완성본과 동일)
+          backgroundColor: 'rgba(255, 159, 64, 0.2)',
           tension: 0.4,
-          pointRadius: 0,
+          pointRadius: 4,  // 기존 완성본처럼 점 표시
           borderWidth: 2
         },
         {
@@ -103,10 +103,10 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         y: {
           title: {
             display: true,
-            text: '주파수 (Hz)'
+            text: 'Semitone (세미톤)'  // 🎯 기존 완성본과 동일한 Y축 제목
           },
-          min: 50,
-          max: 500
+          min: -12,  // 🎯 기존 완성본과 동일한 범위
+          max: 15
         }
       },
       plugins: {
@@ -119,7 +119,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           intersect: false,
           callbacks: {
             label: function(context) {
-              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} Hz`;
+              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} semitone`;
             }
           }
         },
@@ -144,6 +144,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     });
   }, [canvasRef]);
 
+  // 🎯 주파수를 semitone으로 변환하는 함수 (기존 완성본과 동일한 공식)
+  const frequencyToSemitone = (frequency: number, baseFrequency: number = 200): number => {
+    if (frequency <= 0 || baseFrequency <= 0) return 0;
+    return 12 * Math.log2(frequency / baseFrequency);
+  };
+
   const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
     if (!chartRef.current) return;
 
@@ -165,9 +171,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     const chart = chartRef.current;
     const datasetIndex = type === 'reference' ? 0 : 1;
     
+    // 🎯 주파수를 semitone으로 변환해서 차트에 표시
+    const semitoneValue = frequencyToSemitone(frequency);
+    
     chart.data.datasets[datasetIndex].data.push({
       x: relativeTime,
-      y: frequency
+      y: semitoneValue  // 🎯 semitone 값으로 변경
     });
 
     // Update time axis to follow the data
