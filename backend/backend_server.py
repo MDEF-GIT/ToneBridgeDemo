@@ -185,7 +185,7 @@ item []:
             textgrid_content += f'''        intervals [{i+1}]:
             xmin = {syllable['start']} 
             xmax = {syllable['end']} 
-            text = "{syllable['label']}" 
+            text = "{syllable.get('label', syllable.get('syllable', ''))}" 
 '''
         
         # UTF-16으로 저장 (기존 TextGrid와 동일한 인코딩)
