@@ -156,9 +156,8 @@ export const useDualAxisChart = (
             },
             grid: {
               drawOnChartArea: false
-            },
-            min: 80,    // 남성 최저 주파수
-            max: 300    // 여성 최고 주파수
+            }
+            // min, max 제거 - 데이터에 맞게 동적 설정
           },
           'y-converted': {
             type: 'linear',
@@ -173,9 +172,8 @@ export const useDualAxisChart = (
             },
             grid: {
               drawOnChartArea: true
-            },
-            min: -12,   // 기본값
-            max: 15     // 기본값
+            }
+            // min, max 제거 - 데이터에 맞게 동적 설정
           }
         }
       }
@@ -203,8 +201,27 @@ export const useDualAxisChart = (
     chartRef.current.data.datasets[0].data.push({ x: timestamp, y: frequency });
     chartRef.current.data.datasets[1].data.push({ x: timestamp, y: convertedValue });
 
-    // 🎯 Y축 범위 자동 조정
+    // 🎯 Y축 범위 자동 조정 (주파수축과 변환값축 모두)
     if (chartRef.current.options.scales) {
+      // 주파수 축(왼쪽) 범위 조정
+      const frequencyScale = chartRef.current.options.scales['y-frequency'] as any;
+      if (frequencyScale) {
+        const allFrequencies = chartDataRef.current.map(d => d.frequency);
+        const minFreq = Math.min(...allFrequencies);
+        const maxFreq = Math.max(...allFrequencies);
+        const freqMargin = Math.abs(maxFreq - minFreq) * 0.1 || 20; // 주파수는 최소 20Hz 마진
+        
+        const newFreqMin = Math.floor(minFreq - freqMargin);
+        const newFreqMax = Math.ceil(maxFreq + freqMargin);
+        
+        // 기존 범위와 비교해서 확장이 필요한 경우만 업데이트
+        if (!frequencyScale.min || !frequencyScale.max || newFreqMin < frequencyScale.min || newFreqMax > frequencyScale.max) {
+          frequencyScale.min = Math.min(frequencyScale.min || newFreqMin, newFreqMin);
+          frequencyScale.max = Math.max(frequencyScale.max || newFreqMax, newFreqMax);
+          console.log(`📊 듀얼차트 주파수축 범위: ${frequencyScale.min}Hz ~ ${frequencyScale.max}Hz`);
+        }
+      }
+      
       // 변환된 값(오른쪽 Y축) 범위 조정
       const convertedScale = chartRef.current.options.scales['y-converted'] as any;
       if (convertedScale) {
@@ -217,10 +234,10 @@ export const useDualAxisChart = (
         const newMax = Math.ceil(maxConverted + margin);
         
         // 기존 범위와 비교해서 확장이 필요한 경우만 업데이트
-        if (newMin < convertedScale.min || newMax > convertedScale.max) {
+        if (!convertedScale.min || !convertedScale.max || newMin < convertedScale.min || newMax > convertedScale.max) {
           convertedScale.min = Math.min(convertedScale.min || newMin, newMin);
           convertedScale.max = Math.max(convertedScale.max || newMax, newMax);
-          console.log(`📊 듀얼차트 Y축 범위 확장: ${convertedScale.min} ~ ${convertedScale.max}`);
+          console.log(`📊 듀얼차트 변환값축 범위: ${convertedScale.min} ~ ${convertedScale.max}`);
         }
       }
     }
@@ -248,6 +265,23 @@ export const useDualAxisChart = (
     chartRef.current.data.datasets[1].data = [];
     (chartRef.current.data.datasets[0] as any).pointBackgroundColor = [];
     (chartRef.current.data.datasets[1] as any).pointBackgroundColor = [];
+    
+    // 🎯 Y축 범위 초기화
+    if (chartRef.current.options.scales) {
+      const frequencyScale = chartRef.current.options.scales['y-frequency'] as any;
+      const convertedScale = chartRef.current.options.scales['y-converted'] as any;
+      
+      if (frequencyScale) {
+        delete frequencyScale.min;
+        delete frequencyScale.max;
+      }
+      if (convertedScale) {
+        delete convertedScale.min;
+        delete convertedScale.max;
+      }
+      console.log('🎯 듀얼차트 Y축 범위 초기화');
+    }
+    
     chartRef.current.update();
     console.log('🧹 듀얼 Y축 차트 클리어');
   }, []);
@@ -267,12 +301,26 @@ export const useDualAxisChart = (
     chartRef.current.data.datasets[1].data = chartDataRef.current.map(data => ({ x: data.time, y: data.convertedValue }));
     chartRef.current.data.datasets[1].label = yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)';
     
-    // Y축 제목 및 범위 업데이트
+    // Y축 제목 업데이트 및 범위 재계산
     if (chartRef.current.options.scales && chartRef.current.options.scales['y-converted']) {
       const convertedScale = chartRef.current.options.scales['y-converted'] as any;
       convertedScale.title.text = yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)';
-      convertedScale.min = yAxisUnit === 'semitone' ? -12 : -4;   // 세미톤: -12st, 큐톤: -4Q
-      convertedScale.max = yAxisUnit === 'semitone' ? 15 : 8;     // 세미톤: +15st, 큐톤: +8Q
+      
+      // 🎯 기존 데이터에 맞게 Y축 범위 재계산
+      if (chartDataRef.current.length > 0) {
+        const allConvertedValues = chartDataRef.current.map(d => d.convertedValue);
+        const minConverted = Math.min(...allConvertedValues);
+        const maxConverted = Math.max(...allConvertedValues);
+        const margin = Math.abs(maxConverted - minConverted) * 0.1 || 2;
+        
+        convertedScale.min = Math.floor(minConverted - margin);
+        convertedScale.max = Math.ceil(maxConverted + margin);
+        console.log(`🎯 단위 변경 후 변환값축 범위: ${convertedScale.min} ~ ${convertedScale.max}`);
+      } else {
+        // 데이터가 없으면 범위 제거 (자동 설정)
+        delete convertedScale.min;
+        delete convertedScale.max;
+      }
     }
 
     // 차트 제목 업데이트
