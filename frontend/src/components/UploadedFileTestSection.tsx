@@ -23,7 +23,7 @@ const UploadedFileTestSection: React.FC = () => {
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const testPitchChart = usePitchChart(chartCanvasRef);
-  const testDualAxisChart = useDualAxisChart(chartCanvasRef);
+  const testDualAxisChart = useDualAxisChart(chartCanvasRef, '');
 
   // 컴포넌트 마운트 시 듀얼 축 차트 초기화
   useEffect(() => {
@@ -134,7 +134,7 @@ const UploadedFileTestSection: React.FC = () => {
         console.log(`🎯 업로드 파일 음절 annotation 추가: ${annotationData.length}개`);
         console.log(`🎯 annotation 데이터:`, annotationData);
         
-        testDualAxisChart.addSyllableAnnotations(annotationData);
+        testPitchChart.addSyllableAnnotations(annotationData);
       } else {
         console.log(`⚠️ 음절 annotation 생략: syllables=${syllables.length}, syllablePitch=${syllablePitch.length}`);
       }
@@ -239,8 +239,8 @@ const UploadedFileTestSection: React.FC = () => {
                     console.log('🎵 업로드 파일 재생 시작');
                     // 차트와 연동하여 재생 위치 표시
                     const updateProgress = () => {
-                      if (audioRef.current && testDualAxisChart.updatePlaybackProgress) {
-                        testDualAxisChart.updatePlaybackProgress(audioRef.current.currentTime);
+                      if (audioRef.current && testPitchChart.updatePlaybackProgress) {
+                        testPitchChart.updatePlaybackProgress(audioRef.current.currentTime);
                         if (!audioRef.current.paused) {
                           requestAnimationFrame(updateProgress);
                         }
@@ -250,14 +250,14 @@ const UploadedFileTestSection: React.FC = () => {
                   }}
                   onPause={() => {
                     console.log('🎵 업로드 파일 재생 일시정지');
-                    if (testDualAxisChart.clearPlaybackProgress) {
-                      testDualAxisChart.clearPlaybackProgress();
+                    if (testPitchChart.clearPlaybackProgress) {
+                      testPitchChart.clearPlaybackProgress();
                     }
                   }}
                   onEnded={() => {
                     console.log('🎵 업로드 파일 재생 완료');
-                    if (testDualAxisChart.clearPlaybackProgress) {
-                      testDualAxisChart.clearPlaybackProgress();
+                    if (testPitchChart.clearPlaybackProgress) {
+                      testPitchChart.clearPlaybackProgress();
                     }
                   }}
                 >
@@ -292,49 +292,49 @@ const UploadedFileTestSection: React.FC = () => {
               <div className="btn-group btn-group-sm" role="group">
                 <button
                   className="btn btn-outline-primary"
-                  onClick={() => testDualAxisChart.adjustPitch('up')}
+                  onClick={() => testPitchChart.adjustPitch('up')}
                   title="피치 위로 조정"
                 >
                   <i className="fas fa-arrow-up"></i> 위로
                 </button>
                 <button
                   className="btn btn-outline-primary"
-                  onClick={() => testDualAxisChart.adjustPitch('down')}
+                  onClick={() => testPitchChart.adjustPitch('down')}
                   title="피치 아래로 조정"
                 >
                   <i className="fas fa-arrow-down"></i> 아래로
                 </button>
                 <button
                   className="btn btn-outline-secondary"
-                  onClick={() => testDualAxisChart.zoomIn()}
+                  onClick={() => testPitchChart.zoomIn()}
                   title="확대"
                 >
                   <i className="fas fa-search-plus"></i> 확대
                 </button>
                 <button
                   className="btn btn-outline-secondary"
-                  onClick={() => testDualAxisChart.zoomOut()}
+                  onClick={() => testPitchChart.zoomOut()}
                   title="축소"
                 >
                   <i className="fas fa-search-minus"></i> 축소
                 </button>
                 <button
                   className="btn btn-outline-info"
-                  onClick={() => testDualAxisChart.scrollLeft()}
+                  onClick={() => testPitchChart.scrollLeft()}
                   title="왼쪽으로"
                 >
                   <i className="fas fa-arrow-left"></i> 왼쪽
                 </button>
                 <button
                   className="btn btn-outline-info"
-                  onClick={() => testDualAxisChart.scrollRight()}
+                  onClick={() => testPitchChart.scrollRight()}
                   title="오른쪽으로"
                 >
                   <i className="fas fa-arrow-right"></i> 오른쪽
                 </button>
                 <button
                   className="btn btn-outline-warning"
-                  onClick={() => testDualAxisChart.resetView()}
+                  onClick={() => testPitchChart.resetView()}
                   title="전체 보기"
                 >
                   <i className="fas fa-expand-arrows-alt"></i> 전체보기
