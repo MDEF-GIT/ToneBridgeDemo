@@ -238,21 +238,8 @@
             </div>
           </div>
           
-          <!-- 두 번째 줄: 범위 설정 및 Y축 단위 선택 -->
-          <div class="d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center gap-2">
-              <small class="text-muted">표시범위 조정으로 그래프를 좀더 확대/축소 할수 있어요.</small>
-              <i class="fas fa-question-circle text-muted ms-1" 
-                 style="font-size: 0.8em; cursor: help;" 
-                 title="차트의 상하 범위를 조정하여 원하는 구간을 확대하거나 전체적인 패턴을 볼 수 있습니다. 숫자가 작을수록 좁은 범위, 클수록 넓은 범위를 표시합니다."
-                 data-bs-toggle="tooltip" 
-                 data-bs-placement="top"></i>
-              <input type="number" id="semitoneMin" class="form-control form-control-sm" style="width:55px" value="-12" step="1">
-              <small class="text-muted">~</small>
-              <input type="number" id="semitoneMax" class="form-control form-control-sm" style="width:55px" value="15" step="1">
-              <small class="text-muted">st</small>
-              <button id="btnUpdateRange" class="btn btn-sm btn-outline-primary">적용</button>
-            </div>
+          <!-- 두 번째 줄: Y축 단위 선택 -->
+          <div class="d-flex align-items-center justify-content-end">
             <div class="d-flex align-items-center gap-2">
               <small class="text-muted">Y축 단위:</small>
               <div class="btn-group" role="group" aria-label="Y-axis unit toggle">
