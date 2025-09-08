@@ -53,4 +53,4 @@ externalPort = 8000
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg-full", "libsndfile"]
+packages = ["ffmpeg-full", "libsndfile", "ffmpeg"]
