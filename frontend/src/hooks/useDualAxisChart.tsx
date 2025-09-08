@@ -151,7 +151,9 @@ export const useDualAxisChart = (
             },
             grid: {
               drawOnChartArea: false
-            }
+            },
+            min: 80,    // 남성 최저 주파수
+            max: 300    // 여성 최고 주파수
           },
           'y-converted': {
             type: 'linear',
@@ -166,7 +168,9 @@ export const useDualAxisChart = (
             },
             grid: {
               drawOnChartArea: true
-            }
+            },
+            min: yAxisUnit === 'semitone' ? -12 : -4,   // 세미톤: -12st, 큐톤: -4Q
+            max: yAxisUnit === 'semitone' ? 15 : 8      // 세미톤: +15st, 큐톤: +8Q
           }
         }
       }
@@ -235,9 +239,12 @@ export const useDualAxisChart = (
     chartRef.current.data.datasets[1].data = chartDataRef.current.map(data => ({ x: data.time, y: data.convertedValue }));
     chartRef.current.data.datasets[1].label = yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)';
     
-    // Y축 제목 업데이트
+    // Y축 제목 및 범위 업데이트
     if (chartRef.current.options.scales && chartRef.current.options.scales['y-converted']) {
-      (chartRef.current.options.scales['y-converted'] as any).title.text = yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)';
+      const convertedScale = chartRef.current.options.scales['y-converted'] as any;
+      convertedScale.title.text = yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)';
+      convertedScale.min = yAxisUnit === 'semitone' ? -12 : -4;   // 세미톤: -12st, 큐톤: -4Q
+      convertedScale.max = yAxisUnit === 'semitone' ? 15 : 8;     // 세미톤: +15st, 큐톤: +8Q
     }
 
     // 차트 제목 업데이트
