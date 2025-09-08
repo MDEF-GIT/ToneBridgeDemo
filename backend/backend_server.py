@@ -876,7 +876,7 @@ def extract_ref_praat_implementation(
     pitch_ceiling: float = 600.0,
     time_step: float = 0.01,
     sentence: str | None = None,
-    extracted_syllables: list = None,
+    extracted_syllables: Optional[list] = None,
     target_gender: str = 'auto',
 ):
     """
@@ -1057,7 +1057,10 @@ async def analyze_ref(
                 # Method 1: Try TextGridTools (to_tgt) - OFFICIAL METHOD
                 try:
                     print("🎯 Method 1: Using TextGridTools (.to_tgt())")
-                    import textgrid as tgt  # TextGrid parser
+                    try:
+                        import textgrid as tgt  # TextGrid parser
+                    except ImportError:
+                        print("🚨 textgrid 라이브러리가 설치되지 않음")
                     
                     # Simple TextGrid parsing without external library
                     print("🎯 Using simple TextGrid parsing")
@@ -1189,7 +1192,8 @@ async def analyze_ref(
             target_gender = 'auto'  # 기본값으로 설정
             print(f"🎯 Target gender: {target_gender}")
             
-            # 🎯 syllables 변수 확인 (이미 위에서 추출되었으므로 초기화하지 않음)
+            # 🎯 syllables 변수 초기화 (확실하게 정의)
+            syllables = []
             if 'syllables' not in locals():
                 syllables = []
             
@@ -1215,7 +1219,7 @@ async def analyze_ref(
                 pitch_ceiling=optimized_pitch_ceiling,
                 time_step=time_step or 0.01,
                 sentence=sentence,
-                extracted_syllables=syllables if len(syllables) > 0 else None,
+                extracted_syllables=syllables if syllables and len(syllables) > 0 else None,
                 target_gender=target_gender
             )
             print("🎯🎯🎯 PRAAT extract_ref 함수 호출 완료!!! 🎯🎯🎯")
@@ -1340,11 +1344,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-@app.get("/", response_class=HTMLResponse)
-async def main_page(request: Request):
-    """Main prosody analysis interface"""
-    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/api/save_reference")
 async def save_reference_file(
@@ -1810,7 +1809,11 @@ async def analyze_live_audio(audio: UploadFile = File(...)):
         audio_array = np.frombuffer(audio_data, dtype=np.float32)
         
         # 🎯 Parselmouth(Praat) 알고리즘으로 정밀 피치 분석
-        import soundfile as sf
+        try:
+            import soundfile as sf
+        except ImportError:
+            print("🚨 soundfile 라이브러리가 설치되지 않음")
+            raise HTTPException(status_code=500, detail="soundfile 라이브러리가 필요합니다")
         
         # 임시 파일로 저장하여 Parselmouth로 분석
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
