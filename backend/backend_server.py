@@ -2358,9 +2358,15 @@ async def normalize_single_file(file_name: str):
         print(f"❌ 단일 파일 정규화 오류: {e}")
         raise HTTPException(status_code=500, detail=f"정규화 중 오류가 발생했습니다: {e}")
 
-# Initialize processors
+# Initialize processors (shared STT instance to avoid duplication)
 automated_processor = AutomatedProcessor()
-advanced_stt_processor = AdvancedSTTProcessor(preferred_engine='whisper')
+# Use the STT instance from automated_processor to avoid duplicate initialization
+if hasattr(automated_processor.stt, 'advanced_stt') and automated_processor.stt.advanced_stt:
+    advanced_stt_processor = automated_processor.stt.advanced_stt
+    print("🔄 기존 STT 인스턴스 재사용")
+else:
+    advanced_stt_processor = AdvancedSTTProcessor(preferred_engine='whisper')
+    print("🆕 새 STT 인스턴스 생성")
 
 @app.post("/api/auto-process")
 async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = Form("")):
