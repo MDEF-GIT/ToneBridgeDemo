@@ -32,6 +32,14 @@ interface PitchData {
   type: 'reference' | 'live';
 }
 
+interface SyllableData {
+  label: string;
+  start: number;
+  end: number;
+  frequency?: number;
+  semitone?: number;
+}
+
 export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>) => {
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
@@ -114,6 +122,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
               return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} Hz`;
             }
           }
+        },
+        annotation: {
+          annotations: {}
         }
       },
       interaction: {
@@ -186,25 +197,136 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   const loadReferenceData = useCallback(async (fileId: string) => {
     try {
-      // Load reference pitch data from backend
-      const response = await fetch(`/api/reference_files/${fileId}/pitch`);
-      const pitchData = await response.json();
+      // 🎯 Load reference pitch data AND syllable analysis from backend
+      const [pitchResponse, syllableResponse] = await Promise.all([
+        fetch(`/api/reference_files/${fileId}/pitch`),
+        fetch(`/api/reference_files/${fileId}/syllables`)
+      ]);
+      
+      const pitchData = await pitchResponse.json();
+      let syllableData: SyllableData[] = [];
+      
+      try {
+        syllableData = await syllableResponse.json();
+      } catch (e) {
+        console.log('📝 No syllable data available for this file');
+      }
       
       if (pitchData && pitchData.length > 0) {
         // Clear existing reference data
         if (chartRef.current) {
           chartRef.current.data.datasets[0].data = [];
+          // 🧹 Clear existing annotations
+          if (chartRef.current.options.plugins?.annotation) {
+            chartRef.current.options.plugins.annotation.annotations = {};
+          }
         }
         
         // Add reference data points  
         pitchData.forEach((point: {time: number, frequency: number}) => {
           addPitchData(point.frequency, point.time * 1000, 'reference');
         });
+        
+        // 🎯 Add syllable annotations to chart
+        if (syllableData && syllableData.length > 0) {
+          addSyllableAnnotations(syllableData);
+        }
       }
     } catch (error) {
-      console.error('Failed to load reference pitch data:', error);
+      console.error('Failed to load reference data:', error);
     }
   }, [addPitchData]);
+
+  // 🎯 핵심 기능: 음절 구간 표시 (오리지널과 동일한 로직)
+  const addSyllableAnnotations = useCallback((syllables: SyllableData[]) => {
+    if (!chartRef.current || !syllables || syllables.length === 0) {
+      console.log("🎯 addSyllableAnnotations: syllables가 비어있습니다");
+      return;
+    }
+
+    const chart = chartRef.current;
+    
+    // 🧹 annotation plugin 존재 확인 및 초기화
+    if (!chart.options.plugins?.annotation) {
+      chart.options.plugins = { ...chart.options.plugins, annotation: { annotations: {} } };
+    }
+    
+    chart.options.plugins.annotation.annotations = {};
+    console.log("🧹 음절 표시 초기화 완료");
+    
+    console.log('🎯 Adding annotations for', syllables.length, 'syllables:');
+    console.log('🎯 Sample syllables:', syllables.slice(0, 3));
+    
+    // Position labels at top of chart (inside chart area) 
+    const yScale = chart.options.scales?.y;
+    const chartMax = (yScale?.max as number) || 500;
+    const chartMin = (yScale?.min as number) || 50;
+    const labelY = chartMax - (chartMax - chartMin) * 0.05; // 5% from top
+    
+    console.log("🎯 Chart Y 범위:", chartMin, "~", chartMax, "labelY:", labelY);
+    
+    syllables.forEach((syl, index) => {
+      const sylStart = syl.start;
+      const sylEnd = syl.end;
+      const sylLabel = syl.label;
+      
+      console.log(`🎯 음절 ${index}: ${sylLabel} (${sylStart.toFixed(3)}s - ${sylEnd.toFixed(3)}s)`);
+      
+      // 🔥 첫 번째 음절 시작선
+      if (index === 0) {
+        chart.options.plugins.annotation.annotations[`start_${index}`] = {
+          type: 'line',
+          xMin: sylStart,
+          xMax: sylStart,
+          borderColor: 'rgba(255, 99, 132, 0.8)',
+          borderWidth: 3,
+          borderDash: [6, 3]
+        };
+      }
+      
+      // 🔥 음절 끝선 (다음 음절 시작선)
+      chart.options.plugins.annotation.annotations[`end_${index}`] = {
+        type: 'line',
+        xMin: sylEnd,
+        xMax: sylEnd,
+        borderColor: 'rgba(255, 99, 132, 0.8)',
+        borderWidth: 3,
+        borderDash: [6, 3]
+      };
+      
+      // 🔥 보라색 음절 라벨 박스
+      const midTime = (sylStart + sylEnd) / 2;
+      chart.options.plugins.annotation.annotations[`label_${index}`] = {
+        type: 'label',
+        xValue: midTime,
+        yValue: labelY,
+        content: sylLabel,
+        backgroundColor: 'rgba(138, 43, 226, 0.9)',  // 보라색 배경
+        borderColor: 'rgba(138, 43, 226, 1)',
+        borderWidth: 2,
+        borderRadius: 6,
+        font: {
+          size: 14,
+          family: 'Noto Sans KR, -apple-system, sans-serif',
+          weight: 'bold'
+        },
+        color: 'white',
+        padding: {
+          x: 8,
+          y: 4
+        }
+      };
+    });
+    
+    // 🔥 강제 차트 업데이트로 annotation 표시
+    try {
+      chart.update('none');
+      console.log("🎯 Syllable annotations added and chart updated!");
+      console.log("🎯 현재 annotations 수:", Object.keys(chart.options.plugins.annotation.annotations).length);
+    } catch (error) {
+      console.error("🎯 Chart update 실패:", error);
+    }
+  }, []);
 
   const resetForNewRecording = useCallback(() => {
     if (!chartRef.current) return;
@@ -367,6 +489,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     zoomOut,
     scrollLeft,
     scrollRight,
-    resetView
+    resetView,
+    addSyllableAnnotations  // 🎯 핵심 함수 export
   };
 };

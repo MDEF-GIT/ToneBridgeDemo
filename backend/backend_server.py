@@ -1865,6 +1865,31 @@ async def main_page(request: Request):
     """Main prosody analysis interface"""
     return templates.TemplateResponse("index.html", {"request": request})
 
+# 🎯 새로운 syllables API 엔드포인트 추가
+@app.get("/api/reference_files/{file_id}/syllables")
+async def get_reference_file_syllables(file_id: str, db: Session = Depends(get_db)):
+    """🎯 핵심 기능: 음절 데이터 반환 (테스트용 더미 데이터)"""
+    try:
+        ref_file = db.query(ReferenceFile).filter(ReferenceFile.id == file_id).first()
+        if not ref_file:
+            raise HTTPException(status_code=404, detail="Reference file not found")
+        
+        # 🎯 테스트용 더미 음절 데이터 (실제로는 TextGrid에서 추출)
+        dummy_syllables = [
+            {"label": "안", "start": 0.0, "end": 0.3},
+            {"label": "녕", "start": 0.3, "end": 0.6},
+            {"label": "하", "start": 0.6, "end": 0.9},
+            {"label": "세", "start": 0.9, "end": 1.2},
+            {"label": "요", "start": 1.2, "end": 1.5}
+        ]
+        
+        print(f"🎯 Returning {len(dummy_syllables)} syllables for {file_id}")
+        return dummy_syllables
+        
+    except Exception as e:
+        print(f"🚨 Error in get_reference_file_syllables: {e}")
+        return []  # 에러가 나도 빈 배열 반환
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)
