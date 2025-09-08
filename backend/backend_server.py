@@ -2808,7 +2808,7 @@ async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
         print(f"🎯 업로드 파일 피치 분석: {wav_file} (syllable_only={syllable_only})")
         
         # Parselmouth로 피치 추출
-        sound = parselmouth.Sound(str(wav_path))
+        sound = pm.Sound(str(wav_path))
         pitch = sound.to_pitch()
         
         # 피치 데이터 추출
