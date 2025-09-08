@@ -64,7 +64,7 @@ class AudioNormalizer:
         # 청크들을 다시 합치기
         processed_audio = audio_chunks[0]
         for chunk in audio_chunks[1:]:
-            processed_audio += chunk
+            processed_audio = processed_audio + chunk
             
         new_duration = len(processed_audio)
         time_ratio = new_duration / original_duration if original_duration > 0 else 1.0
@@ -112,10 +112,10 @@ class AudioNormalizer:
                 target_sr=self.target_sample_rate
             )
             logger.info(f"샘플레이트 조정: {original_sr}Hz → {self.target_sample_rate}Hz")
-            return resampled_audio, self.target_sample_rate
+            return resampled_audio, int(self.target_sample_rate)
         else:
             logger.info(f"샘플레이트 유지: {original_sr}Hz")
-            return audio_data, original_sr
+            return audio_data, int(original_sr)
             
     def process_audio_file(self, wav_path: str, output_path: str) -> Dict[str, float]:
         """
@@ -195,13 +195,13 @@ class TextGridSynchronizer:
             
             # 모든 tier와 interval 조정
             for tier in tg.tiers:
-                if hasattr(tier, 'intervals'):  # IntervalTier
+                if hasattr(tier, 'intervals') and tier.intervals:  # IntervalTier
                     for interval in tier.intervals:
                         # 시작과 끝 시간을 비율에 맞게 조정
                         interval.minTime *= time_ratio
                         interval.maxTime *= time_ratio
                         
-                elif hasattr(tier, 'points'):  # PointTier
+                elif hasattr(tier, 'points') and tier.points:  # PointTier
                     for point in tier.points:
                         point.time *= time_ratio
                         

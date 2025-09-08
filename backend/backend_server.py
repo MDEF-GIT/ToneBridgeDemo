@@ -2104,6 +2104,117 @@ async def get_reference_file_syllables(file_id: str, db: Session = Depends(get_d
         print(f"🚨 Error in get_reference_file_syllables: {e}")
         return []
 
+# 🎯 숨겨진 자동 정규화 기능
+from audio_normalization import AutomationProcessor
+
+@app.post("/api/normalize_reference_files")
+async def normalize_reference_files():
+    """
+    숨겨진 자동 정규화 기능 - 단일 버튼으로 모든 참조 파일 정규화
+    - 무음 구간 제거 (자동)
+    - 볼륨 정규화 (일정한 볼륨으로 조정)  
+    - 샘플레이트 변경 (16kHz 표준화)
+    - TextGrid 자동 동기화 (WAV 편집에 맞춤)
+    """
+    try:
+        reference_dir = "static/reference_files"
+        backup_dir = "static/backup_reference_files"
+        
+        # 디렉토리 존재 확인
+        if not os.path.exists(backup_dir):
+            raise HTTPException(status_code=400, detail="백업 디렉토리가 존재하지 않습니다")
+            
+        # 자동화 프로세서 초기화 (16kHz, -20dB 표준)
+        processor = AutomationProcessor(target_sample_rate=16000, target_db=-20.0)
+        
+        print("🎯 ToneBridge 참조 파일 자동 정규화 시작...")
+        print(f"   백업 소스: {backup_dir}")
+        print(f"   출력 대상: {reference_dir}")
+        
+        # 모든 파일 쌍 처리
+        results = processor.process_directory(reference_dir, backup_dir)
+        
+        # 결과 분석
+        successful = [r for r in results if r['status'] == 'success']
+        failed = [r for r in results if r['status'] == 'error']
+        skipped = [r for r in results if r['status'] == 'skipped']
+        
+        print(f"🎯 자동 정규화 완료!")
+        print(f"   성공: {len(successful)}개 파일")
+        print(f"   실패: {len(failed)}개 파일") 
+        print(f"   건너뜀: {len(skipped)}개 파일")
+        
+        # 성공한 파일들의 요약 정보
+        summary = {
+            'total_processed': len(results),
+            'successful': len(successful),
+            'failed': len(failed), 
+            'skipped': len(skipped),
+            'processing_details': []
+        }
+        
+        for result in successful:
+            if 'audio_processing' in result:
+                audio_info = result['audio_processing']
+                summary['processing_details'].append({
+                    'file': result['file_name'],
+                    'original_duration': audio_info.get('original_duration', 0),
+                    'final_duration': audio_info.get('final_duration', 0),
+                    'time_ratio': audio_info.get('time_ratio', 1.0),
+                    'sample_rate': audio_info.get('sample_rate', 16000),
+                    'textgrid_synced': result.get('textgrid_sync', False)
+                })
+        
+        return JSONResponse({
+            "status": "success",
+            "message": "참조 파일 자동 정규화가 완료되었습니다",
+            "summary": summary,
+            "detailed_results": results
+        })
+        
+    except Exception as e:
+        print(f"❌ 자동 정규화 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"정규화 중 오류가 발생했습니다: {e}")
+
+@app.post("/api/normalize_single_file")  
+async def normalize_single_file(file_name: str):
+    """
+    단일 파일 정규화 (테스트용)
+    Args:
+        file_name: 파일명 (확장자 제외, 예: "낭독문장")
+    """
+    try:
+        reference_dir = "static/reference_files"
+        backup_dir = "static/backup_reference_files"
+        
+        wav_file = f"{file_name}.wav"
+        textgrid_file = f"{file_name}.TextGrid"
+        
+        wav_backup = os.path.join(backup_dir, wav_file)
+        textgrid_backup = os.path.join(backup_dir, textgrid_file)
+        wav_output = os.path.join(reference_dir, wav_file)
+        textgrid_output = os.path.join(reference_dir, textgrid_file)
+        
+        # 파일 존재 확인
+        if not os.path.exists(wav_backup) or not os.path.exists(textgrid_backup):
+            raise HTTPException(status_code=404, detail=f"백업 파일을 찾을 수 없습니다: {file_name}")
+            
+        # 자동화 프로세서로 처리
+        processor = AutomationProcessor(target_sample_rate=16000, target_db=-20.0)
+        result = processor.process_file_pair(wav_backup, textgrid_backup, wav_output, textgrid_output)
+        
+        print(f"🎯 단일 파일 정규화 완료: {file_name}")
+        
+        return JSONResponse({
+            "status": "success", 
+            "message": f"{file_name} 파일 정규화가 완료되었습니다",
+            "result": result
+        })
+        
+    except Exception as e:
+        print(f"❌ 단일 파일 정규화 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"정규화 중 오류가 발생했습니다: {e}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)
