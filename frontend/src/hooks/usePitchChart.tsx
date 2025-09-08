@@ -183,13 +183,22 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     const yAxisTitle = yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone (세미톤)';
     console.log(`🔄 Y축 단위 변경됨: ${yAxisUnit}, 기존 데이터 ${pitchDataRef.current.length}개 재변환 중...`);
     
-    // Y축 제목 강제 업데이트
+    // Y축 제목 및 범위 강제 업데이트
     if (chart.options.scales && chart.options.scales.y) {
       const yScale = chart.options.scales.y as any;
       if (yScale.title) {
         console.log(`🔄 Y축 라벨 변경: "${yScale.title.text}" → "${yAxisTitle}"`);
         yScale.title.text = yAxisTitle;
       }
+      
+      // Y축 범위 업데이트
+      const newRange = yAxisUnit === 'qtone' 
+        ? { min: -4, max: 8 }    // 큐톤 범위
+        : { min: -10, max: 15 }; // 세미톤 범위
+        
+      yScale.min = newRange.min;
+      yScale.max = newRange.max;
+      console.log(`🔄 Y축 범위 변경: ${newRange.min} ~ ${newRange.max} (${yAxisUnit})`);
     }
     
     // 데이터가 있으면 재변환

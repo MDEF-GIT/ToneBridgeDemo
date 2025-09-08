@@ -106,14 +106,19 @@ export function getGenderHzRange(gender: 'male' | 'female'): { min: number; max:
  * 최적 피치 범위 계산
  * 원본: calculateOptimalRange() (line 2235)
  */
-export function calculateOptimalRange(semitoneValues: number[]): { min: number; max: number } {
-  if (semitoneValues.length === 0) {
-    return { min: -12, max: 15 }; // 기본 범위
+export function calculateOptimalRange(values: number[], yAxisUnit: 'semitone' | 'qtone' = 'semitone'): { min: number; max: number } {
+  // Y축 단위에 따른 기본 범위
+  const defaultRange = yAxisUnit === 'semitone' 
+    ? { min: -12, max: 15 }   // 세미톤
+    : { min: -4, max: 8 };    // 큐톤
+    
+  if (values.length === 0) {
+    return defaultRange; // 기본 범위
   }
   
-  const validValues = semitoneValues.filter(val => !isNaN(val) && isFinite(val));
+  const validValues = values.filter(val => !isNaN(val) && isFinite(val));
   if (validValues.length === 0) {
-    return { min: -12, max: 15 };
+    return defaultRange;
   }
   
   const sortedValues = validValues.sort((a, b) => a - b);
@@ -129,9 +134,14 @@ export function calculateOptimalRange(semitoneValues: number[]): { min: number; 
   const minValue = q1 - 1.5 * iqr;
   const maxValue = q3 + 1.5 * iqr;
   
+  // Y축 단위에 따른 한계값 설정
+  const limits = yAxisUnit === 'semitone' 
+    ? { min: -20, max: 20 }   // 세미톤 한계
+    : { min: -8, max: 12 };   // 큐톤 한계
+    
   return {
-    min: Math.max(-20, Math.floor(minValue) - 2), // 최소 -20 세미톤
-    max: Math.min(20, Math.ceil(maxValue) + 2)    // 최대 +20 세미톤
+    min: Math.max(limits.min, Math.floor(minValue) - 2),
+    max: Math.min(limits.max, Math.ceil(maxValue) + 2)
   };
 }
 
