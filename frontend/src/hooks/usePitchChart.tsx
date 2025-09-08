@@ -353,16 +353,15 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         }
       }
       
-      // 🎯 실시간 값을 Y축 고정 위치에 annotation으로 라벨 표시
+      // 🎯 실시간 값을 전체 x축에 걸친 가로선으로 표시
       if (chart.options.plugins?.annotation?.annotations) {
         (chart.options.plugins.annotation.annotations as any).realtimeValue = {
-          type: 'point',
-          xValue: 0,
-          yValue: convertedValue,
-          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+          type: 'line',
+          scaleID: 'y',
+          value: convertedValue,
           borderColor: 'rgba(34, 197, 94, 1)',
-          borderWidth: 3,
-          radius: 8,
+          borderWidth: 2,
+          borderDash: [5, 5], // 점선으로 표시
           label: {
             display: true,
             position: 'end',
@@ -443,16 +442,15 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       y: convertedValue
     }];
     
-    // 실시간 annotation 업데이트
+    // 실시간 annotation을 전체 x축에 걸친 가로선으로 업데이트
     if (chartRef.current.options.plugins?.annotation?.annotations) {
       (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue = {
-        type: 'point',
-        xValue: 0,
-        yValue: convertedValue,
-        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        type: 'line',
+        scaleID: 'y',
+        value: convertedValue,
         borderColor: 'rgba(34, 197, 94, 1)',
-        borderWidth: 3,
-        radius: 8,
+        borderWidth: 2,
+        borderDash: [5, 5], // 점선으로 표시
         label: {
           display: true,
           position: 'end',
