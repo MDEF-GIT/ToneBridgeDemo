@@ -863,6 +863,47 @@ const VoiceAnalysisApp: React.FC = () => {
               <div className="chart-container" style={{position: 'relative', height: '500px'}}>
                 <canvas ref={chartRef}></canvas>
                 
+                {/* 🎯 고정 범례 - 차트 우상단 */}
+                <div 
+                  style={{
+                    position: 'absolute', 
+                    top: '15px', 
+                    right: '15px', 
+                    zIndex: 1000, 
+                    display: selectedFile ? 'block' : 'none',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px', color: '#ff9f40' }}>
+                    <span style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      backgroundColor: '#ff9f40', 
+                      borderRadius: '50%', 
+                      display: 'inline-block', 
+                      marginRight: '6px' 
+                    }}></span>
+                    참조 음성
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', color: '#22c55e' }}>
+                    <span style={{ 
+                      width: '12px', 
+                      height: '12px', 
+                      backgroundColor: '#22c55e', 
+                      borderRadius: '50%', 
+                      display: 'inline-block', 
+                      marginRight: '6px' 
+                    }}></span>
+                    실시간 음성
+                  </div>
+                </div>
+                
                 {/* 키 조정 컨트롤 - 차트 내부 우측 하단 */}
                 <div 
                   id="pitchAdjustmentButtons" 
