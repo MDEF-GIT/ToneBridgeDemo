@@ -726,6 +726,30 @@ const VoiceAnalysisApp: React.FC = () => {
                           </option>
                         ))}
                       </select>
+                      
+                      {/* 참조 파일 오디오 플레이어 */}
+                      {selectedFile && (
+                        <div className="mt-3 p-2 bg-white rounded border">
+                          <label className="form-label mb-2 small fw-bold text-success">
+                            <i className="fas fa-headphones me-2"></i>참조 음성 듣기
+                          </label>
+                          <audio
+                            controls
+                            className="w-100"
+                            style={{ height: '35px' }}
+                            src={`${API_BASE}/static/reference_files/${selectedFile}.wav`}
+                            onError={() => console.error('참조 파일 로드 실패:', selectedFile)}
+                            onLoadedData={() => console.log('참조 파일 로드 완료:', selectedFile)}
+                          >
+                            브라우저가 오디오 재생을 지원하지 않습니다.
+                          </audio>
+                          <div className="text-muted small mt-1">
+                            <i className="fas fa-file-audio me-1"></i>
+                            {selectedFile}.wav - 이 발음을 목표로 연습해보세요!
+                          </div>
+                        </div>
+                      )}
+                      
                       <small className="text-primary opacity-75">선택하면 자동으로 분석이 시작됩니다</small>
                     </div>
                   </div>

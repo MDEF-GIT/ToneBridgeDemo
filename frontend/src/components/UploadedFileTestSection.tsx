@@ -20,6 +20,7 @@ const UploadedFileTestSection: React.FC = () => {
   const [error, setError] = useState<string>('');
   
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const testPitchChart = usePitchChart(chartCanvasRef);
 
   // 컴포넌트 마운트 시 Hz 단위로 설정
@@ -210,7 +211,7 @@ const UploadedFileTestSection: React.FC = () => {
       {selectedFileId && (
         <div className="alert alert-info mb-4">
           <div className="row">
-            <div className="col-md-8">
+            <div className="col-md-6">
               <h6 className="mb-1">
                 <i className="fas fa-file-audio me-2"></i>
                 선택된 파일: {uploadedFiles.find(f => f.id === selectedFileId)?.display_name}
@@ -218,11 +219,28 @@ const UploadedFileTestSection: React.FC = () => {
               <small className="text-muted">
                 파일명: {selectedFileId}.wav / {selectedFileId}.TextGrid
               </small>
-            </div>
-            <div className="col-md-4 text-end">
+              <br />
               <small className="text-muted">
                 업로드 시간: {uploadedFiles.find(f => f.id === selectedFileId)?.timestamp}
               </small>
+            </div>
+            <div className="col-md-6">
+              <div className="mt-2">
+                <label className="form-label mb-1">
+                  <i className="fas fa-play me-2"></i>음성 파일 재생
+                </label>
+                <audio
+                  ref={audioRef}
+                  controls
+                  className="w-100"
+                  style={{ height: '35px' }}
+                  src={`/static/uploads/${selectedFileId}.wav`}
+                  onError={() => console.error('오디오 로드 실패:', selectedFileId)}
+                  onLoadedData={() => console.log('오디오 로드 완료:', selectedFileId)}
+                >
+                  브라우저가 오디오 재생을 지원하지 않습니다.
+                </audio>
+              </div>
             </div>
           </div>
         </div>
