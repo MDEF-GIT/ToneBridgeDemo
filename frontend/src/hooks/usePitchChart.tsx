@@ -153,11 +153,18 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
     if (!chartRef.current) return;
 
-    if (startTimeRef.current === 0) {
-      startTimeRef.current = timestamp;
+    let relativeTime: number;
+    
+    if (type === 'reference') {
+      // 🎯 참조 데이터는 이미 초 단위이므로 그대로 사용
+      relativeTime = timestamp;
+    } else {
+      // 🎯 실시간 데이터는 밀리초 단위이므로 초로 변환
+      if (startTimeRef.current === 0) {
+        startTimeRef.current = timestamp;
+      }
+      relativeTime = (timestamp - startTimeRef.current) / 1000;
     }
-
-    const relativeTime = (timestamp - startTimeRef.current) / 1000; // Convert to seconds
     
     const newData: PitchData = {
       time: relativeTime,
@@ -233,7 +240,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         
         // Add reference data points  
         pitchData.forEach((point: {time: number, frequency: number}) => {
-          addPitchData(point.frequency, point.time * 1000, 'reference');
+          // 🎯 백엔드에서 이미 초 단위로 온 데이터를 그대로 사용 (1000 곱하지 않음)
+          addPitchData(point.frequency, point.time, 'reference');
         });
         
         // 🎯 Add syllable annotations to chart
