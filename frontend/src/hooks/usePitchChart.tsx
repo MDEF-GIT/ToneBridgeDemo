@@ -214,6 +214,27 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       console.log(`🔄 툴팁 단위 변경: ${yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone'}`);
     }
     
+    // 🎯 음절 라벨 위치 업데이트 - 고정 위치로 표시
+    if (chart.options.plugins?.annotation?.annotations) {
+      const annotations = chart.options.plugins.annotation.annotations;
+      const yAxisScale = chart.options.scales.y as any;
+      const chartMax = yAxisScale.max;
+      const chartMin = yAxisScale.min;
+      
+      // 음절 라벨을 차트 상단 고정 위치(90% 지점)에 표시
+      const fixedLabelY = chartMin + (chartMax - chartMin) * 0.9;
+      
+      Object.keys(annotations).forEach(key => {
+        if (key.startsWith('label_')) {
+          const annotation = annotations[key] as any;
+          if (annotation.type === 'label') {
+            annotation.yValue = fixedLabelY;
+            console.log(`🔄 음절 라벨 '${annotation.content}' 위치 업데이트: ${fixedLabelY.toFixed(1)}`);
+          }
+        }
+      });
+    }
+    
     // 데이터가 있으면 재변환 및 Y축 범위 재계산
     if (pitchDataRef.current.length > 0) {
       const convertedValues: number[] = [];
@@ -522,11 +543,11 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     console.log('🎯 Adding annotations for', syllables.length, 'syllables:');
     console.log('🎯 Sample syllables:', syllables.slice(0, 3));
     
-    // Position labels at top of chart (inside chart area) 
+    // 🎯 Position labels at fixed position (90% from bottom) 
     const yScale = chart.options.scales?.y;
     const chartMax = (yScale?.max as number) || 500;
     const chartMin = (yScale?.min as number) || 50;
-    const labelY = chartMax - (chartMax - chartMin) * 0.05; // 5% from top
+    const labelY = chartMin + (chartMax - chartMin) * 0.9; // 90% from bottom (고정 위치)
     
     console.log("🎯 Chart Y 범위:", chartMin, "~", chartMax, "labelY:", labelY);
     
