@@ -188,10 +188,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       y: semitoneValue  // 🎯 semitone 값으로 변경
     });
 
-    // Update time axis to follow the data
-    if (chart.options.scales?.x) {
-      chart.options.scales.x.max = Math.max(10, relativeTime + 2);
-    }
+    // 🎯 녹음 중에는 x축 범위를 고정 (참조 데이터 범위 유지)
+    // 실시간 녹음 데이터가 참조 데이터의 x축 범위 내에서만 표시되도록 함
 
     chart.update('none'); // Update without animation for real-time performance
   }, []);
@@ -206,9 +204,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     pitchDataRef.current = [];
     startTimeRef.current = 0;
 
-    if (chartRef.current.options.scales?.x) {
-      chartRef.current.options.scales.x.max = 10;
-    }
+    // 🎯 x축 범위는 참조 데이터가 설정한 범위를 유지 (변경하지 않음)
 
     chartRef.current.update();
   }, []);
@@ -256,7 +252,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         
         // 실제 오디오 길이에 맞게 x축 범위 조정
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
-          const newMax = maxTime + 0.2; // 실제 길이 + 0.2초 여유분만
+          const newMax = maxTime + 0.3; // 실제 길이 + 0.3초 여유분
           chartRef.current.options.scales.x.min = 0;
           chartRef.current.options.scales.x.max = newMax;
           chartRef.current.update('none');
