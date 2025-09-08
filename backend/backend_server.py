@@ -30,6 +30,9 @@ except ImportError as e:
     print(f"❌ Failed to import parselmouth: {e}")
     sys.exit(1)
 
+# Import our new automation system
+from audio_enhancement import AutomatedProcessor
+
 app = FastAPI(title="ToneBridge Praat Analysis API")
 
 # 마이크로서비스 아키텍처: 백엔드는 순수 API만 제공
@@ -2353,6 +2356,106 @@ async def normalize_single_file(file_name: str):
     except Exception as e:
         print(f"❌ 단일 파일 정규화 오류: {e}")
         raise HTTPException(status_code=500, detail=f"정규화 중 오류가 발생했습니다: {e}")
+
+# Initialize automation processor
+automated_processor = AutomatedProcessor()
+
+@app.post("/api/auto-process")
+async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = Form("")):
+    """
+    완전 자동화된 오디오 처리 API
+    STT + 자동 분절 + TextGrid 생성
+    """
+    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
+        raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
+    
+    try:
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        # 자동 처리 실행
+        result = automated_processor.process_audio_completely(tmp_path, sentence_hint)
+        
+        # 임시 파일 정리
+        os.unlink(tmp_path)
+        
+        if result['success']:
+            return JSONResponse({
+                "success": True,
+                "transcription": result['transcription'],
+                "syllables": result['syllables'],
+                "duration": result['duration'],
+                "message": f"✅ 자동 처리 완료 - {len(result['syllables'])}개 음절 분절"
+            })
+        else:
+            return JSONResponse({
+                "success": False,
+                "error": result.get('error', '알 수 없는 오류'),
+                "message": "❌ 자동 처리 실패"
+            }, status_code=500)
+            
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "❌ 서버 처리 오류"
+        }, status_code=500)
+
+@app.post("/api/optimize-textgrid/{file_id}")
+async def optimize_existing_textgrid(file_id: str, db: Session = Depends(get_db)):
+    """
+    기존 reference 파일의 TextGrid 최적화
+    """
+    try:
+        # DB에서 파일 정보 조회
+        ref_file = db.query(ReferenceFile).filter(ReferenceFile.id == file_id).first()
+        if not ref_file:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
+        
+        audio_path = f"static/reference_files/{ref_file.filename}"
+        if not os.path.exists(audio_path):
+            raise HTTPException(status_code=404, detail="오디오 파일이 존재하지 않습니다")
+        
+        # 자동 처리로 TextGrid 재생성
+        result = automated_processor.process_audio_completely(
+            audio_path, 
+            ref_file.sentence or ""
+        )
+        
+        if result['success']:
+            return JSONResponse({
+                "success": True,
+                "syllables": result['syllables'],
+                "transcription": result['transcription'],
+                "message": f"✅ TextGrid 최적화 완료 - {len(result['syllables'])}개 음절"
+            })
+        else:
+            return JSONResponse({
+                "success": False,
+                "error": result.get('error'),
+                "message": "❌ TextGrid 최적화 실패"
+            }, status_code=500)
+            
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "❌ 최적화 처리 오류"
+        }, status_code=500)
+
+@app.get("/api/stt-status")
+async def get_stt_status():
+    """
+    STT(음성인식) 시스템 상태 확인
+    """
+    return JSONResponse({
+        "whisper_available": automated_processor.stt.whisper_available,
+        "status": "ready" if automated_processor.stt.whisper_available else "limited",
+        "message": "🎤 Whisper STT 사용 가능" if automated_processor.stt.whisper_available else "⚠️ 파일명 기반 추정만 가능"
+    })
 
 if __name__ == "__main__":
     import uvicorn
