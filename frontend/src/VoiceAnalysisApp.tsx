@@ -92,7 +92,7 @@ const VoiceAnalysisApp: React.FC = () => {
     console.log('🎯 ToneBridge Voice Analysis App initialized');
   }, [audioRecording, pitchChart]);
 
-  // 🎯 참조 파일 로딩
+  // 🎯 참조 파일 로딩 (오리지널과 동일한 로직)
   const loadReferenceFiles = async () => {
     try {
       setIsLoading(true);
@@ -101,13 +101,24 @@ const VoiceAnalysisApp: React.FC = () => {
       const response = await fetch(`${API_BASE}/api/reference_files`);
       const data = await response.json();
       
+      console.log('🎯 API 응답 데이터:', data);
+      
+      // 🎯 오리지널처럼 data.files 또는 직접 배열 처리
+      let files = [];
       if (data && data.files && Array.isArray(data.files)) {
-        setReferenceFiles(data.files);
-        console.log(`✅ ToneBridge Backend Service: 연결됨 (참조 파일 ${data.files.length}개 로드됨)`);
-        setStatus('');
+        files = data.files;
+      } else if (Array.isArray(data)) {
+        files = data;
       } else {
+        console.warn('⚠️ 예상하지 못한 응답 구조:', data);
         setStatus('참조 파일 로딩 실패: 잘못된 응답 구조');
+        return;
       }
+      
+      setReferenceFiles(files);
+      console.log(`✅ ToneBridge Backend Service: 연결됨 (참조 파일 ${files.length}개 로드됨)`);
+      setStatus('');
+      
     } catch (error) {
       console.error('❌ 참조 파일 로딩 실패:', error);
       setStatus('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
@@ -146,38 +157,44 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   }, [learnerInfo.gender]);
   
-  // 🎯 연습 문장 선택
+  // 🎯 연습 문장 선택 (오리지널과 동일한 로직)
   const handleSentenceSelection = useCallback(async (fileId: string) => {
-    if (!fileId) return;
+    if (!fileId) {
+      setSelectedFile('');
+      setStatus('연습할 문장을 선택해주세요.');
+      return;
+    }
+    
+    // 🎯 학습자 성별 확인 (오리지널 로직)
+    if (!learnerInfo.gender) {
+      alert('먼저 학습자 성별 정보를 선택해주세요.');
+      return;
+    }
     
     setSelectedFile(fileId);
     setIsLoading(true);
-    setStatus('참조 음성을 분석 중입니다...');
+    setStatus(`"${fileId}" 문장을 불러오는 중...`);
     
     try {
-      const response = await fetch(`${API_BASE}/api/analyze/${fileId}`);
-      const data = await response.json();
+      console.log(`🎯 연습 문장 선택됨: ${fileId}`);
       
-      if (data && data.pitch_data && Array.isArray(data.pitch_data)) {
-        pitchChart.clearChart();
-        console.log(`🎯 TextGrid 데이터 로드: ${data.pitch_data.length}개 포인트`);
-        
-        data.pitch_data.forEach((point: {time: number, frequency: number}) => {
-          pitchChart.addPitchData(point.frequency, point.time * 1000, 'reference');
-        });
-        
-        setStatus(`참조 음성 분석 완료 (${data.pitch_data.length}개 포인트). 녹음을 시작하세요!`);
+      // 🎯 오리지널처럼 pitchChart.loadReferenceData 호출
+      if (pitchChart && pitchChart.loadReferenceData) {
+        await pitchChart.loadReferenceData(fileId);
+        setStatus(`✅ "${fileId}" 문장이 로드되었습니다. 참조음성 재생 또는 녹음 연습을 시작하세요.`);
+        console.log('🎯 차트 업데이트 완료!');
       } else {
-        console.warn('⚠️ TextGrid 데이터가 없습니다:', data);
-        setStatus('참조 음성 데이터를 찾을 수 없습니다.');
+        console.warn('⚠️ pitchChart.loadReferenceData가 없습니다');
+        setStatus('차트 로딩 중 오류가 발생했습니다.');
       }
+      
     } catch (error) {
-      console.error('❌ 참조 오디오 로딩 실패:', error);
-      setStatus('참조 음성 로딩에 실패했습니다.');
+      console.error('🎯 문장 로딩 오류:', error);
+      setStatus('문장 로딩 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, [pitchChart, API_BASE]);
+  }, [learnerInfo.gender, pitchChart]);
   
   // 🎯 녹음 제어
   const handleRecording = useCallback(() => {
