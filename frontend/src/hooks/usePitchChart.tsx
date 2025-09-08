@@ -834,7 +834,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     console.log(`📊 Y축 범위 업데이트: ${min} ~ ${max} (${yAxisUnit})`);
   }, [yAxisUnit]);
 
-  // 🎯 참조음성 재생 진행 표시선 업데이트
+  // 🎯 참조음성 재생 진행 표시선 및 포인트 색상 업데이트
   const updatePlaybackProgress = useCallback((currentTime: number) => {
     if (!chartRef.current) return;
 
@@ -874,10 +874,29 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       }
     };
 
+    // 🎯 참조음성 포인트 색상 업데이트 (재생된 부분만 파란색으로 변경)
+    const referenceDataset = chart.data.datasets[0] as any; // 참조 음성 데이터셋
+    if (referenceDataset && referenceDataset.data.length > 0) {
+      const originalColor = 'rgb(255, 159, 64)';  // 주황색 (원래 색상)
+      const playedColor = 'rgba(54, 162, 235, 1)'; // 파란색 (재생된 부분)
+      
+      // 각 포인트의 색상을 개별적으로 설정
+      const pointColors = referenceDataset.data.map((dataPoint: any) => {
+        if (dataPoint && typeof dataPoint.x === 'number') {
+          return dataPoint.x <= currentTime ? playedColor : originalColor;
+        }
+        return originalColor;
+      });
+      
+      // 포인트 색상 배열 적용
+      referenceDataset.pointBackgroundColor = pointColors;
+      referenceDataset.pointBorderColor = pointColors;
+    }
+
     chart.update('none');
   }, []);
 
-  // 🎯 재생 진행선 제거
+  // 🎯 재생 진행선 제거 및 포인트 색상 복원
   const clearPlaybackProgress = useCallback(() => {
     if (!chartRef.current) return;
 
@@ -886,6 +905,16 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     // 🧹 재생 진행선 제거
     if (chart.options.plugins?.annotation?.annotations) {
       delete chart.options.plugins.annotation.annotations['playback_progress'];
+    }
+
+    // 🎯 참조음성 포인트 색상을 원래 색상으로 복원
+    const referenceDataset = chart.data.datasets[0] as any; // 참조 음성 데이터셋
+    if (referenceDataset && referenceDataset.data.length > 0) {
+      const originalColor = 'rgb(255, 159, 64)';  // 주황색 (원래 색상)
+      
+      // 모든 포인트를 원래 색상으로 복원
+      referenceDataset.pointBackgroundColor = originalColor;
+      referenceDataset.pointBorderColor = originalColor;
     }
 
     playbackLineRef.current = null;
