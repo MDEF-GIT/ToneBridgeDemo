@@ -181,8 +181,10 @@ const VoiceAnalysisApp: React.FC = () => {
     
     try {
       console.log(`🎯 연습 문장 선택됨: ${fileId}`);
+      console.log('🎯 Step 1: Starting sentence selection...');
       
       // 🎯 디버깅: pitchChart 객체 상태 확인
+      console.log('🎯 Step 2: Checking pitchChart object...');
       console.log('🎯 pitchChart object:', pitchChart);
       console.log('🎯 pitchChart.loadReferenceData:', pitchChart?.loadReferenceData);
       

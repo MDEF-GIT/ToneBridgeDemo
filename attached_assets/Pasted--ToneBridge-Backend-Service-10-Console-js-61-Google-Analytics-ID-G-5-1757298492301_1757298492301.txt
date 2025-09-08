@@ -1,0 +1,56 @@
+✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🔍 Google Analytics 초기화 완료 - ID: G-56D78RCESE
+Console.js:61 📊 GA 페이지뷰 이벤트 전송: 음성 분석 - ToneBridge
+Console.js:61 🎯 [STEP 3] Hook 상태 변화 감지: Object
+Console.js:61 🎯 ToneBridge Voice Analysis App initialized
+2Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 Chart.js annotation 플러그인이 이미 등록되어 있습니다
+Console.js:61 🎯 API 응답 데이터: Object
+Console.js:61 ✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+4Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 드롭다운 변경됨: 뭐라고그러셨소
+Console.js:61 🎯 연습 문장 선택됨: 뭐라고그러셨소
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🧹 음절 표시 초기화 완료
+Console.js:61 🎯 Adding annotations for 7 syllables:
+Console.js:61 🎯 Sample syllables: Array(3)
+Console.js:61 🎯 Chart Y 범위: -12 ~ 15 labelY: 13.65
+Console.js:61 🎯 음절 0: 뭐 (0.294s - 0.571s)
+Console.js:61 🎯 음절 1: 라 (0.571s - 0.750s)
+Console.js:61 🎯 음절 2: 고 (0.750s - 0.931s)
+Console.js:61 🎯 음절 3: 그 (0.931s - 1.161s)
+Console.js:61 🎯 음절 4: 러 (1.161s - 1.309s)
+Console.js:61 🎯 음절 5: 셨 (1.309s - 1.459s)
+Console.js:61 🎯 음절 6: 소? (1.459s - 1.863s)
+Console.js:61 🎯 Syllable annotations added and chart updated!
+Console.js:61 🎯 현재 annotations 수: 15
+Console.js:61 🎯 차트 업데이트 완료!
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 드롭다운 변경됨: 낭독문장
+Console.js:61 🎯 연습 문장 선택됨: 낭독문장
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🧹 음절 표시 초기화 완료
+Console.js:61 🎯 Adding annotations for 17 syllables:
+Console.js:61 🎯 Sample syllables: (3) [{…}, {…}, {…}]
+Console.js:61 🎯 Chart Y 범위: -12 ~ 15 labelY: 13.65
+Console.js:61 🎯 음절 0: 모 (2.199s - 2.350s)
+Console.js:61 🎯 음절 1: 든 (2.350s - 2.521s)
+Console.js:61 🎯 음절 2: 것 (2.521s - 2.661s)
+Console.js:61 🎯 음절 3: 을 (2.661s - 2.895s)
+Console.js:61 🎯 음절 4: 할 (2.895s - 3.048s)
+Console.js:61 🎯 음절 5: 순 (3.048s - 3.197s)
+Console.js:61 🎯 음절 6: 없 (3.197s - 3.329s)
+Console.js:61 🎯 음절 7: 어 (3.329s - 3.556s)
+Console.js:61 🎯 음절 8: 도 (3.556s - 3.720s)
+Console.js:61 🎯 음절 9: 무 (3.720s - 3.808s)
+Console.js:61 🎯 음절 10: 언 (3.808s - 4.001s)
+Console.js:61 🎯 음절 11: 가 (4.001s - 4.129s)
+Console.js:61 🎯 음절 12: 는 (4.129s - 4.232s)
+Console.js:61 🎯 음절 13: 할 (4.232s - 4.375s)
+Console.js:61 🎯 음절 14: 수 (4.375s - 4.550s)
+Console.js:61 🎯 음절 15: 있 (4.550s - 4.590s)
+Console.js:61 🎯 음절 16: 다 (4.590s - 4.825s)
+Console.js:61 🎯 Syllable annotations added and chart updated!
+Console.js:61 🎯 현재 annotations 수: 35
+Console.js:61 🎯 차트 업데이트 완료!
+Console.js:61 🎯 피치 콜백 설정 중...
