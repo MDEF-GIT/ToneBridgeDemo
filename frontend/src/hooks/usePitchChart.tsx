@@ -238,11 +238,24 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           }
         }
         
+        let maxTime = 0;
+        
         // Add reference data points  
         pitchData.forEach((point: {time: number, frequency: number}) => {
           // 🎯 백엔드에서 이미 초 단위로 온 데이터를 그대로 사용 (1000 곱하지 않음)
           addPitchData(point.frequency, point.time, 'reference');
+          maxTime = Math.max(maxTime, point.time);
         });
+        
+        console.log(`🎯 Loaded ${pitchData.length} reference pitch points, maxTime: ${maxTime}s`);
+        
+        // 🎯 참조 데이터 길이에 맞게 x축 범위 조정
+        if (chartRef.current?.options?.scales?.x && maxTime > 0) {
+          chartRef.current.options.scales.x.min = 0;
+          chartRef.current.options.scales.x.max = Math.max(maxTime + 0.5, 3); // 여유 0.5초, 최소 3초
+          console.log(`🎯 X-axis adjusted: 0 - ${chartRef.current.options.scales.x.max} seconds`);
+          chartRef.current.update('none');
+        }
         
         // 🎯 Add syllable annotations to chart
         if (syllableData && syllableData.length > 0) {
