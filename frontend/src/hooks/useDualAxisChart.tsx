@@ -79,7 +79,7 @@ export const useDualAxisChart = (
             yAxisID: 'y-frequency'
           },
           {
-            label: yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)',
+            label: '세미톤/큐톤',
             data: [],
             borderColor: 'rgb(54, 162, 235)',
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
@@ -100,7 +100,7 @@ export const useDualAxisChart = (
         plugins: {
           title: {
             display: true,
-            text: `듀얼 Y축 비교 차트 - 주파수 vs ${yAxisUnit === 'semitone' ? '세미톤' : '큐톤'}`,
+            text: '듀얼 Y축 비교 차트 - 주파수 vs 세미톤/큐톤',
             font: {
               size: 16,
               weight: 'bold'
@@ -165,7 +165,7 @@ export const useDualAxisChart = (
             position: 'right',
             title: {
               display: true,
-              text: yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)',
+              text: '세미톤/큐톤',
               color: 'rgb(54, 162, 235)'
             },
             ticks: {
@@ -174,8 +174,8 @@ export const useDualAxisChart = (
             grid: {
               drawOnChartArea: true
             },
-            min: yAxisUnit === 'semitone' ? -12 : -4,   // 세미톤: -12st, 큐톤: -4Q
-            max: yAxisUnit === 'semitone' ? 15 : 8      // 세미톤: +15st, 큐톤: +8Q
+            min: -12,   // 기본값
+            max: 15     // 기본값
           }
         }
       }
@@ -183,7 +183,7 @@ export const useDualAxisChart = (
 
     chartRef.current = new ChartJS(ctx, config);
     console.log('🎯 듀얼 Y축 차트 초기화 완료');
-  }, [canvasRef, yAxisUnit, convertFrequencyToUnit]);
+  }, [canvasRef]);
 
   // 🎯 데이터 추가 함수
   const addDualAxisData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'reference') => {
@@ -213,8 +213,8 @@ export const useDualAxisChart = (
     }
 
     chartRef.current.update('none');
-    console.log(`📊 듀얼축 데이터 추가: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)}${yAxisUnit === 'semitone' ? 'st' : 'Q'}`);
-  }, [convertFrequencyToUnit, yAxisUnit]);
+    console.log(`📊 듀얼축 데이터 추가: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)}`);
+  }, [convertFrequencyToUnit]);
 
   // 🎯 차트 클리어
   const clearChart = useCallback(() => {

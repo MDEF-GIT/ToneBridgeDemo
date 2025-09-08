@@ -1,0 +1,256 @@
+✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🔍 Google Analytics 초기화 완료 - ID: G-56D78RCESE
+Console.js:61 📊 GA 페이지뷰 이벤트 전송: 음성 분석 - ToneBridge
+Console.js:61 🎯 [STEP 3] Hook 상태 변화 감지: Object
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 ToneBridge Voice Analysis App initialized
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 Chart.js annotation 플러그인이 이미 등록되어 있습니다
+Console.js:61 🎯 API 응답 데이터: Object
+Console.js:61 ✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 드롭다운 변경됨: 반갑습니다
+Console.js:61 🎯 연습 문장 선택됨: 반갑습니다
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🔄 변환: 154.9Hz → -4.42 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 201.7Hz → 0.14 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 142.2Hz → -5.90 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 126.5Hz → -7.94 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 136.0Hz → -6.68 semitone (함수=Semitone)
+Console.js:61 🧹 음절 표시 초기화 완료
+Console.js:61 🎯 Adding annotations for 5 syllables:
+Console.js:61 🎯 Sample syllables: Array(3)
+Console.js:61 🎯 Chart Y 범위: -10 ~ 15 labelY: 13.75
+Console.js:61 🎯 음절 0: 반 (0.000s - 0.367s)
+Console.js:61 🎯 음절 1: 갑 (0.367s - 0.513s)
+Console.js:61 🎯 음절 2: 습 (0.513s - 0.871s)
+Console.js:61 🎯 음절 3: 니 (0.871s - 1.007s)
+Console.js:61 🎯 음절 4: 다 (1.007s - 1.361s)
+Console.js:61 🎯 Syllable annotations added and chart updated!
+Console.js:61 🎯 현재 annotations 수: 11
+Console.js:61 🧹 듀얼 Y축 차트 클리어
+Console.js:61 📊 듀얼축 데이터 추가: 177.6Hz → 2.9st
+Console.js:61 📊 듀얼축 데이터 추가: 167.5Hz → 1.9st
+Console.js:61 📊 듀얼축 데이터 추가: 160.7Hz → 1.2st
+Console.js:61 📊 듀얼축 데이터 추가: 159.4Hz → 1.0st
+Console.js:61 📊 듀얼축 데이터 추가: 158.0Hz → 0.9st
+Console.js:61 📊 듀얼축 데이터 추가: 156.9Hz → 0.8st
+Console.js:61 📊 듀얼축 데이터 추가: 151.6Hz → 0.2st
+Console.js:61 📊 듀얼축 데이터 추가: 153.5Hz → 0.4st
+Console.js:61 📊 듀얼축 데이터 추가: 154.0Hz → 0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 154.4Hz → 0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 154.8Hz → 0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 155.2Hz → 0.6st
+2Console.js:61 📊 듀얼축 데이터 추가: 154.9Hz → 0.6st
+Console.js:61 📊 듀얼축 데이터 추가: 155.4Hz → 0.6st
+Console.js:61 📊 듀얼축 데이터 추가: 155.2Hz → 0.6st
+2Console.js:61 📊 듀얼축 데이터 추가: 155.1Hz → 0.6st
+Console.js:61 📊 듀얼축 데이터 추가: 154.8Hz → 0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 154.2Hz → 0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 153.4Hz → 0.4st
+Console.js:61 📊 듀얼축 데이터 추가: 151.8Hz → 0.2st
+Console.js:61 📊 듀얼축 데이터 추가: 146.0Hz → -0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 207.3Hz → 5.6st
+Console.js:61 📊 듀얼축 데이터 추가: 189.7Hz → 4.1st
+Console.js:61 📊 듀얼축 데이터 추가: 190.3Hz → 4.1st
+Console.js:61 📊 듀얼축 데이터 추가: 192.2Hz → 4.3st
+Console.js:61 📊 듀얼축 데이터 추가: 193.2Hz → 4.4st
+Console.js:61 📊 듀얼축 데이터 추가: 195.1Hz → 4.6st
+Console.js:61 📊 듀얼축 데이터 추가: 198.3Hz → 4.8st
+Console.js:61 📊 듀얼축 데이터 추가: 201.7Hz → 5.1st
+Console.js:61 📊 듀얼축 데이터 추가: 204.3Hz → 5.3st
+Console.js:61 📊 듀얼축 데이터 추가: 206.6Hz → 5.5st
+Console.js:61 📊 듀얼축 데이터 추가: 207.5Hz → 5.6st
+Console.js:61 📊 듀얼축 데이터 추가: 206.2Hz → 5.5st
+Console.js:61 📊 듀얼축 데이터 추가: 209.3Hz → 5.8st
+Console.js:61 📊 듀얼축 데이터 추가: 185.6Hz → 3.7st
+Console.js:61 📊 듀얼축 데이터 추가: 161.0Hz → 1.2st
+Console.js:61 📊 듀얼축 데이터 추가: 148.7Hz → -0.2st
+Console.js:61 📊 듀얼축 데이터 추가: 144.6Hz → -0.6st
+Console.js:61 📊 듀얼축 데이터 추가: 145.7Hz → -0.5st
+Console.js:61 📊 듀얼축 데이터 추가: 147.9Hz → -0.2st
+Console.js:61 📊 듀얼축 데이터 추가: 146.9Hz → -0.4st
+Console.js:61 📊 듀얼축 데이터 추가: 145.0Hz → -0.6st
+Console.js:61 📊 듀얼축 데이터 추가: 143.1Hz → -0.8st
+Console.js:61 📊 듀얼축 데이터 추가: 141.3Hz → -1.0st
+Console.js:61 📊 듀얼축 데이터 추가: 139.9Hz → -1.2st
+Console.js:61 📊 듀얼축 데이터 추가: 138.1Hz → -1.4st
+Console.js:61 📊 듀얼축 데이터 추가: 136.5Hz → -1.6st
+Console.js:61 📊 듀얼축 데이터 추가: 135.5Hz → -1.8st
+Console.js:61 📊 듀얼축 데이터 추가: 134.4Hz → -1.9st
+Console.js:61 📊 듀얼축 데이터 추가: 133.9Hz → -2.0st
+Console.js:61 📊 듀얼축 데이터 추가: 132.6Hz → -2.1st
+2Console.js:61 📊 듀얼축 데이터 추가: 131.8Hz → -2.2st
+Console.js:61 📊 듀얼축 데이터 추가: 131.1Hz → -2.3st
+Console.js:61 📊 듀얼축 데이터 추가: 130.6Hz → -2.4st
+Console.js:61 📊 듀얼축 데이터 추가: 129.8Hz → -2.5st
+Console.js:61 📊 듀얼축 데이터 추가: 128.8Hz → -2.6st
+Console.js:61 📊 듀얼축 데이터 추가: 128.0Hz → -2.7st
+Console.js:61 📊 듀얼축 데이터 추가: 126.6Hz → -2.9st
+Console.js:61 📊 듀얼축 데이터 추가: 126.3Hz → -3.0st
+Console.js:61 📊 듀얼축 데이터 추가: 125.6Hz → -3.1st
+Console.js:61 📊 듀얼축 데이터 추가: 124.4Hz → -3.2st
+Console.js:61 📊 듀얼축 데이터 추가: 123.6Hz → -3.3st
+Console.js:61 📊 듀얼축 데이터 추가: 123.3Hz → -3.4st
+Console.js:61 📊 듀얼축 데이터 추가: 121.6Hz → -3.6st
+Console.js:61 📊 듀얼축 데이터 추가: 118.3Hz → -4.1st
+Console.js:61 📊 듀얼축 데이터 추가: 115.4Hz → -4.5st
+Console.js:61 📊 듀얼축 데이터 추가: 138.8Hz → -1.3st
+Console.js:61 📊 듀얼축 데이터 추가: 140.2Hz → -1.2st
+Console.js:61 📊 듀얼축 데이터 추가: 140.6Hz → -1.1st
+Console.js:61 📊 듀얼축 데이터 추가: 140.8Hz → -1.1st
+Console.js:61 📊 듀얼축 데이터 추가: 141.8Hz → -1.0st
+Console.js:61 📊 듀얼축 데이터 추가: 141.7Hz → -1.0st
+Console.js:61 📊 듀얼축 데이터 추가: 141.4Hz → -1.0st
+Console.js:61 📊 듀얼축 데이터 추가: 140.1Hz → -1.2st
+Console.js:61 📊 듀얼축 데이터 추가: 137.8Hz → -1.5st
+Console.js:61 📊 듀얼축 데이터 추가: 135.2Hz → -1.8st
+Console.js:61 📊 듀얼축 데이터 추가: 132.8Hz → -2.1st
+Console.js:61 📊 듀얼축 데이터 추가: 130.5Hz → -2.4st
+Console.js:61 📊 듀얼축 데이터 추가: 125.3Hz → -3.1st
+Console.js:61 📊 듀얼축 데이터 추가: 124.5Hz → -3.2st
+Console.js:61 📊 듀얼축 데이터 추가: 120.8Hz → -3.7st
+Console.js:61 📊 듀얼축 데이터 추가: 124.6Hz → -3.2st
+Console.js:61 📊 듀얼축 데이터 추가: 125.6Hz → -3.1st
+Console.js:61 📊 듀얼축 데이터 추가: 136.2Hz → -1.7st
+Console.js:61 📊 듀얼축 데이터 추가: 136.5Hz → -1.6st
+Console.js:61 📊 듀얼축 데이터 추가: 135.7Hz → -1.7st
+Console.js:61 📊 듀얼축 데이터 추가: 135.1Hz → -1.8st
+Console.js:61 📊 듀얼축 차트에 참조 데이터 로딩 완료: 반갑습니다
+Console.js:61 🎯 차트 업데이트 완료!
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🔄 변환: 154.9Hz → 1.26 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 201.7Hz → 3.17 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 142.2Hz → 0.65 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 126.5Hz → -0.20 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 136.0Hz → 0.32 qtone (함수=Q-tone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🔄 변환: 154.9Hz → -4.42 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 201.7Hz → 0.14 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 142.2Hz → -5.90 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 126.5Hz → -7.94 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 136.0Hz → -6.68 semitone (함수=Semitone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🔄 변환: 154.9Hz → 1.26 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 201.7Hz → 3.17 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 142.2Hz → 0.65 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 126.5Hz → -0.20 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 136.0Hz → 0.32 qtone (함수=Q-tone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🔄 변환: 154.9Hz → -4.42 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 201.7Hz → 0.14 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 142.2Hz → -5.90 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 126.5Hz → -7.94 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 136.0Hz → -6.68 semitone (함수=Semitone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🔄 변환: 154.9Hz → 1.26 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 201.7Hz → 3.17 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 142.2Hz → 0.65 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 126.5Hz → -0.20 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 136.0Hz → 0.32 qtone (함수=Q-tone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🔄 변환: 154.9Hz → -4.42 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 201.7Hz → 0.14 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 142.2Hz → -5.90 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 126.5Hz → -7.94 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 136.0Hz → -6.68 semitone (함수=Semitone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🔄 변환: 154.9Hz → 1.26 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 201.7Hz → 3.17 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 142.2Hz → 0.65 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 126.5Hz → -0.20 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 136.0Hz → 0.32 qtone (함수=Q-tone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🔄 변환: 154.9Hz → -4.42 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 201.7Hz → 0.14 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 142.2Hz → -5.90 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 126.5Hz → -7.94 semitone (함수=Semitone)
+Console.js:61 🔄 변환: 136.0Hz → -6.68 semitone (함수=Semitone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
+Console.js:61 🔄 변환: 154.9Hz → 1.26 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 201.7Hz → 3.17 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 142.2Hz → 0.65 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 126.5Hz → -0.20 qtone (함수=Q-tone)
+Console.js:61 🔄 변환: 136.0Hz → 0.32 qtone (함수=Q-tone)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: qtone
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 qtone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → qtone
