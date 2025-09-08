@@ -40,11 +40,12 @@ interface SyllableData {
   semitone?: number;
 }
 
-export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '', yAxisUnit: string = 'semitone') => {
+export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '') => {
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);
   const realtimeLineRef = useRef<number | null>(null); // 🎯 실시간 수직선 위치 추적
+  const [yAxisUnit, setYAxisUnit] = React.useState<'semitone' | 'qtone'>('semitone');
 
   const initChart = useCallback(() => {
     if (!canvasRef || !canvasRef.current) {
@@ -105,7 +106,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         y: {
           title: {
             display: true,
-            text: yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone (세미톤)'
+            text: 'Semitone (세미톤)' // 기본값, Y축 단위 변경 시 업데이트됨
           },
           min: -10,  // 🎯 오리지널과 유사한 범위로 조정
           max: 15
@@ -145,7 +146,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       data,
       options
     });
-  }, [canvasRef]);
+  }, [canvasRef]); // yAxisUnit 의존성 제거하여 차트 재초기화 방지
 
   // 🎯 주파수를 semitone 또는 Q-tone으로 변환하는 함수
   const frequencyToSemitone = (frequency: number, baseFrequency: number = 200): number => {
@@ -676,6 +677,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     resetView,
     updateRealtimePitchLine,
     hideRealtimePitchLine,
-    updateRange
+    updateRange,
+    setYAxisUnit, // Y축 단위 설정 메서드 추가
+    yAxisUnit    // 현재 Y축 단위 반환
   };
 };

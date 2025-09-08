@@ -50,7 +50,7 @@ const VoiceAnalysisApp: React.FC = () => {
   
   // 🎯 Hooks  
   const audioRecording = useAudioRecording();
-  const pitchChart = usePitchChart(chartRef, API_BASE, yAxisUnit);
+  const pitchChart = usePitchChart(chartRef, API_BASE);
   const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE, yAxisUnit);
   
   // 🎯 애니메이션 스타일 주입
@@ -254,7 +254,10 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [selectedFile, API_BASE]);
 
 
-  
+  // 🎯 Y축 단위 변경을 pitchChart에 전달
+  useEffect(() => {
+    pitchChart.setYAxisUnit(yAxisUnit);
+  }, [yAxisUnit, pitchChart]);
   
   // 🎯 성별 선택 모달
   const handleGenderSelection = useCallback((gender: string) => {
