@@ -218,16 +218,9 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       const currentLearnerInfo = learnerInfoRef.current;
       const currentSelectedFile = selectedFileRef.current;
       
-      // 🚨 사용자에게 직접 보여주는 디버깅
-      let debugInfo = "🎤 녹음 완료!\n\n";
-      debugInfo += `📋 학습자 정보:\n`;
-      debugInfo += `  - 이름: ${currentLearnerInfo?.name || "❌ 없음"}\n`;
-      debugInfo += `  - 성별: ${currentLearnerInfo?.gender || "❌ 없음"}\n`;
-      debugInfo += `  - 연령대: ${currentLearnerInfo?.ageGroup || "❌ 없음"}\n`;
-      debugInfo += `📄 선택된 문장: ${currentSelectedFile || "❌ 없음"}\n\n`;
-      debugInfo += "이 정보로 파일을 저장합니다.";
-      
-      alert(debugInfo);
+      console.log("🎤 녹음 완료 - 자동 처리 시작...");
+      console.log("📋 학습자:", `${currentLearnerInfo?.name} (${currentLearnerInfo?.gender}, ${currentLearnerInfo?.ageGroup})`);
+      console.log("📄 연습문장:", currentSelectedFile);
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
