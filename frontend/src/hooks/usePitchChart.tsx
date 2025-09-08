@@ -262,12 +262,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         
         console.log(`🎯 Loaded ${pitchData.length} syllable representative points, maxTime: ${maxTime}s`);
         
-        // 🎯 참조 데이터 길이에 맞게 x축 범위 조정 (TextGrid 시간에 맞춤)
+        // 🎯 실제 오디오 길이에 맞게 x축 범위 조정
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
-          const newMax = Math.max(maxTime + 0.3, 2); // 여유 0.3초, 최소 2초
+          const newMax = maxTime + 0.2; // 실제 길이 + 0.2초 여유분만
           chartRef.current.options.scales.x.min = 0;
           chartRef.current.options.scales.x.max = newMax;
-          console.log(`🎯 X-axis adjusted to audio duration: 0 - ${newMax} seconds (maxTime: ${maxTime}s)`);
+          console.log(`🎯 X-axis adjusted to actual audio duration: 0 - ${newMax} seconds (maxTime: ${maxTime}s)`);
           chartRef.current.update('none');
         } else {
           console.warn('🚨 Could not adjust X-axis: chart or maxTime invalid');
