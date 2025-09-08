@@ -1871,7 +1871,8 @@ async def get_reference_file_syllables(file_id: str, db: Session = Depends(get_d
     """🎯 핵심 기능: TextGrid 파일에서 실제 음절 데이터 추출"""
     try:
         # 🎯 파일명으로 직접 TextGrid 파일 찾기 (데이터베이스 의존성 제거)
-        reference_dir = os.path.join(BASE_DIR, "reference_files")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        reference_dir = os.path.join(base_dir, "reference_files")
         textgrid_path = os.path.join(reference_dir, f"{file_id}.TextGrid")
         
         print(f"🎯 Looking for TextGrid: {textgrid_path}")
