@@ -129,6 +129,85 @@ h1, h2, h3, h4, h5, h6 {
     }
 }
 
+/* 🎯 모바일 가로보기 애니메이션 효과 */
+.bounce-animation {
+    animation: mobile-bounce 2s ease-in-out infinite;
+}
+
+@keyframes mobile-bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+.shake-animation {
+    animation: shake 1s ease-in-out infinite;
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-5px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(5px);
+    }
+}
+
+/* 🎯 모바일 경고 박스 특별 효과 */
+.mobile-warning {
+    position: relative;
+    overflow: hidden;
+}
+
+.mobile-warning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: warning-shine 3s infinite;
+}
+
+@keyframes warning-shine {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* 🎯 학습 진행 상태 애니메이션 */
+.progress-pulse {
+    animation: progress-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+    0% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+}
+
 /* Audio analysis status */
 .status-indicator {
     display: inline-flex;

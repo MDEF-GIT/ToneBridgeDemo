@@ -359,7 +359,7 @@ const VoiceAnalysisApp: React.FC = () => {
           </div>
 
           {/* 🎯 휴대폰 가로보기 안내 */}
-          <div className="alert border-0 text-center mb-4" style={{
+          <div className="alert border-0 text-center mb-4 mobile-warning" style={{
             background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
             borderRadius: '12px',
             boxShadow: '0 2px 15px rgba(255, 107, 107, 0.3)'
