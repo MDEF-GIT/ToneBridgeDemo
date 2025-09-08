@@ -51,7 +51,7 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 Hooks  
   const audioRecording = useAudioRecording();
   const pitchChart = usePitchChart(chartRef, API_BASE);
-  const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE, yAxisUnit);
+  const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE);
   
   // 🎯 애니메이션 스타일 주입
   useEffect(() => {
@@ -254,13 +254,16 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [selectedFile, API_BASE]);
 
 
-  // 🎯 Y축 단위 변경을 pitchChart에 전달
+  // 🎯 Y축 단위 변경을 두 차트에 전달
   useEffect(() => {
-    console.log(`🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 ${yAxisUnit}, pitchChart.setYAxisUnit 호출`);
+    console.log(`🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 ${yAxisUnit}, 두 차트에 전달`);
     if (pitchChart && pitchChart.setYAxisUnit) {
       pitchChart.setYAxisUnit(yAxisUnit);
     }
-  }, [yAxisUnit, pitchChart]);
+    if (dualAxisChart && dualAxisChart.setYAxisUnit) {
+      dualAxisChart.setYAxisUnit(yAxisUnit);
+    }
+  }, [yAxisUnit, pitchChart, dualAxisChart]);
   
   // 🎯 성별 선택 모달
   const handleGenderSelection = useCallback((gender: string) => {

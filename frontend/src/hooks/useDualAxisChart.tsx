@@ -29,11 +29,16 @@ interface DualAxisChartData {
 
 export const useDualAxisChart = (
   canvasRef: React.RefObject<HTMLCanvasElement>,
-  API_BASE: string,
-  yAxisUnit: 'semitone' | 'qtone'
+  API_BASE: string
 ) => {
   const chartRef = useRef<ChartJS | null>(null);
   const chartDataRef = useRef<DualAxisChartData[]>([]);
+  const [yAxisUnit, setYAxisUnitInternal] = React.useState<'semitone' | 'qtone'>('semitone');
+
+  // 🎯 외부에서 Y축 단위를 설정하는 함수
+  const setYAxisUnit = useCallback((newUnit: 'semitone' | 'qtone') => {
+    setYAxisUnitInternal(newUnit);
+  }, []);
 
   // 🎯 주파수 → 세미톤/큐톤 변환 함수
   const convertFrequencyToUnit = useCallback((frequency: number): number => {
@@ -275,6 +280,8 @@ export const useDualAxisChart = (
   return {
     addDualAxisData,
     clearChart,
-    chartData: chartDataRef.current
+    chartData: chartDataRef.current,
+    setYAxisUnit,
+    yAxisUnit
   };
 };
