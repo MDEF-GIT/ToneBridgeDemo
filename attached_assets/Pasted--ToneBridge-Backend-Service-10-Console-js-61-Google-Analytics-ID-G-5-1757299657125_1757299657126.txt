@@ -1,0 +1,67 @@
+✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🔍 Google Analytics 초기화 완료 - ID: G-56D78RCESE
+Console.js:61 📊 GA 페이지뷰 이벤트 전송: 음성 분석 - ToneBridge
+Console.js:61 🎯 [STEP 3] Hook 상태 변화 감지: Object
+Console.js:61 🎯 ToneBridge Voice Analysis App initialized
+2Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 Chart.js annotation 플러그인이 이미 등록되어 있습니다
+Console.js:61 🎯 API 응답 데이터: Object
+Console.js:61 ✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 드롭다운 변경됨: 반갑습니다
+Console.js:61 🎯 연습 문장 선택됨: 반갑습니다
+Console.js:61 🎯 loadReferenceData called with fileId: 반갑습니다, API_BASE: ""
+Console.js:61 🎯 Fetching pitch data: /api/reference_files/반갑습니다/pitch?syllable_only=true
+Console.js:61 🎯 Fetching syllable data: /api/reference_files/반갑습니다/syllables
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 Added syllable point: 반 at 0.18334088904473755s, 154.9003696780843Hz
+Console.js:61 🎯 Added syllable point: 갑 at 0.439746072278845s, 201.66993191668246Hz
+Console.js:61 🎯 Added syllable point: 습 at 0.6917933690126443s, 142.2168498769351Hz
+Console.js:61 🎯 Added syllable point: 니 at 0.9389370218411168s, 126.45571788301288Hz
+Console.js:61 🎯 Added syllable point: 다 at 1.1840638240929726s, 135.9868781571942Hz
+Console.js:61 🎯 Loaded 5 syllable representative points, maxTime: 1.1840638240929726s
+Console.js:61 🎯 X-axis adjusted to actual audio duration: 0 - 1.3840638240929726 seconds (maxTime: 1.1840638240929726s)
+Console.js:61 🧹 음절 표시 초기화 완료
+Console.js:61 🎯 Adding annotations for 5 syllables:
+Console.js:61 🎯 Sample syllables: (3) [{…}, {…}, {…}]
+Console.js:61 🎯 Chart Y 범위: -10 ~ 15 labelY: 13.75
+Console.js:61 🎯 음절 0: 반 (0.000s - 0.367s)
+Console.js:61 🎯 음절 1: 갑 (0.367s - 0.513s)
+Console.js:61 🎯 음절 2: 습 (0.513s - 0.871s)
+Console.js:61 🎯 음절 3: 니 (0.871s - 1.007s)
+Console.js:61 🎯 음절 4: 다 (1.007s - 1.361s)
+Console.js:61 🎯 Syllable annotations added and chart updated!
+Console.js:61 🎯 현재 annotations 수: 11
+Console.js:61 🎯 차트 업데이트 완료!
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 드롭다운 변경됨: 안녕하세요
+Console.js:61 🎯 연습 문장 선택됨: 안녕하세요
+Console.js:61 🎯 loadReferenceData called with fileId: 안녕하세요, API_BASE: ""
+Console.js:61 🎯 Fetching pitch data: /api/reference_files/안녕하세요/pitch?syllable_only=true
+Console.js:61 🎯 Fetching syllable data: /api/reference_files/안녕하세요/syllables
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 Added syllable point: 안 at 0.1477272196261682s, 165.02849930446354Hz
+Console.js:61 🎯 Added syllable point: 녕 at 0.3969629088785046s, 197.63560148566663Hz
+Console.js:61 🎯 Added syllable point: 하 at 0.5537610981308411s, 169.41506551626776Hz
+Console.js:61 🎯 Added syllable point: 세 at 0.7274053738317756s, 153.45639844591264Hz
+Console.js:61 🎯 Added syllable point: 요 at 0.977504964953271s, 228.9810356552375Hz
+Console.js:61 🎯 Loaded 5 syllable representative points, maxTime: 0.977504964953271s
+Console.js:61 🎯 X-axis adjusted to actual audio duration: 0 - 1.177504964953271 seconds (maxTime: 0.977504964953271s)
+Console.js:61 🧹 음절 표시 초기화 완료
+Console.js:61 🎯 Adding annotations for 5 syllables:
+Console.js:61 🎯 Sample syllables: (3) [{…}, {…}, {…}]
+Console.js:61 🎯 Chart Y 범위: -10 ~ 15 labelY: 13.75
+Console.js:61 🎯 음절 0: 안 (0.000s - 0.295s)
+Console.js:61 🎯 음절 1: 녕 (0.295s - 0.498s)
+Console.js:61 🎯 음절 2: 하 (0.498s - 0.609s)
+Console.js:61 🎯 음절 3: 세 (0.609s - 0.846s)
+Console.js:61 🎯 음절 4: 요 (0.846s - 1.109s)
+Console.js:61 🎯 Syllable annotations added and chart updated!
+Console.js:61 🎯 현재 annotations 수: 11
+Console.js:61 🎯 차트 업데이트 완료!
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 피치 콜백 설정 중...

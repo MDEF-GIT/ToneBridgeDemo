@@ -215,14 +215,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   const loadReferenceData = useCallback(async (fileId: string) => {
     try {
-      console.log(`🎯 loadReferenceData called with fileId: ${fileId}, API_BASE: "${API_BASE}"`);
-      
-      // 🎯 Load syllable-only pitch data (오리지널과 동일한 음절별 대표값)
+      // Load syllable-only pitch data (오리지널과 동일한 음절별 대표값)
       const pitchUrl = `${API_BASE}/api/reference_files/${fileId}/pitch?syllable_only=true`;
       const syllableUrl = `${API_BASE}/api/reference_files/${fileId}/syllables`;
-      
-      console.log(`🎯 Fetching pitch data: ${pitchUrl}`);
-      console.log(`🎯 Fetching syllable data: ${syllableUrl}`);
       
       const [pitchResponse, syllableResponse] = await Promise.all([
         fetch(pitchUrl),
@@ -256,21 +251,15 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           addPitchData(point.frequency, point.time, 'reference');
           maxTime = Math.max(maxTime, point.time);
           if (point.syllable) {
-            console.log(`🎯 Added syllable point: ${point.syllable} at ${point.time}s, ${point.frequency}Hz`);
-          }
+            }
         });
         
-        console.log(`🎯 Loaded ${pitchData.length} syllable representative points, maxTime: ${maxTime}s`);
-        
-        // 🎯 실제 오디오 길이에 맞게 x축 범위 조정
+        // 실제 오디오 길이에 맞게 x축 범위 조정
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
           const newMax = maxTime + 0.2; // 실제 길이 + 0.2초 여유분만
           chartRef.current.options.scales.x.min = 0;
           chartRef.current.options.scales.x.max = newMax;
-          console.log(`🎯 X-axis adjusted to actual audio duration: 0 - ${newMax} seconds (maxTime: ${maxTime}s)`);
           chartRef.current.update('none');
-        } else {
-          console.warn('🚨 Could not adjust X-axis: chart or maxTime invalid');
         }
         
         // 🎯 Add syllable annotations to chart
