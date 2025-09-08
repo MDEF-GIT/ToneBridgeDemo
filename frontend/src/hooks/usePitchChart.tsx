@@ -131,8 +131,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       },
       plugins: {
         legend: {
-          display: true,
-          position: 'top'
+          display: false  // 🎯 기본 범례 숨김 (고정 라벨로 대체)
         },
         tooltip: {
           mode: 'index',
@@ -575,6 +574,10 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     }
     
     chart.options.plugins.annotation.annotations = {};
+    
+    // 🎯 고정 범례 라벨 추가 (차트 오른쪽 상단)
+    addFixedLegendLabels(chart);
+    
     console.log("🧹 음절 표시 초기화 완료");
     
     console.log('🎯 Adding annotations for', syllables.length, 'syllables:');
@@ -887,6 +890,65 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
     playbackLineRef.current = null;
     chart.update('none');
+  }, []);
+
+  // 🎯 고정 범례 라벨 추가 함수
+  const addFixedLegendLabels = useCallback((chart: ChartJS) => {
+    // 🎯 "참조 음성" 라벨 (오렌지색)
+    chart.options.plugins.annotation.annotations['legend_reference'] = {
+      type: 'label',
+      xValue: null,
+      yValue: null,
+      position: {
+        x: 'end',
+        y: 'start'
+      },
+      xAdjust: -120,  // 오른쪽에서 120px 떨어진 위치
+      yAdjust: -80,   // 상단에서 80px 떨어진 위치
+      content: '● 참조 음성',
+      backgroundColor: 'rgba(255, 159, 64, 0.1)',
+      borderColor: 'rgba(255, 159, 64, 1)',
+      borderWidth: 1,
+      borderRadius: 4,
+      font: {
+        size: 14,
+        family: 'Noto Sans KR, -apple-system, sans-serif',
+        weight: 'bold'
+      },
+      color: 'rgba(255, 159, 64, 1)',  // 오렌지색 텍스트
+      padding: {
+        x: 8,
+        y: 4
+      }
+    };
+
+    // 🎯 "실시간 음성" 라벨 (초록색)
+    chart.options.plugins.annotation.annotations['legend_realtime'] = {
+      type: 'label',
+      xValue: null,
+      yValue: null,
+      position: {
+        x: 'end',
+        y: 'start'
+      },
+      xAdjust: -120,  // 오른쪽에서 120px 떨어진 위치
+      yAdjust: -50,   // 상단에서 50px 떨어진 위치 (참조음성 아래)
+      content: '● 실시간 음성',
+      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+      borderColor: 'rgba(34, 197, 94, 1)',
+      borderWidth: 1,
+      borderRadius: 4,
+      font: {
+        size: 14,
+        family: 'Noto Sans KR, -apple-system, sans-serif',
+        weight: 'bold'
+      },
+      color: 'rgba(34, 197, 94, 1)',  // 초록색 텍스트
+      padding: {
+        x: 8,
+        y: 4
+      }
+    };
   }, []);
 
   useEffect(() => {
