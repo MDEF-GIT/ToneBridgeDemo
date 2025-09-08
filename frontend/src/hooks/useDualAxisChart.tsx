@@ -203,6 +203,28 @@ export const useDualAxisChart = (
     chartRef.current.data.datasets[0].data.push({ x: timestamp, y: frequency });
     chartRef.current.data.datasets[1].data.push({ x: timestamp, y: convertedValue });
 
+    // 🎯 Y축 범위 자동 조정
+    if (chartRef.current.options.scales) {
+      // 변환된 값(오른쪽 Y축) 범위 조정
+      const convertedScale = chartRef.current.options.scales['y-converted'] as any;
+      if (convertedScale) {
+        const allConvertedValues = chartDataRef.current.map(d => d.convertedValue);
+        const minConverted = Math.min(...allConvertedValues);
+        const maxConverted = Math.max(...allConvertedValues);
+        const margin = Math.abs(maxConverted - minConverted) * 0.1 || 2;
+        
+        const newMin = Math.floor(minConverted - margin);
+        const newMax = Math.ceil(maxConverted + margin);
+        
+        // 기존 범위와 비교해서 확장이 필요한 경우만 업데이트
+        if (newMin < convertedScale.min || newMax > convertedScale.max) {
+          convertedScale.min = Math.min(convertedScale.min || newMin, newMin);
+          convertedScale.max = Math.max(convertedScale.max || newMax, newMax);
+          console.log(`📊 듀얼차트 Y축 범위 확장: ${convertedScale.min} ~ ${convertedScale.max}`);
+        }
+      }
+    }
+
     // 색상 구분 (참조 vs 실시간) - type assertion으로 해결
     if (type === 'live') {
       (chartRef.current.data.datasets[0] as any).pointBackgroundColor = (chartRef.current.data.datasets[0] as any).pointBackgroundColor || [];

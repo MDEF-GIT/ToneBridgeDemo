@@ -204,8 +204,10 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       console.log(`🔄 Y축 범위 변경: ${newRange.min} ~ ${newRange.max} (${yAxisUnit})`);
     }
     
-    // 데이터가 있으면 재변환
+    // 데이터가 있으면 재변환 및 Y축 범위 재계산
     if (pitchDataRef.current.length > 0) {
+      const convertedValues: number[] = [];
+      
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         const dataArray = dataset.data as Array<{x: number, y: number}>;
         
@@ -217,9 +219,25 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           if (originalData && originalData.frequency) {
             const convertedValue = convertFrequency(originalData.frequency);
             point.y = convertedValue;
+            convertedValues.push(convertedValue);
           }
         });
       });
+      
+      // 🎯 Y축 범위 재계산 - 단위 변경에 따른 범위 조정
+      if (convertedValues.length > 0) {
+        const minValue = Math.min(...convertedValues);
+        const maxValue = Math.max(...convertedValues);
+        const margin = Math.abs(maxValue - minValue) * 0.1 || 2; // 10% 여유분 또는 최소 2
+        
+        if (chart.options.scales && chart.options.scales.y) {
+          const yAxisScale = chart.options.scales.y as any;
+          yAxisScale.min = Math.floor(minValue - margin);
+          yAxisScale.max = Math.ceil(maxValue + margin);
+          console.log(`🔄 현재 원본 데이터 샘플:`, pitchDataRef.current.slice(0, 3));
+          console.log(`🔄 Y축 범위 재계산: ${yAxisScale.min} ~ ${yAxisScale.max} (변환된 범위: ${minValue.toFixed(1)} ~ ${maxValue.toFixed(1)})`);
+        }
+      }
     }
     
     // 차트 강제 업데이트
@@ -427,15 +445,34 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         }
         
         let maxTime = 0;
+        const convertedValues: number[] = [];
         
-        // Add reference data points  
+        // Add reference data points and collect converted values
         pitchData.forEach((point: {time: number, frequency: number, syllable?: string}) => {
           // 🎯 백엔드에서 이미 초 단위로 온 데이터를 그대로 사용 (1000 곱하지 않음)
           addPitchData(point.frequency, point.time, 'reference');
+          
+          // Y축 범위 계산을 위해 변환된 값 수집
+          const convertedValue = convertFrequency(point.frequency);
+          convertedValues.push(convertedValue);
+          
           maxTime = Math.max(maxTime, point.time);
           if (point.syllable) {
             }
         });
+        
+        // 🎯 Y축 범위 자동 조정 - 데이터에 맞는 범위 계산
+        if (convertedValues.length > 0 && chartRef.current?.options?.scales?.y) {
+          const minValue = Math.min(...convertedValues);
+          const maxValue = Math.max(...convertedValues);
+          const margin = Math.abs(maxValue - minValue) * 0.1 || 2; // 10% 여유분 또는 최소 2
+          
+          const yScale = chartRef.current.options.scales.y as any;
+          yScale.min = Math.floor(minValue - margin);
+          yScale.max = Math.ceil(maxValue + margin);
+          
+          console.log(`📊 Y축 범위 자동 조정: ${yScale.min} ~ ${yScale.max} (데이터 범위: ${minValue.toFixed(1)} ~ ${maxValue.toFixed(1)})`);
+        }
         
         // 실제 오디오 길이에 맞게 x축 범위 조정
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
