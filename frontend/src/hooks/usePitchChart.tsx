@@ -116,9 +116,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           title: {
             display: true,
             text: 'Semitone (세미톤)' // 기본값, Y축 단위 변경 시 업데이트됨
-          },
-          min: -10,  // 🎯 오리지널과 유사한 범위로 조정
-          max: 15
+          }
+          // min, max 제거 - 데이터 로딩 시 동적으로 설정됨
         }
       },
       plugins: {
@@ -652,19 +651,37 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     });
   }, []);
 
-  // 🎯 피치 위치 초기화
+  // 🎯 피치 위치 초기화 - 현재 데이터에 맞게 자동 조정
   const resetPitch = useCallback(() => {
     if (!chartRef.current) return;
 
     const yScale = chartRef.current.options.scales?.y;
     if (!yScale) return;
 
-    yScale.min = 50;
-    yScale.max = 500;
+    // 🎯 현재 데이터에 맞는 범위로 재설정
+    if (pitchDataRef.current.length > 0) {
+      const convertedValues = pitchDataRef.current.map(data => 
+        yAxisUnit === 'qtone' ? frequencyToQtone(data.frequency) : frequencyToSemitone(data.frequency)
+      );
+      const minValue = Math.min(...convertedValues);
+      const maxValue = Math.max(...convertedValues);
+      const margin = Math.abs(maxValue - minValue) * 0.1 || 2;
+      
+      yScale.min = Math.floor(minValue - margin);
+      yScale.max = Math.ceil(maxValue + margin);
+      console.log(`🎯 피치 범위 자동 재설정: ${yScale.min} ~ ${yScale.max}`);
+    } else {
+      // 데이터가 없으면 기본 범위로 설정
+      const defaultRange = yAxisUnit === 'qtone' 
+        ? { min: -20, max: 30 }  // Q-tone 기본 범위
+        : { min: -10, max: 15 }; // Semitone 기본 범위
+      yScale.min = defaultRange.min;
+      yScale.max = defaultRange.max;
+      console.log(`🎯 피치 범위 기본값으로 재설정: ${yScale.min} ~ ${yScale.max}`);
+    }
 
     chartRef.current.update('none');
-    console.log('🔄 피치 위치 초기화: 50-500Hz');
-  }, []);
+  }, [yAxisUnit, frequencyToQtone, frequencyToSemitone]);
 
   // 🎯 차트 확대/축소
   const zoomIn = useCallback(() => {
