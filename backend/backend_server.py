@@ -1421,8 +1421,7 @@ async def get_reference_files():
     """저장된 참조 파일 목록 조회 - 파일 시스템 기반"""
     try:
         # 직접 파일 시스템에서 파일 목록 조회 - 마이크로서비스 구조 반영
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        reference_dir = os.path.join(base_dir, "reference_files")
+        reference_dir = "static/reference_files"
         if not os.path.exists(reference_dir):
             return JSONResponse({"files": []})
         
@@ -1662,8 +1661,7 @@ async def get_reference_textgrid(file_id: str):
 async def get_syllable_pitch_analysis():
     """모든 참조 파일의 음절 대표 피치를 남성/여성 버전으로 추출"""
     try:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        reference_dir = os.path.join(base_dir, "reference_files")
+        reference_dir = "static/reference_files"
         if not os.path.exists(reference_dir):
             return JSONResponse({"analysis": []})
         
@@ -1873,8 +1871,7 @@ async def get_reference_file_syllables(file_id: str, db: Session = Depends(get_d
     """🎯 핵심 기능: TextGrid 파일에서 실제 음절 데이터 추출"""
     try:
         # 🎯 파일명으로 직접 TextGrid 파일 찾기 (데이터베이스 의존성 제거)
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        reference_dir = os.path.join(base_dir, "reference_files")
+        reference_dir = "static/reference_files"
         textgrid_path = os.path.join(reference_dir, f"{file_id}.TextGrid")
         
         print(f"🎯 Looking for TextGrid: {textgrid_path}")
