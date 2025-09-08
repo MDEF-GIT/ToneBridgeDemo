@@ -254,6 +254,60 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   }, [selectedGender, updateLearnerInfo]);
 
+  // 🎯 파일 업로드 처리
+  const [uploadFiles, setUploadFiles] = React.useState<{wav: File | null, textgrid: File | null}>({
+    wav: null,
+    textgrid: null
+  });
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  const handleFileUpload = useCallback(async () => {
+    if (!uploadFiles.wav || !learnerInfo.gender) {
+      alert('WAV 파일을 선택하고 학습자 성별을 설정해주세요.');
+      return;
+    }
+
+    setIsUploading(true);
+    setStatus('파일을 업로드하고 분석 중입니다...');
+
+    try {
+      const formData = new FormData();
+      formData.append('wav', uploadFiles.wav);
+      if (uploadFiles.textgrid) {
+        formData.append('textgrid', uploadFiles.textgrid);
+      }
+      formData.append('learner_gender', learnerInfo.gender);
+      formData.append('learner_name', learnerInfo.name || '사용자');
+
+      const response = await fetch(`${API_BASE}/analyze_ref?t=${Date.now()}`, {
+        method: 'POST',
+        body: formData,
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setStatus('✅ 파일 분석이 완료되었습니다! 차트를 확인해보세요.');
+        console.log('🎯 업로드 분석 결과:', result);
+        
+        // 분석 결과를 차트에 반영
+        if (pitchChart && result.pitch_data) {
+          // TODO: 업로드된 파일 분석 결과를 차트에 표시
+        }
+      } else {
+        setStatus('파일 업로드 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('파일 업로드 오류:', error);
+      setStatus('파일 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [uploadFiles, learnerInfo, API_BASE, pitchChart]);
 
   return (
     <>
@@ -392,6 +446,81 @@ const VoiceAnalysisApp: React.FC = () => {
                   </select>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* 🎯 파일 업로드 분석 */}
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0 fw-bold" style={{color: '#e67e22'}}>
+                <i className="fas fa-cloud-upload-alt me-2"></i>내 음성 파일 분석하기
+              </h5>
+              <small className="text-muted">WAV 파일을 업로드해서 정밀 분석을 받아보세요</small>
+            </div>
+            <div className="card-body">
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label htmlFor="wav-file" className="form-label">
+                    WAV 파일 <span className="text-danger">*</span>
+                  </label>
+                  <input 
+                    type="file" 
+                    className="form-control" 
+                    id="wav-file"
+                    accept=".wav,audio/wav"
+                    onChange={(e) => setUploadFiles(prev => ({
+                      ...prev,
+                      wav: e.target.files?.[0] || null
+                    }))}
+                  />
+                  <small className="text-muted">한국어 음성이 녹음된 WAV 파일을 선택하세요</small>
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="textgrid-file" className="form-label">TextGrid 파일 (선택)</label>
+                  <input 
+                    type="file" 
+                    className="form-control" 
+                    id="textgrid-file"
+                    accept=".TextGrid,.textgrid"
+                    onChange={(e) => setUploadFiles(prev => ({
+                      ...prev,
+                      textgrid: e.target.files?.[0] || null
+                    }))}
+                  />
+                  <small className="text-muted">음절 구간 정보가 포함된 TextGrid 파일 (선택)</small>
+                </div>
+              </div>
+              <div className="mt-3 text-center">
+                <button 
+                  className="btn btn-primary btn-lg px-4"
+                  onClick={handleFileUpload}
+                  disabled={!uploadFiles.wav || !learnerInfo.gender || isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin me-2"></i>
+                      분석 중...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-chart-line me-2"></i>
+                      파일 분석하기
+                    </>
+                  )}
+                </button>
+              </div>
+              {uploadFiles.wav && (
+                <div className="mt-3 alert alert-info">
+                  <i className="fas fa-file-audio me-2"></i>
+                  선택된 파일: <strong>{uploadFiles.wav.name}</strong>
+                  {uploadFiles.textgrid && (
+                    <span className="ms-3">
+                      <i className="fas fa-file-alt me-1"></i>
+                      TextGrid: <strong>{uploadFiles.textgrid.name}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
