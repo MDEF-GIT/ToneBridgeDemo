@@ -653,13 +653,17 @@ const VoiceAnalysisApp: React.FC = () => {
                     <i className="fas fa-play me-1"></i> <strong>참조음성</strong>
                   </button>
                   <button 
-                    className="btn btn-sm" 
+                    className={`btn btn-sm ${audioRecording.isRecording ? 'btn-danger btn-recording recording-pulse' : ''}`}
                     disabled={isLoading}
-                    style={{backgroundColor: '#e67e22', borderColor: '#e67e22', color: 'white'}}
+                    style={{
+                      backgroundColor: audioRecording.isRecording ? '#dc3545' : '#e67e22', 
+                      borderColor: audioRecording.isRecording ? '#dc3545' : '#e67e22', 
+                      color: 'white'
+                    }}
                     onClick={handleRecording}
                   >
                     <i className={`fas ${audioRecording.isRecording ? 'fa-stop' : 'fa-microphone'} me-1`}></i> 
-                    <strong>{audioRecording.isRecording ? '정지' : '녹음'}</strong>
+                    <strong>{audioRecording.isRecording ? '⏸️ 정지' : '🎤 녹음'}</strong>
                   </button>
                   <button 
                     className="btn btn-sm btn-outline-danger" 
