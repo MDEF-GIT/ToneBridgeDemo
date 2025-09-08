@@ -10,6 +10,7 @@ import subprocess
 import shutil
 import uuid
 import math
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional

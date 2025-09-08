@@ -929,6 +929,18 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
 
 
+  // Y축 범위 설정 함수 추가
+  const setYAxisRange = useCallback((yMin: number, yMax: number) => {
+    if (chartRef.current) {
+      if (chartRef.current.options?.scales?.y) {
+        chartRef.current.options.scales.y.min = yMin;
+        chartRef.current.options.scales.y.max = yMax;
+        chartRef.current.update('none'); // 애니메이션 없이 즉시 업데이트
+        console.log(`📊 Y축 범위 설정됨: ${yMin.toFixed(1)} ~ ${yMax.toFixed(1)} Hz`);
+      }
+    }
+  }, []);
+
   return {
     addPitchData,
     clearChart,
@@ -940,6 +952,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     scrollLeft,
     scrollRight,
     resetView,
+    setYAxisRange,
     updateRealtimePitchLine,
     hideRealtimePitchLine,
     updateRange,

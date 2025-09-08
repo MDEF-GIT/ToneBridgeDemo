@@ -80,11 +80,28 @@ const UploadedFileTestSection: React.FC = () => {
 
       // 4. 차트에 피치 데이터 추가 (기존 데이터 클리어 후)
       testPitchChart.clearChart();
+      
+      // 5. Y축 범위 계산 (최소/최대값 기반 여유 공간 추가)
+      if (pitchData.length > 0) {
+        const frequencies = pitchData.map((p: any) => p.frequency);
+        const minFreq = Math.min(...frequencies);
+        const maxFreq = Math.max(...frequencies);
+        const margin = (maxFreq - minFreq) * 0.1; // 10% 여유 공간
+        const yMin = Math.max(50, minFreq - margin); // 최소 50Hz
+        const yMax = maxFreq + margin;
+        
+        console.log(`📊 Y축 자동 조정: ${yMin.toFixed(1)}Hz ~ ${yMax.toFixed(1)}Hz (데이터: ${minFreq.toFixed(1)}~${maxFreq.toFixed(1)})`);
+        
+        // 차트 Y축 범위 설정
+        testPitchChart.setYAxisRange(yMin, yMax);
+      }
+      
+      // 6. 피치 데이터 추가
       pitchData.forEach((point: any) => {
         testPitchChart.addPitchData(point.frequency, point.time, 'reference');
       });
       
-      // 5. 음절 annotation 추가
+      // 7. 음절 annotation 추가
       if (syllables.length > 0 && syllablePitch.length > 0) {
         testPitchChart.addSyllableAnnotations(syllablePitch);
       }
