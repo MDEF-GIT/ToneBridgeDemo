@@ -139,9 +139,8 @@ export const useDualAxisChart = (
             title: {
               display: true,
               text: '시간 (초)'
-            },
-            min: 0,
-            max: 10
+            }
+            // min, max 제거 - 데이터에 맞게 동적 설정 (0.2초 마진 포함)
           },
           'y-frequency': {
             type: 'linear',
@@ -219,12 +218,27 @@ export const useDualAxisChart = (
     console.log(`📊 듀얼축 데이터 추가: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)}`);
   }, [convertFrequencyToUnit]);
 
-  // 🎯 Y축 범위 자동 조정 함수
+  // 🎯 Y축 및 X축 범위 자동 조정 함수
   const updateYAxisRanges = useCallback(() => {
     if (!chartRef.current || chartDataRef.current.length === 0) return;
 
     const scales = chartRef.current.options.scales;
     if (!scales) return;
+
+    // X축 시간 범위 조정 (0.2초 마진 추가)
+    const xScale = scales.x as any;
+    if (xScale) {
+      const allTimes = chartDataRef.current.map(d => d.time);
+      if (allTimes.length > 0) {
+        const minTime = Math.min(...allTimes);
+        const maxTime = Math.max(...allTimes);
+        const timeMargin = 0.2; // 0.2초 마진
+        
+        xScale.min = Math.max(0, minTime - timeMargin);
+        xScale.max = maxTime + timeMargin;
+        console.log(`📊 듀얼차트 X축 범위: ${xScale.min.toFixed(1)}s ~ ${xScale.max.toFixed(1)}s (마진: ${timeMargin}s)`);
+      }
+    }
 
     // 주파수 축(왼쪽) 범위 조정
     const frequencyScale = scales['y-frequency'] as any;

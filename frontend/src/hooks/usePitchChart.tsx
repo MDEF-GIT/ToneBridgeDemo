@@ -509,11 +509,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           console.log(`📊 Y축 범위 자동 조정: ${yScale.min} ~ ${yScale.max} (데이터 범위: ${minValue.toFixed(1)} ~ ${maxValue.toFixed(1)})`);
         }
         
-        // 실제 오디오 길이에 맞게 x축 범위 조정
+        // 실제 오디오 길이에 맞게 x축 범위 조정 (0.2초 마진)
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
-          const newMax = maxTime + 0.3; // 실제 길이 + 0.3초 여유분
-          chartRef.current.options.scales.x.min = 0;
-          chartRef.current.options.scales.x.max = newMax;
+          const timeMargin = 0.2; // 0.2초 마진
+          chartRef.current.options.scales.x.min = Math.max(0, -timeMargin);
+          chartRef.current.options.scales.x.max = maxTime + timeMargin;
+          console.log(`📊 피치차트 X축 범위: ${chartRef.current.options.scales.x.min.toFixed(1)}s ~ ${chartRef.current.options.scales.x.max.toFixed(1)}s (마진: ${timeMargin}s)`);
           chartRef.current.update('none');
         }
         

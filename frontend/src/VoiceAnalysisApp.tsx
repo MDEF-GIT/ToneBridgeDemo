@@ -848,39 +848,41 @@ const VoiceAnalysisApp: React.FC = () => {
                 </div>
               </div>
               
-              {/* Y축 단위 선택 */}
-              <div className="d-flex align-items-center justify-content-end">
-                <div className="d-flex align-items-center gap-2">
-                  <small className="text-muted">Y축 단위:</small>
-                  <div className="btn-group" role="group">
-                    <input 
-                      type="radio" 
-                      className="btn-check" 
-                      name="yAxisUnit" 
-                      id="yAxisSemitone" 
-                      value="semitone" 
-                      checked={yAxisUnit === 'semitone'}
-                      onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
-                    />
-                    <label className="btn btn-outline-primary btn-sm" htmlFor="yAxisSemitone">
-                      Semitone
-                    </label>
-                    
-                    <input 
-                      type="radio" 
-                      className="btn-check" 
-                      name="yAxisUnit" 
-                      id="yAxisQtone" 
-                      value="qtone" 
-                      checked={yAxisUnit === 'qtone'}
-                      onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
-                    />
-                    <label className="btn btn-outline-success btn-sm" htmlFor="yAxisQtone">
-                      Q-tone
-                    </label>
+              {/* Y축 단위 선택 - 차트 로드 후에만 표시 */}
+              {selectedFile && (
+                <div className="d-flex align-items-center justify-content-end">
+                  <div className="d-flex align-items-center gap-2">
+                    <small className="text-muted">Y축 단위:</small>
+                    <div className="btn-group" role="group">
+                      <input 
+                        type="radio" 
+                        className="btn-check" 
+                        name="yAxisUnit" 
+                        id="yAxisSemitone" 
+                        value="semitone" 
+                        checked={yAxisUnit === 'semitone'}
+                        onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
+                      />
+                      <label className="btn btn-outline-primary btn-sm" htmlFor="yAxisSemitone">
+                        Semitone
+                      </label>
+                      
+                      <input 
+                        type="radio" 
+                        className="btn-check" 
+                        name="yAxisUnit" 
+                        id="yAxisQtone" 
+                        value="qtone" 
+                        checked={yAxisUnit === 'qtone'}
+                        onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
+                      />
+                      <label className="btn btn-outline-success btn-sm" htmlFor="yAxisQtone">
+                        Q-tone
+                      </label>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="card-body px-2 py-2">
               <div className="chart-container" style={{position: 'relative', height: '500px'}}>
@@ -979,15 +981,17 @@ const VoiceAnalysisApp: React.FC = () => {
                   </div>
                 )}
 
-                {/* 초기화 버튼 - 왼쪽 하단 */}
-                <div style={{position: 'absolute', bottom: '10px', left: '10px', zIndex: 1000}}>
-                  <button 
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => pitchChart.clearChart()}
-                  >
-                    <i className="fas fa-refresh me-1"></i> 초기화
-                  </button>
-                </div>
+                {/* 초기화 버튼 - 차트 로드 후에만 표시 */}
+                {selectedFile && (
+                  <div style={{position: 'absolute', bottom: '10px', left: '10px', zIndex: 1000}}>
+                    <button 
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => pitchChart.clearChart()}
+                    >
+                      <i className="fas fa-refresh me-1"></i> 초기화
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1038,12 +1042,14 @@ const VoiceAnalysisApp: React.FC = () => {
                 <h5 className="mb-0 fw-bold">
                   <i className="fas fa-chart-line me-2"></i>듀얼 Y축 비교 차트
                 </h5>
-                <div className="d-flex align-items-center gap-3">
-                  <small className="text-muted">
-                    <i className="fas fa-info-circle me-1"></i>
-                    왼쪽: 주파수(Hz), 오른쪽: {yAxisUnit === 'semitone' ? '세미톤' : '큐톤'}
-                  </small>
-                </div>
+                {selectedFile && (
+                  <div className="d-flex align-items-center gap-3">
+                    <small className="text-muted">
+                      <i className="fas fa-info-circle me-1"></i>
+                      왼쪽: 주파수(Hz), 오른쪽: {yAxisUnit === 'semitone' ? '세미톤' : '큐톤'}
+                    </small>
+                  </div>
+                )}
               </div>
             </div>
             <div className="card-body">
@@ -1059,18 +1065,20 @@ const VoiceAnalysisApp: React.FC = () => {
                   }}
                 ></canvas>
                 
-                {/* 차트 컨트롤 버튼들 */}
-                <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
-                  <div className="d-flex gap-1">
-                    <button 
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => dualAxisChart.clearChart()}
-                      title="듀얼축 차트 초기화"
-                    >
-                      <i className="fas fa-refresh"></i>
-                    </button>
+                {/* 차트 컨트롤 버튼들 - 차트 로드 후에만 표시 */}
+                {selectedFile && (
+                  <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
+                    <div className="d-flex gap-1">
+                      <button 
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => dualAxisChart.clearChart()}
+                        title="듀얼축 차트 초기화"
+                      >
+                        <i className="fas fa-refresh"></i>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
