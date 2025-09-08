@@ -275,12 +275,17 @@ def apply_gender_normalization(analysis_result: dict, target_gender: str, learne
                         normalized_f0 = original_f0 * normalization_ratio
                         normalized_syl[field] = normalized_f0
                         
-                        # 대표 f0 필드의 경우 semitone도 업데이트
+                        # 대표 f0 필드의 경우 semitone도 업데이트 (성별별 기준 주파수 적용)
                         if field == 'f0' and normalized_f0 > 0 and target_base > 0:
-                            normalized_semitone = 12 * np.log2(normalized_f0 / target_base)
+                            # 🎯 성별별 최적화된 기준 주파수
+                            gender = analysis_result.get('gender', 'unknown')
+                            semitone_base = 200 if gender == 'female' else 150  # 여성 200Hz, 남성 150Hz
+                            qtone_base = 130  # Q-tone은 표준 130Hz 유지
+                            
+                            normalized_semitone = 12 * np.log2(normalized_f0 / semitone_base)
                             normalized_syl['semitone'] = normalized_semitone
                             # 🎯 올바른 Q-tone 공식: 5 * log2(f0/130)
-                            normalized_syl['qtone'] = 5 * np.log2(normalized_f0 / 130) if normalized_f0 > 0 else 0.0
+                            normalized_syl['qtone'] = 5 * np.log2(normalized_f0 / qtone_base) if normalized_f0 > 0 else 0.0
                             normalized_syl['semitone_median'] = normalized_semitone  # 호환성
                             
                             print(f"🎯 음절 '{normalized_syl.get('label', '?')}': {original_f0:.1f}Hz → {normalized_f0:.1f}Hz ({normalized_semitone:.2f}st)")
@@ -293,7 +298,7 @@ def apply_gender_normalization(analysis_result: dict, target_gender: str, learne
                                         syl_analysis['semitone'] = normalized_semitone
                                         syl_analysis['semitone_median'] = normalized_semitone
                                         # 🎯 올바른 Q-tone 공식: 5 * log2(f0/130)  
-                                        syl_analysis['qtone'] = 5 * np.log2(normalized_f0 / 130) if normalized_f0 > 0 else 0.0
+                                        syl_analysis['qtone'] = 5 * np.log2(normalized_f0 / qtone_base) if normalized_f0 > 0 else 0.0
                                         print(f"🎯 syllable_analysis 업데이트: {syl_analysis['label']} = {normalized_semitone:.2f}st")
                 normalized_syl['show_syllable_pitch'] = True
                     
@@ -1333,11 +1338,17 @@ async def record_realtime(
         enhanced_f0_values = []
         for f0_data in f0_values[-10:]:  # 최근 10개 포인트만
             f0 = f0_data['f0']
+            # 🎯 성별 추정 기반 최적화 (실시간에서는 주파수 범위로 추정)
+            estimated_gender = 'female' if f0 > 180 else 'male'
+            semitone_base = 200 if estimated_gender == 'female' else 150
+            qtone_base = 130  # Q-tone 표준 기준
+            
             enhanced_f0_values.append({
                 "t": f0_data['t'],
                 "f0": f0,
-                "semitone": 12 * np.log2(f0 / 200) if f0 > 0 else 0.0,
-                "qtone": 5 * np.log2(f0 / 130) if f0 > 0 else 0.0
+                "semitone": 12 * np.log2(f0 / semitone_base) if f0 > 0 else 0.0,
+                "qtone": 5 * np.log2(f0 / qtone_base) if f0 > 0 else 0.0,
+                "estimated_gender": estimated_gender
             })
         
         return JSONResponse({
@@ -1966,11 +1977,17 @@ async def analyze_live_audio(audio: UploadFile = File(...)):
             for i, time in enumerate(times):
                 f0 = pitch.get_value_at_time(time)
                 if not np.isnan(f0) and f0 > 0:
+                    # 🎯 성별 추정 기반 최적화
+                    estimated_gender = 'female' if f0 > 180 else 'male'
+                    semitone_base = 200 if estimated_gender == 'female' else 150
+                    qtone_base = 130
+                    
                     pitch_values.append({
                         "time": float(time),
                         "f0": float(f0),
-                        "semitone": float(12 * np.log2(f0 / 200)) if f0 > 0 else 0.0,
-                        "qtone": float(5 * np.log2(f0 / 130)) if f0 > 0 else 0.0
+                        "semitone": float(12 * np.log2(f0 / semitone_base)) if f0 > 0 else 0.0,
+                        "qtone": float(5 * np.log2(f0 / qtone_base)) if f0 > 0 else 0.0,
+                        "estimated_gender": estimated_gender
                     })
             
             # 임시 파일 삭제
