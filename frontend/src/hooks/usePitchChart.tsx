@@ -160,7 +160,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   };
 
   const convertFrequency = useCallback((frequency: number): number => {
-    return yAxisUnit === 'qtone' ? frequencyToQtone(frequency) : frequencyToSemitone(frequency);
+    const result = yAxisUnit === 'qtone' ? frequencyToQtone(frequency) : frequencyToSemitone(frequency);
+    console.log(`🔄 변환: ${frequency.toFixed(1)}Hz → ${result.toFixed(2)} ${yAxisUnit} (함수=${yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone'})`);
+    return result;
   }, [yAxisUnit]);
 
   // 🎯 Y축 단위 변경 시 기존 차트 데이터 재변환
@@ -168,6 +170,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     if (!chartRef.current || pitchDataRef.current.length === 0) return;
 
     console.log(`🔄 Y축 단위 변경됨: ${yAxisUnit}, 기존 데이터 ${pitchDataRef.current.length}개 재변환 중...`);
+    console.log('🔄 현재 원본 데이터 샘플:', pitchDataRef.current.slice(0, 3).map(d => `${d.frequency.toFixed(1)}Hz`));
     
     const chart = chartRef.current;
     
