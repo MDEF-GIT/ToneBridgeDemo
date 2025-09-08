@@ -1883,46 +1883,53 @@ async def get_reference_file_syllables(file_id: str, db: Session = Depends(get_d
             print(f"🚨 TextGrid file not found: {textgrid_path}")
             return []
         
-        # 🎯 TextGrid 파일에서 음절 구간 추출
+        # 🎯 TextGrid 파일에서 음절 구간 추출 - 오리지널 알고리즘 구현
         syllables = []
         try:
-            with open(textgrid_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-            # TextGrid 파싱 로직 - IntervalTier에서 음절 구간 추출
-            lines = content.split('\n')
-            in_intervals = False
-            interval_count = 0
-            current_interval = {}
+            # 🎯 UTF-16 인코딩으로 TextGrid 파일 읽기 (Praat 표준)
+            encodings_to_try = ['utf-16', 'utf-16-le', 'utf-16-be', 'utf-8', 'cp949']
+            content = None
             
-            for line in lines:
-                line = line.strip()
-                
-                if 'intervals: size =' in line:
-                    interval_count = int(line.split('=')[1].strip())
-                    in_intervals = True
+            for encoding in encodings_to_try:
+                try:
+                    with open(textgrid_path, 'r', encoding=encoding) as f:
+                        content = f.read()
+                    print(f"✅ TextGrid 파일 읽기 성공: {encoding}")
+                    break
+                except UnicodeDecodeError:
                     continue
+            
+            if content is None:
+                print(f"❌ TextGrid 파일 인코딩 실패: {textgrid_path}")
+                return []
                 
-                if in_intervals and 'intervals [' in line:
-                    current_interval = {}
-                elif 'xmin =' in line and in_intervals:
-                    current_interval['start'] = float(line.split('=')[1].strip())
-                elif 'xmax =' in line and in_intervals:
-                    current_interval['end'] = float(line.split('=')[1].strip())
-                elif 'text =' in line and in_intervals:
-                    text = line.split('=')[1].strip().strip('"').strip()
-                    current_interval['text'] = text
-                    
-                    # 음절이 있는 구간만 추가 (빈 텍스트 제외)
-                    if text and text != '':
-                        syllables.append({
-                            "label": text,
-                            "start": current_interval.get('start', 0.0),
-                            "end": current_interval.get('end', 0.0)
-                        })
-                        
-        except Exception as parse_error:
-            print(f"🚨 TextGrid parsing error: {parse_error}")
+            # 🎯 오리지널 정규식 패턴 사용 (ToneBridge_Implementation_Guide.md)
+            import re
+            interval_pattern = r'intervals\s*\[\s*(\d+)\s*\]:\s*\n\s*xmin\s*=\s*([0-9.]+)\s*\n\s*xmax\s*=\s*([0-9.]+)\s*\n\s*text\s*=\s*"([^"]*)"'
+            
+            matches = re.findall(interval_pattern, content, re.MULTILINE)
+            print(f"🎯 정규식 매칭 결과: {len(matches)}개 구간 발견")
+            
+            for i, (index, xmin, xmax, text) in enumerate(matches):
+                if text.strip() and text.strip().lower() not in ['', 'sp', 'sil', '<p:>', 'p']:  # 빈 텍스트와 침묵 구간 제외
+                    syllable_data = {
+                        "label": text.strip(),
+                        "start": float(xmin),
+                        "end": float(xmax),
+                        "duration": float(xmax) - float(xmin)
+                    }
+                    syllables.append(syllable_data)
+                    print(f"  🎯 음절 {i+1}: '{text}' ({xmin}s-{xmax}s)")
+            
+        except Exception as e:
+            print(f"🚨 TextGrid 파싱 오류 상세: {str(e)}")
+            # Fallback: 파일 내용 샘플 출력으로 디버깅
+            try:
+                with open(textgrid_path, 'rb') as f:
+                    raw_content = f.read(100)
+                print(f"🔍 파일 시작 바이트: {raw_content}")
+            except:
+                pass
             
         # 🎯 파일별 기본 음절 정보 (TextGrid가 비어있는 경우 대비)
         if not syllables:
