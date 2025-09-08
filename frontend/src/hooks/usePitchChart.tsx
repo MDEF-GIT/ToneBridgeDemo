@@ -483,6 +483,45 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     };
   }, [initChart]);
 
+  // 🟢 실시간 피치 가로바 업데이트 (녹음 중)
+  const updateRealtimePitchLine = useCallback((frequency: number) => {
+    if (!chartRef.current) return;
+    
+    const chart = chartRef.current;
+    const semitoneValue = frequencyToSemitone(frequency);
+    
+    // annotation plugin 확인
+    if (!chart.options.plugins?.annotation) {
+      chart.options.plugins = { ...chart.options.plugins, annotation: { annotations: {} } };
+    }
+    
+    // 실시간 가로바 annotation 업데이트
+    chart.options.plugins.annotation.annotations['realtimePitchLine'] = {
+      type: 'line',
+      yMin: semitoneValue,
+      yMax: semitoneValue,
+      borderColor: 'rgb(40, 167, 69)',  // 🟢 초록색
+      borderWidth: 3,
+      borderDash: [],  // 실선
+      label: {
+        display: false
+      }
+    };
+    
+    chart.update('none');  // 애니메이션 없이 즉시 업데이트
+  }, []);
+
+  // 🟢 실시간 피치 가로바 숨김
+  const hideRealtimePitchLine = useCallback(() => {
+    if (!chartRef.current) return;
+    
+    const chart = chartRef.current;
+    if (chart.options.plugins?.annotation?.annotations) {
+      delete chart.options.plugins.annotation.annotations['realtimePitchLine'];
+      chart.update('none');
+    }
+  }, []);
+
   return {
     addPitchData,
     clearChart,
@@ -499,6 +538,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     scrollLeft,
     scrollRight,
     resetView,
-    addSyllableAnnotations  // 🎯 핵심 함수 export
+    addSyllableAnnotations,  // 🎯 핵심 함수 export
+    updateRealtimePitchLine,  // 🟢 실시간 가로바 업데이트
+    hideRealtimePitchLine     // 🟢 실시간 가로바 숨김
   };
 };

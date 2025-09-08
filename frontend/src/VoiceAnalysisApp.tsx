@@ -87,6 +87,8 @@ const VoiceAnalysisApp: React.FC = () => {
         console.log(`🎤 실시간 피치 데이터: ${frequency.toFixed(2)}Hz, 시간: ${timestamp}`);
         if (pitchChart && pitchChart.addPitchData) {
           pitchChart.addPitchData(frequency, timestamp, 'live');
+          // 🟢 실시간 가로바 업데이트 (녹음 중)
+          pitchChart.updateRealtimePitchLine(frequency);
         }
       });
     } else {
@@ -203,11 +205,15 @@ const VoiceAnalysisApp: React.FC = () => {
     if (audioRecording.isRecording) {
       audioRecording.stopRecording();
       setStatus('녹음이 완료되었습니다.');
+      // 🟢 녹음 중지 시 실시간 가로바 숨김
+      if (pitchChart && pitchChart.hideRealtimePitchLine) {
+        pitchChart.hideRealtimePitchLine();
+      }
     } else {
       audioRecording.startRecording();
       setStatus('🎤 녹음 중... 말씀해 주세요.');
     }
-  }, [audioRecording]);
+  }, [audioRecording, pitchChart]);
   
   // 🎯 재생 기능
   const handlePlayRecording = useCallback(() => {
