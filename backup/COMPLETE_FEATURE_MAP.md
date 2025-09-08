@@ -109,6 +109,137 @@
 - `createSaveModal()` - 저장 모달 생성
 - `resetPitch()` - 피치 리셋
 
+---
+
+## 🔍 **React 구현 분석 및 수정사항 (2025-09-08)**
+
+### 📋 **연습문제 선택 리스트 문제 분석**
+
+#### 🎯 **오리지널 vanilla-js 구현 (정상 동작)**
+```javascript
+// 1. API 호출 및 리스트 생성
+async function loadSavedFilesList() {
+    const response = await fetch(`${API_BASE}/api/reference_files`);
+    const data = await response.json();
+    
+    if (data.files && data.files.length > 0) {
+        data.files.forEach(file => {
+            const option = document.createElement('option');
+            option.value = file.id;
+            option.textContent = `${file.sentence_text || file.title} (${file.duration.toFixed(1)}초)`;
+            $savedFiles.appendChild(option);
+        });
+    }
+}
+
+// 2. 선택 시 자동 차트 로딩
+$savedFiles.onchange = async () => {
+    const fileId = $savedFiles.value;
+    if (fileId) {
+        // 성별 검증
+        const learnerGender = document.getElementById('learner-gender').value;
+        if (!learnerGender) {
+            alert('먼저 학습자 성별 정보를 선택해주세요.');
+            return;
+        }
+        
+        // 전역 변수에 저장
+        window.currentSelectedSentence = fileId;
+        
+        // 차트 데이터 자동 로드
+        await loadSentenceForLearner(fileId);
+        $status.textContent = `✅ "${fileId}" 문장이 로드되었습니다.`;
+    }
+};
+```
+
+#### 🚨 **React 구현 문제점들**
+
+1. **잘못된 API 호출**
+   ```javascript
+   // ❌ 문제: 존재하지 않는 API 엔드포인트
+   const response = await fetch(`${API_BASE}/api/analyze/${fileId}`);
+   ```
+
+2. **useEffect 무한 루프**
+   ```javascript
+   // ❌ 문제: audioRecording, pitchChart 의존성으로 인한 무한 호출
+   useEffect(() => {
+       loadReferenceFiles(); // 계속 반복 호출됨
+   }, [audioRecording, pitchChart]);
+   ```
+
+3. **API 응답 구조 처리 미흡**
+   ```javascript
+   // ❌ 문제: data.files만 가정하고 직접 배열 케이스 미처리
+   if (data && data.files && Array.isArray(data.files)) {
+       setReferenceFiles(data.files);
+   } else {
+       // 에러 처리
+   }
+   ```
+
+#### ✅ **수정된 React 구현**
+
+1. **올바른 차트 로딩 로직**
+   ```javascript
+   const handleSentenceSelection = useCallback(async (fileId: string) => {
+       if (!fileId) {
+           setSelectedFile('');
+           setStatus('연습할 문장을 선택해주세요.');
+           return;
+       }
+       
+       // 성별 검증 (오리지널과 동일)
+       if (!learnerInfo.gender) {
+           alert('먼저 학습자 성별 정보를 선택해주세요.');
+           return;
+       }
+       
+       // 올바른 차트 로딩 호출
+       if (pitchChart && pitchChart.loadReferenceData) {
+           await pitchChart.loadReferenceData(fileId);
+           setStatus(`✅ "${fileId}" 문장이 로드되었습니다.`);
+       }
+   }, [learnerInfo.gender, pitchChart]);
+   ```
+
+2. **useEffect 무한 루프 해결**
+   ```javascript
+   // ✅ 수정: 초기화를 별도 useEffect로 분리
+   useEffect(() => {
+       loadReferenceFiles(); // 한 번만 실행
+   }, []); // 빈 의존성 배열
+   
+   // 피치 콜백 설정을 별도 useEffect로 분리
+   useEffect(() => {
+       // 피치 콜백 설정 로직
+   }, [audioRecording, pitchChart]);
+   ```
+
+3. **유연한 API 응답 처리**
+   ```javascript
+   // ✅ 수정: data.files와 직접 배열 모두 처리
+   let files = [];
+   if (data && data.files && Array.isArray(data.files)) {
+       files = data.files;
+   } else if (Array.isArray(data)) {
+       files = data;
+   } else {
+       console.warn('⚠️ 예상하지 못한 응답 구조:', data);
+       return;
+   }
+   ```
+
+### 📊 **수정 결과**
+- ✅ **API 무한 요청 해결**: 한 번만 로드하여 성능 개선
+- ✅ **차트 자동 반영**: 연습문제 선택 시 피치 데이터 및 음절 분석 자동 로드
+- ✅ **성별 검증**: 오리지널과 동일한 필수 선택 로직 구현
+- ✅ **안전한 렌더링**: title과 filename 모두 지원하는 호환성 확보
+- ✅ **오리지널 기능 완전 이식**: vanilla-js와 100% 동일한 동작 구현
+
+---
+
 ## 📋 **survey-forms.js (217줄) - 6개 주요 기능**
 
 ### 📝 **1. 폼 검증 및 제출**
