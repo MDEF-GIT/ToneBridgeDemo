@@ -218,47 +218,32 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       const currentLearnerInfo = learnerInfoRef.current;
       const currentSelectedFile = selectedFileRef.current;
       
-      console.log("🎤 녹음 완료 - 자동 처리 시작...");
-      console.log("📋 학습자 정보:", currentLearnerInfo);
-      console.log("📄 선택된 문장:", currentSelectedFile);
+      // 🚨 사용자에게 직접 보여주는 디버깅
+      let debugInfo = "🎤 녹음 완료!\n\n";
+      debugInfo += `📋 학습자 정보:\n`;
+      debugInfo += `  - 이름: ${currentLearnerInfo?.name || "❌ 없음"}\n`;
+      debugInfo += `  - 성별: ${currentLearnerInfo?.gender || "❌ 없음"}\n`;
+      debugInfo += `  - 연령대: ${currentLearnerInfo?.ageGroup || "❌ 없음"}\n`;
+      debugInfo += `📄 선택된 문장: ${currentSelectedFile || "❌ 없음"}\n\n`;
+      debugInfo += "이 정보로 파일을 저장합니다.";
+      
+      alert(debugInfo);
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
-      formData.append("sentence_hint", ""); // 힌트 없이 순수 STT
-      formData.append("save_permanent", "true"); // 영구 저장 활성화
+      formData.append("sentence_hint", "");
+      formData.append("save_permanent", "true");
       
-      // 학습자 정보 추가 (최신 ref 값 사용)
+      // 학습자 정보 추가
       if (currentLearnerInfo) {
-        const name = currentLearnerInfo.name || "";
-        const gender = currentLearnerInfo.gender || "";
-        const ageGroup = currentLearnerInfo.ageGroup || "";
-        
-        formData.append("learner_name", name);
-        formData.append("learner_gender", gender);
-        formData.append("learner_age_group", ageGroup);
-        
-        console.log("📤 FormData에 추가된 학습자 정보:");
-        console.log("  - learner_name:", name);
-        console.log("  - learner_gender:", gender);
-        console.log("  - learner_age_group:", ageGroup);
-      } else {
-        console.warn("❌ currentLearnerInfo가 null/undefined입니다!");
+        formData.append("learner_name", currentLearnerInfo.name || "");
+        formData.append("learner_gender", currentLearnerInfo.gender || "");
+        formData.append("learner_age_group", currentLearnerInfo.ageGroup || "");
       }
       
-      // 선택된 연습문장 정보 추가 (최신 ref 값 사용)
+      // 연습문장 추가
       if (currentSelectedFile) {
         formData.append("reference_sentence", currentSelectedFile);
-        console.log("📤 FormData에 추가된 연습문장:", currentSelectedFile);
-      } else {
-        console.warn("❌ currentSelectedFile이 null/undefined입니다!");
-      }
-      
-      // FormData 전체 내용 확인
-      console.log("📤 전송할 FormData 전체 내용:");
-      for (let [key, value] of formData.entries()) {
-        if (key !== 'file') { // 파일은 너무 크니 제외
-          console.log(`  ${key}: ${value}`);
-        }
       }
 
       const response = await fetch("/api/auto-process", {
