@@ -92,6 +92,29 @@ def split_korean_sentence(sentence: str) -> List[str]:
     """Split Korean sentence into individual syllables"""
     return [char for char in sentence.strip() if char.strip()]
 
+def adjust_textgrid_timing(syllables: List[dict]) -> List[dict]:
+    """
+    TextGrid 시간 정보 자동 보정 - 무음 구간 제거 대응
+    첫 번째 음절의 시작 시간을 0으로 맞춰서 전체 시간 조정
+    """
+    if not syllables:
+        return syllables
+    
+    # 첫 번째 음절의 시작 시간 확인
+    first_start = syllables[0]['start']
+    
+    if first_start > 0.1:  # 0.1초 이상의 지연이 있으면 보정
+        print(f"🔧 TextGrid 시간 보정: {first_start:.3f}초만큼 앞당김")
+        
+        # 모든 음절의 시간을 앞당김
+        for syllable in syllables:
+            syllable['start'] -= first_start
+            syllable['end'] -= first_start
+            
+        print(f"🔧 보정 완료: 첫 음절이 {syllables[0]['start']:.3f}초부터 시작")
+    
+    return syllables
+
 def praat_script_textgrid_parser(tg: pm.TextGrid) -> List[dict]:
     """
     Praat Call 기반 TextGrid parser - 표준 Parselmouth 방식
@@ -198,6 +221,9 @@ def praat_script_textgrid_parser(tg: pm.TextGrid) -> List[dict]:
         print(f"🎯✅ Successfully parsed {len(syllables)} syllables from TextGrid")
         for syl in syllables:
             print(f"    - '{syl['label']}': {syl['start']:.3f}s-{syl['end']:.3f}s")
+        
+        # 🔧 시간 보정 적용
+        syllables = adjust_textgrid_timing(syllables)
         
         return syllables
         
@@ -900,7 +926,7 @@ def extract_ref_praat_implementation(
     # Step 1: Use extracted syllables from new TextGrid parser or fallback
     if extracted_syllables:
         print(f"🎯 Using extracted syllables: {len(extracted_syllables)} syllables")
-        syllables = extracted_syllables
+        syllables = adjust_textgrid_timing(extracted_syllables)  # 🔧 시간 보정 적용
     else:
         print("🎯 Fallback: Using old TextGrid parser")
         syllables = praat_script_textgrid_parser(tg) if tg else []
