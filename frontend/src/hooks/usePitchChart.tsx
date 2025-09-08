@@ -105,7 +105,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         y: {
           title: {
             display: true,
-            text: 'Semitone (세미톤)'
+            text: yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone (세미톤)'
           },
           min: -10,  // 🎯 오리지널과 유사한 범위로 조정
           max: 15
@@ -121,7 +121,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           intersect: false,
           callbacks: {
             label: function(context) {
-              const unit = yAxisUnit === 'qtone' ? 'Q-tone' : 'semitone';
+              const unit = yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone';
               return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} ${unit}`;
             }
           }
@@ -189,10 +189,19 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       });
     });
 
+    // 🎯 Y축 라벨도 함께 업데이트
+    const yAxisTitle = yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone (세미톤)';
+    if (chart.options.scales && chart.options.scales.y) {
+      const yScale = chart.options.scales.y as any;
+      if (yScale.title) {
+        yScale.title.text = yAxisTitle;
+      }
+    }
+
     // 차트 업데이트
     chart.update('none'); // 애니메이션 없이 즉시 업데이트
     
-    console.log(`✅ 차트 데이터 재변환 완료: ${yAxisUnit} 단위`);
+    console.log(`✅ 차트 데이터 재변환 완료: ${yAxisUnit} 단위, Y축 라벨: ${yAxisTitle}`);
   }, [yAxisUnit, convertFrequency]);
 
   const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
