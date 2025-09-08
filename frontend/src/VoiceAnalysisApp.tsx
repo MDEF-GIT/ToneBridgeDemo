@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './types/api';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
+import { useDualAxisChart } from './hooks/useDualAxisChart';
 // import { PitchTestMode } from './components/PitchTestMode';
 // import { ChartControls } from './components/ChartControls';
 import './custom.css';
@@ -47,10 +48,12 @@ const VoiceAnalysisApp: React.FC = () => {
   
   // 🎯 Refs
   const chartRef = useRef<HTMLCanvasElement>(null);
+  const dualAxisCanvasRef = useRef<HTMLCanvasElement>(null);
   
   // 🎯 Hooks  
   const audioRecording = useAudioRecording();
   const pitchChart = usePitchChart(chartRef, API_BASE, yAxisUnit);
+  const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE, yAxisUnit);
   
   // 🎯 애니메이션 스타일 주입
   useEffect(() => {
@@ -88,11 +91,15 @@ const VoiceAnalysisApp: React.FC = () => {
         if (pitchChart && pitchChart.addPitchData) {
           pitchChart.addPitchData(frequency, timestamp, 'live');
         }
+        // 🎯 듀얼축 차트에도 동시에 데이터 추가
+        if (dualAxisChart && dualAxisChart.addDualAxisData) {
+          dualAxisChart.addDualAxisData(frequency, timestamp, 'live');
+        }
       });
     } else {
       console.warn('⚠️ audioRecording 또는 setPitchCallback이 없습니다');
     }
-  }, [audioRecording, pitchChart]);
+  }, [audioRecording, pitchChart, dualAxisChart]);
 
   // 🎯 참조 파일 로딩 (오리지널과 동일한 로직)
   const loadReferenceFiles = async () => {
@@ -183,6 +190,23 @@ const VoiceAnalysisApp: React.FC = () => {
       // 🎯 오리지널처럼 pitchChart.loadReferenceData 호출
       if (pitchChart && pitchChart.loadReferenceData) {
         await pitchChart.loadReferenceData(fileId);
+        
+        // 🎯 듀얼축 차트에도 참조 데이터 로딩
+        try {
+          const response = await fetch(`${API_BASE}/api/reference_files/${encodeURIComponent(fileId)}/pitch`);
+          if (response.ok) {
+            const pitchData = await response.json();
+            // 듀얼축 차트 클리어 후 참조 데이터 추가
+            dualAxisChart.clearChart();
+            pitchData.forEach((point: any) => {
+              dualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
+            });
+            console.log(`📊 듀얼축 차트에 참조 데이터 로딩 완료: ${fileId}`);
+          }
+        } catch (error) {
+          console.warn('⚠️ 듀얼축 차트 참조 데이터 로딩 실패:', error);
+        }
+        
         setStatus(`✅ "${fileId}" 문장이 로드되었습니다. 참조음성 재생 또는 녹음 연습을 시작하세요.`);
         console.log('🎯 차트 업데이트 완료!');
       } else {
@@ -196,7 +220,7 @@ const VoiceAnalysisApp: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [learnerInfo.gender, pitchChart]);
+  }, [learnerInfo.gender, pitchChart, dualAxisChart, API_BASE]);
   
   // 🎯 녹음 제어
   const handleRecording = useCallback(() => {
@@ -1022,6 +1046,49 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           )}
 
+          {/* 🎯 듀얼 Y축 비교 차트 */}
+          <div className="card mt-4" id="dual-axis-chart-card">
+            <div className="card-header">
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0 fw-bold">
+                  <i className="fas fa-chart-line me-2"></i>듀얼 Y축 비교 차트
+                </h5>
+                <div className="d-flex align-items-center gap-3">
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    왼쪽: 주파수(Hz), 오른쪽: {yAxisUnit === 'semitone' ? '세미톤' : '큐톤'}
+                  </small>
+                </div>
+              </div>
+            </div>
+            <div className="card-body">
+              <div style={{position: 'relative', height: '400px'}}>
+                <canvas
+                  ref={dualAxisCanvasRef}
+                  id="dual-axis-chart"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px'
+                  }}
+                ></canvas>
+                
+                {/* 차트 컨트롤 버튼들 */}
+                <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
+                  <div className="d-flex gap-1">
+                    <button 
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => dualAxisChart.clearChart()}
+                      title="듀얼축 차트 초기화"
+                    >
+                      <i className="fas fa-refresh"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* 🎯 하단 연락처 섹션 */}
           <div className="mt-5 py-4 contact-section" style={{
