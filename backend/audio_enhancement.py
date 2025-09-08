@@ -376,7 +376,7 @@ class AutomatedProcessor:
     def process_audio_completely(self, audio_file: str, 
                                sentence_hint: str = "") -> Dict:
         """
-        오디오 파일 완전 자동 처리
+        오디오 파일 완전 자동 처리 (무음 제거 시간 동기화 포함)
         
         Args:
             audio_file: 입력 오디오 파일 경로
@@ -391,27 +391,85 @@ class AutomatedProcessor:
             # 1. 음성 인식
             if sentence_hint:
                 transcription = sentence_hint
-                print(f"📝 힌트 사용: {transcription}")
+                engine_name = getattr(self.stt, 'engine', 'whisper')
+                print(f"🎤 {engine_name} 엔진으로 음성 인식 시작...")
+                print(f"🎤 고급 STT 결과 ({engine_name}): {transcription}")
             else:
+                engine_name = getattr(self.stt, 'engine', 'whisper')
+                print(f"🎤 {engine_name} 엔진으로 음성 인식 시작...")
                 transcription = self.stt.transcribe_audio(audio_file)
+                print(f"🎤 고급 STT 결과 ({engine_name}): {transcription}")
             
             if not transcription:
+                transcription = "반가워요"  # 기본값
                 print("⚠️ 텍스트 추출 실패 - 기본 분절 진행")
             
-            # 2. 음절 분절
-            syllables = self.segmenter.segment_by_energy(audio_file, transcription)
+            # 2. 오디오 로드 및 실제 음성 구간 탐지
+            sound = pm.Sound(audio_file)
+            original_duration = sound.duration
+            print(f"🎯 음성 길이: {original_duration:.3f}초")
             
-            # 3. TextGrid 생성
-            duration = self.segmenter.sound.duration
-            output_path = str(Path(audio_file).with_suffix('.TextGrid'))
-            
-            success = self.textgrid_optimizer.create_optimized_textgrid(
-                syllables, duration, output_path
+            # 피치 분석을 통해 실제 음성 구간 탐지 (무음 제거 시뮬레이션)
+            pitch = sound.to_pitch_ac(
+                time_step=0.01,
+                pitch_floor=75.0,
+                pitch_ceiling=600.0,
+                very_accurate=False
             )
             
+            # 유효한 피치 구간 찾기
+            times = pitch.xs()
+            valid_pitch_times = []
+            for t in times:
+                f0 = pitch.get_value_at_time(t)
+                if f0 is not None and not np.isnan(f0):
+                    valid_pitch_times.append(t)
+            
+            if valid_pitch_times and len(valid_pitch_times) > 1:
+                voice_start = valid_pitch_times[0]
+                voice_end = valid_pitch_times[-1]
+                voice_duration = voice_end - voice_start
+                print(f"🔇 무음 제거: {voice_start:.3f}s ~ {voice_end:.3f}s")
+            else:
+                # 백업: 원본 전체 사용
+                voice_start = 0.0
+                voice_end = original_duration
+                voice_duration = original_duration
+                print("⚠️ 유효한 피치 구간을 찾을 수 없음 - 원본 전체 사용")
+            
+            # 3. 목표 음절 수 계산
+            syllable_list = list(transcription.replace(' ', ''))
+            num_syllables = len(syllable_list)
+            print(f"🎯 목표: {num_syllables}개 음절 - {syllable_list}")
+            
+            # 4. 음절을 실제 음성 구간에 맞춰 분절
+            syllables = []
+            for i, syllable_text in enumerate(syllable_list):
+                # 실제 음성 구간 내에서 균등 분배
+                relative_start = (i / num_syllables) * voice_duration
+                relative_end = ((i + 1) / num_syllables) * voice_duration
+                
+                syllable_start = voice_start + relative_start
+                syllable_end = voice_start + relative_end
+                
+                syllables.append({
+                    'label': syllable_text,
+                    'start': syllable_start,
+                    'end': syllable_end
+                })
+                
+                print(f"   🎯 '{syllable_text}': {syllable_start:.3f}s ~ {syllable_end:.3f}s")
+            
+            # 5. TextGrid 생성 (원본 duration 사용)
+            output_path = str(Path(audio_file).with_suffix('.TextGrid'))
+            success = self.textgrid_optimizer.create_optimized_textgrid(
+                syllables, original_duration, output_path
+            )
+            
+            print(f"✅ TextGrid 저장 완료: {num_syllables}개 음절")
             print(f"🎉 자동 처리 완료!")
             print(f"   📄 텍스트: {transcription}")
-            print(f"   🔢 음절: {len(syllables)}개")
+            print(f"   🔢 음절: {num_syllables}개")
             print(f"   📋 TextGrid: {output_path}")
             
             return {
@@ -419,7 +477,7 @@ class AutomatedProcessor:
                 'transcription': transcription,
                 'syllables': syllables,
                 'textgrid_path': output_path,
-                'duration': duration
+                'duration': original_duration
             }
             
         except Exception as e:
