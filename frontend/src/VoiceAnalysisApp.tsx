@@ -189,17 +189,24 @@ const VoiceAnalysisApp: React.FC = () => {
       if (pitchChart && pitchChart.loadReferenceData) {
         await pitchChart.loadReferenceData(fileId);
         
-        // 🎯 듀얼축 차트에도 참조 데이터 로딩
+        // 🎯 듀얼축 차트에도 참조 데이터 로딩 (시간 정규화 적용)
         try {
           const response = await fetch(`${API_BASE}/api/reference_files/${encodeURIComponent(fileId)}/pitch`);
           if (response.ok) {
             const pitchData = await response.json();
             // 듀얼축 차트 클리어 후 참조 데이터 추가
             dualAxisChart.clearChart();
+            
+            // 🎯 시간 정규화: 첫 번째 시간값을 0으로 만들기
+            const firstTime = pitchData.length > 0 ? pitchData[0].time : 0;
+            console.log(`🎯 듀얼차트 시간 정규화: 첫 번째 시간 ${firstTime.toFixed(2)}s를 0s로 조정`);
+            
             pitchData.forEach((point: any) => {
-              dualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
+              // 시간값 정규화: 첫 번째 시간을 빼서 0부터 시작
+              const normalizedTime = point.time - firstTime;
+              dualAxisChart.addDualAxisData(point.frequency, normalizedTime, 'reference');
             });
-            console.log(`📊 듀얼축 차트에 참조 데이터 로딩 완료: ${fileId}`);
+            console.log(`📊 듀얼축 차트에 참조 데이터 로딩 완료: ${fileId} (${pitchData.length}개 포인트)`);
           }
         } catch (error) {
           console.warn('⚠️ 듀얼축 차트 참조 데이터 로딩 실패:', error);

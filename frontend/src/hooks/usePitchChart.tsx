@@ -477,16 +477,21 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         let maxTime = 0;
         const convertedValues: number[] = [];
         
+        // 🎯 시간 정규화: 첫 번째 시간값을 0으로 만들기
+        const firstTime = pitchData.length > 0 ? pitchData[0].time : 0;
+        console.log(`🎯 시간 정규화: 첫 번째 시간 ${firstTime.toFixed(2)}s를 0s로 조정`);
+        
         // Add reference data points and collect converted values
         pitchData.forEach((point: {time: number, frequency: number, syllable?: string}) => {
-          // 🎯 백엔드에서 이미 초 단위로 온 데이터를 그대로 사용 (1000 곱하지 않음)
-          addPitchData(point.frequency, point.time, 'reference');
+          // 🎯 시간값 정규화: 첫 번째 시간을 빼서 0부터 시작
+          const normalizedTime = point.time - firstTime;
+          addPitchData(point.frequency, normalizedTime, 'reference');
           
           // Y축 범위 계산을 위해 변환된 값 수집
           const convertedValue = convertFrequency(point.frequency);
           convertedValues.push(convertedValue);
           
-          maxTime = Math.max(maxTime, point.time);
+          maxTime = Math.max(maxTime, normalizedTime);
           if (point.syllable) {
             }
         });
@@ -512,9 +517,16 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           chartRef.current.update('none');
         }
         
-        // 🎯 Add syllable annotations to chart
+        // 🎯 Add syllable annotations to chart (시간 정규화 적용)
         if (syllableData && syllableData.length > 0) {
-          addSyllableAnnotations(syllableData);
+          // 음절 데이터의 시간값도 정규화
+          const normalizedSyllableData = syllableData.map(syllable => ({
+            ...syllable,
+            start: syllable.start - firstTime,
+            end: syllable.end - firstTime
+          }));
+          addSyllableAnnotations(normalizedSyllableData);
+          console.log(`🎯 음절 데이터 시간 정규화 완료: ${syllableData.length}개 음절`);
         }
       }
     } catch (error) {
