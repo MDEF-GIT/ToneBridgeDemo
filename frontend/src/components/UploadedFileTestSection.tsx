@@ -237,6 +237,31 @@ const UploadedFileTestSection: React.FC = () => {
                   src={`/static/uploads/${selectedFileId}.wav`}
                   onError={() => console.error('오디오 로드 실패:', selectedFileId)}
                   onLoadedData={() => console.log('오디오 로드 완료:', selectedFileId)}
+                  onPlay={() => {
+                    console.log('🎵 업로드 파일 재생 시작');
+                    // 차트와 연동하여 재생 위치 표시
+                    const updateProgress = () => {
+                      if (audioRef.current && testPitchChart.updatePlaybackProgress) {
+                        testPitchChart.updatePlaybackProgress(audioRef.current.currentTime);
+                        if (!audioRef.current.paused) {
+                          requestAnimationFrame(updateProgress);
+                        }
+                      }
+                    };
+                    requestAnimationFrame(updateProgress);
+                  }}
+                  onPause={() => {
+                    console.log('🎵 업로드 파일 재생 일시정지');
+                    if (testPitchChart.clearPlaybackProgress) {
+                      testPitchChart.clearPlaybackProgress();
+                    }
+                  }}
+                  onEnded={() => {
+                    console.log('🎵 업로드 파일 재생 완료');
+                    if (testPitchChart.clearPlaybackProgress) {
+                      testPitchChart.clearPlaybackProgress();
+                    }
+                  }}
                 >
                   브라우저가 오디오 재생을 지원하지 않습니다.
                 </audio>

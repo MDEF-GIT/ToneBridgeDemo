@@ -740,6 +740,32 @@ const VoiceAnalysisApp: React.FC = () => {
                             src={`${API_BASE}/static/reference_files/${selectedFile}.wav`}
                             onError={() => console.error('참조 파일 로드 실패:', selectedFile)}
                             onLoadedData={() => console.log('참조 파일 로드 완료:', selectedFile)}
+                            onPlay={(e) => {
+                              console.log('🎵 참조 파일 재생 시작');
+                              // 차트와 연동하여 재생 위치 표시
+                              const audio = e.target as HTMLAudioElement;
+                              const updateProgress = () => {
+                                if (audio && pitchChart?.updatePlaybackProgress) {
+                                  pitchChart.updatePlaybackProgress(audio.currentTime);
+                                  if (!audio.paused) {
+                                    requestAnimationFrame(updateProgress);
+                                  }
+                                }
+                              };
+                              requestAnimationFrame(updateProgress);
+                            }}
+                            onPause={() => {
+                              console.log('🎵 참조 파일 재생 일시정지');
+                              if (pitchChart?.clearPlaybackProgress) {
+                                pitchChart.clearPlaybackProgress();
+                              }
+                            }}
+                            onEnded={() => {
+                              console.log('🎵 참조 파일 재생 완료');
+                              if (pitchChart?.clearPlaybackProgress) {
+                                pitchChart.clearPlaybackProgress();
+                              }
+                            }}
                           >
                             브라우저가 오디오 재생을 지원하지 않습니다.
                           </audio>
