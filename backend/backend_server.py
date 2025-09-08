@@ -2746,6 +2746,193 @@ async def syllable_alignment_analysis(file: UploadFile = File(...),
             "message": "❌ 음절 정렬 분석 오류"
         }, status_code=500)
 
+# ========================================
+# 📁 업로드 파일 테스트 API들
+# ========================================
+
+@app.get("/api/uploaded_files")
+async def get_uploaded_files():
+    """업로드된 파일 목록 조회 (wav + TextGrid 쌍)"""
+    try:
+        uploaded_files = []
+        
+        # uploads 디렉토리의 모든 wav 파일 찾기
+        for file_path in UPLOAD_DIR.glob("*.wav"):
+            wav_file = file_path.name
+            textgrid_file = wav_file.replace('.wav', '.TextGrid')
+            textgrid_path = UPLOAD_DIR / textgrid_file
+            
+            if textgrid_path.exists():
+                # 파일명에서 정보 추출
+                parts = wav_file.replace('.wav', '').split('_')
+                if len(parts) >= 5:
+                    name = parts[0] if parts[0] else "이름없음"
+                    gender = parts[1] if parts[1] else "성별없음"
+                    age_group = parts[2] if parts[2] else "연령없음"
+                    sentence = parts[3] if parts[3] else "문장없음"
+                    timestamp = '_'.join(parts[4:]) if len(parts) > 4 else "시간없음"
+                    
+                    file_info = {
+                        "id": wav_file.replace('.wav', ''),
+                        "wav_file": wav_file,
+                        "textgrid_file": textgrid_file,
+                        "name": name,
+                        "gender": gender,
+                        "age_group": age_group,
+                        "sentence": sentence,
+                        "timestamp": timestamp,
+                        "display_name": f"{name} ({gender}, {age_group}) - {sentence}"
+                    }
+                    uploaded_files.append(file_info)
+        
+        # 타임스탬프 기준 최신 순 정렬
+        uploaded_files.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        print(f"🗂️ 업로드된 파일 {len(uploaded_files)}개 찾음")
+        return {"files": uploaded_files}
+        
+    except Exception as e:
+        print(f"❌ 업로드 파일 목록 조회 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"업로드 파일 목록 조회 실패: {e}")
+
+@app.get("/api/uploaded_files/{file_id}/pitch")
+async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
+    """업로드된 파일의 피치 데이터 추출"""
+    try:
+        wav_file = f"{file_id}.wav"
+        wav_path = UPLOAD_DIR / wav_file
+        
+        if not wav_path.exists():
+            raise HTTPException(status_code=404, detail="WAV 파일을 찾을 수 없습니다")
+        
+        print(f"🎯 업로드 파일 피치 분석: {wav_file} (syllable_only={syllable_only})")
+        
+        # Parselmouth로 피치 추출
+        sound = parselmouth.Sound(str(wav_path))
+        pitch = sound.to_pitch()
+        
+        # 피치 데이터 추출
+        times = pitch.xs()
+        frequencies = [pitch.get_value_at_time(t) for t in times]
+        
+        # NaN 값 제거
+        pitch_data = []
+        for i, (time, freq) in enumerate(zip(times, frequencies)):
+            if not math.isnan(freq) and freq > 0:
+                pitch_data.append({"time": time, "frequency": freq})
+        
+        print(f"🎯 {len(pitch_data)}개 피치 포인트 추출")
+        
+        if syllable_only:
+            # TextGrid에서 음절별 대표 피치 계산
+            textgrid_file = f"{file_id}.TextGrid"
+            textgrid_path = UPLOAD_DIR / textgrid_file
+            
+            if textgrid_path.exists():
+                syllable_pitch = calculate_syllable_pitch_from_textgrid(str(textgrid_path), pitch_data)
+                print(f"🎯 {len(syllable_pitch)}개 음절 대표 피치 반환")
+                return syllable_pitch
+        
+        return pitch_data
+        
+    except Exception as e:
+        print(f"❌ 업로드 파일 피치 분석 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"피치 분석 실패: {e}")
+
+@app.get("/api/uploaded_files/{file_id}/syllables")
+async def get_uploaded_file_syllables(file_id: str):
+    """업로드된 파일의 TextGrid 음절 정보"""
+    try:
+        textgrid_file = f"{file_id}.TextGrid"
+        textgrid_path = UPLOAD_DIR / textgrid_file
+        
+        if not textgrid_path.exists():
+            raise HTTPException(status_code=404, detail="TextGrid 파일을 찾을 수 없습니다")
+        
+        print(f"🎯 업로드 파일 TextGrid 읽기: {textgrid_file}")
+        
+        # TextGrid 파싱
+        syllables = []
+        try:
+            with open(textgrid_path, 'r', encoding='utf-16') as f:
+                content = f.read()
+        except:
+            with open(textgrid_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        
+        # 음절 정보 추출 (기존 로직과 동일)
+        pattern = r'text = "([^"]+)"'
+        matches = re.findall(pattern, content)
+        
+        for match in matches:
+            if match.strip() and match.strip() != '':
+                syllables.append(match.strip())
+        
+        print(f"🎯 {len(syllables)}개 음절 반환: {syllables}")
+        return syllables
+        
+    except Exception as e:
+        print(f"❌ 업로드 파일 TextGrid 읽기 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"TextGrid 읽기 실패: {e}")
+
+def calculate_syllable_pitch_from_textgrid(textgrid_path: str, pitch_data: list):
+    """TextGrid 기반 음절별 대표 피치 계산"""
+    try:
+        # TextGrid 파일 읽기
+        try:
+            with open(textgrid_path, 'r', encoding='utf-16') as f:
+                content = f.read()
+        except:
+            with open(textgrid_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        
+        # 음절 구간 정보 추출
+        syllable_regions = []
+        lines = content.split('\n')
+        current_interval = {}
+        
+        for line in lines:
+            line = line.strip()
+            if 'xmin =' in line:
+                current_interval['start'] = float(line.split('=')[1].strip())
+            elif 'xmax =' in line:
+                current_interval['end'] = float(line.split('=')[1].strip())
+            elif 'text = "' in line:
+                text = line.split('"')[1]
+                if text.strip():
+                    current_interval['text'] = text.strip()
+                    syllable_regions.append(current_interval.copy())
+                current_interval = {}
+        
+        # 각 음절의 대표 피치 계산
+        syllable_pitch = []
+        for region in syllable_regions:
+            start_time = region['start']
+            end_time = region['end']
+            syllable = region['text']
+            
+            # 해당 구간의 피치 데이터 필터링
+            region_pitches = [
+                p['frequency'] for p in pitch_data 
+                if start_time <= p['time'] <= end_time
+            ]
+            
+            if region_pitches:
+                avg_pitch = sum(region_pitches) / len(region_pitches)
+                syllable_pitch.append({
+                    "time": (start_time + end_time) / 2,  # 구간 중점
+                    "frequency": avg_pitch,
+                    "syllable": syllable,
+                    "start": start_time,
+                    "end": end_time
+                })
+        
+        return syllable_pitch
+        
+    except Exception as e:
+        print(f"❌ TextGrid 기반 음절 피치 계산 오류: {e}")
+        return []
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)
