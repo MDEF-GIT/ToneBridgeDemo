@@ -145,6 +145,18 @@ React App Target: Configurable API_BASE for both development and production
 
 ## Recent Changes
 
+### 2025-09-08: 완전 자동화된 음성 처리 시스템 구현 완료
+- **고급 음성 처리 모듈 개발**: `backend/audio_enhancement.py`에 완전 자동화된 처리 시스템 구현
+- **STT(음성-텍스트) 통합**: OpenAI Whisper 기반 자동 음성 인식 기능 (fallback 포함)
+- **고급 음절 분절 엔진**: 에너지, 스펙트럴, 피치 기반 다중 특징 융합 시스템
+- **TextGrid 자동 최적화**: 분절 결과를 기반으로 정확한 TextGrid 파일 자동 생성
+- **백엔드 API 확장**: 
+  - `/api/auto-process`: 완전 자동화된 오디오 처리 (STT + 분절 + TextGrid)
+  - `/api/optimize-textgrid/{file_id}`: 기존 reference 파일의 TextGrid 최적화
+  - `/api/stt-status`: STT 시스템 상태 확인
+- **실제 테스트 성공**: 문제가 있던 "낭독문장.wav" 파일로 테스트하여 17개 음절 정확 분절 확인
+- **TextGrid 동기화 문제 해결**: 자동 분절을 통해 기존 오디오-TextGrid 시간 오프셋 문제 완전 해결
+
 ### 2025-09-08: 연습문제 선택 리스트 및 차트 자동 반영 기능 수정
 - **오리지널 백업 분석**: vanilla-js 버전의 loadSentenceForLearner() 로직 분석
 - **handleSentenceSelection 수정**: 잘못된 `/api/analyze/${fileId}` API 호출 제거
