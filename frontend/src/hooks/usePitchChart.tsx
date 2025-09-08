@@ -388,8 +388,24 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue;
     }
 
+    // 🎯 X축 및 Y축 범위 초기화
+    if (chartRef.current.options.scales) {
+      const xScale = chartRef.current.options.scales.x as any;
+      const yScale = chartRef.current.options.scales.y as any;
+      
+      if (xScale) {
+        xScale.min = -0.2; // 0.2초 마진으로 시작
+        xScale.max = 5; // 기본 5초 범위
+      }
+      if (yScale) {
+        yScale.min = yAxisUnit === 'qtone' ? -20 : -10;
+        yScale.max = yAxisUnit === 'qtone' ? 30 : 15;
+      }
+      console.log('🎯 피치차트 X축 및 Y축 범위 기본값으로 초기화');
+    }
+
     chartRef.current.update();
-  }, []);
+  }, [yAxisUnit]);
 
   // 🎯 실시간 데이터 숨기기 (녹음 중지 시)
   const hideRealtimePitchLine = useCallback(() => {
@@ -512,7 +528,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         // 실제 오디오 길이에 맞게 x축 범위 조정 (0.2초 마진)
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
           const timeMargin = 0.2; // 0.2초 마진
-          chartRef.current.options.scales.x.min = Math.max(0, -timeMargin);
+          chartRef.current.options.scales.x.min = -timeMargin; // 0으로 제한하지 않고 음수 허용
           chartRef.current.options.scales.x.max = maxTime + timeMargin;
           console.log(`📊 피치차트 X축 범위: ${chartRef.current.options.scales.x.min.toFixed(1)}s ~ ${chartRef.current.options.scales.x.max.toFixed(1)}s (마진: ${timeMargin}s)`);
           chartRef.current.update('none');

@@ -234,7 +234,7 @@ export const useDualAxisChart = (
         const maxTime = Math.max(...allTimes);
         const timeMargin = 0.2; // 0.2초 마진
         
-        xScale.min = Math.max(0, minTime - timeMargin);
+        xScale.min = minTime - timeMargin; // 0으로 제한하지 않고 음수 허용
         xScale.max = maxTime + timeMargin;
         console.log(`📊 듀얼차트 X축 범위: ${xScale.min.toFixed(1)}s ~ ${xScale.max.toFixed(1)}s (마진: ${timeMargin}s)`);
       }
@@ -282,11 +282,16 @@ export const useDualAxisChart = (
     (chartRef.current.data.datasets[0] as any).pointBackgroundColor = [];
     (chartRef.current.data.datasets[1] as any).pointBackgroundColor = [];
     
-    // 🎯 Y축 범위 초기화 - 올바른 기본값으로 설정
+    // 🎯 X축 및 Y축 범위 초기화 - 올바른 기본값으로 설정
     if (chartRef.current.options.scales) {
+      const xScale = chartRef.current.options.scales.x as any;
       const frequencyScale = chartRef.current.options.scales['y-frequency'] as any;
       const convertedScale = chartRef.current.options.scales['y-converted'] as any;
       
+      if (xScale) {
+        xScale.min = -0.2; // 0.2초 마진으로 시작
+        xScale.max = 5; // 기본 5초 범위
+      }
       if (frequencyScale) {
         frequencyScale.min = 100;
         frequencyScale.max = 300;
@@ -295,7 +300,7 @@ export const useDualAxisChart = (
         convertedScale.min = -10;
         convertedScale.max = 15;
       }
-      console.log('🎯 듀얼차트 Y축 범위 기본값으로 초기화');
+      console.log('🎯 듀얼차트 X축 및 Y축 범위 기본값으로 초기화');
     }
     
     chartRef.current.update();
