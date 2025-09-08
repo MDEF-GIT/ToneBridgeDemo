@@ -163,6 +163,38 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     return yAxisUnit === 'qtone' ? frequencyToQtone(frequency) : frequencyToSemitone(frequency);
   }, [yAxisUnit]);
 
+  // 🎯 Y축 단위 변경 시 기존 차트 데이터 재변환
+  useEffect(() => {
+    if (!chartRef.current || pitchDataRef.current.length === 0) return;
+
+    console.log(`🔄 Y축 단위 변경됨: ${yAxisUnit}, 기존 데이터 ${pitchDataRef.current.length}개 재변환 중...`);
+    
+    const chart = chartRef.current;
+    
+    // 🎯 모든 데이터셋의 모든 포인트를 새로운 단위로 재변환
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const dataArray = dataset.data as Array<{x: number, y: number}>;
+      
+      dataArray.forEach((point, pointIndex) => {
+        // pitchDataRef에서 해당 포인트의 원본 주파수 찾기
+        const originalData = pitchDataRef.current.find(data => 
+          Math.abs(data.time - point.x) < 0.001 // 시간 비교 (소수점 오차 허용)
+        );
+        
+        if (originalData && originalData.frequency) {
+          // 원본 주파수를 새로운 단위로 변환
+          const convertedValue = convertFrequency(originalData.frequency);
+          point.y = convertedValue;
+        }
+      });
+    });
+
+    // 차트 업데이트
+    chart.update('none'); // 애니메이션 없이 즉시 업데이트
+    
+    console.log(`✅ 차트 데이터 재변환 완료: ${yAxisUnit} 단위`);
+  }, [yAxisUnit, convertFrequency]);
+
   const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
     if (!chartRef.current) return;
 
