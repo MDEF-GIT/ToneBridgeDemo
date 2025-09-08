@@ -1450,9 +1450,32 @@ async def record_realtime(
         audio_bytes = await audio_data.read()
         
         # Process real-time audio with Praat algorithms
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
-            temp_audio.write(audio_bytes)
-            temp_audio_path = temp_audio.name
+        # Handle webm files from browser recording
+        if audio_data.filename and audio_data.filename.endswith('.webm'):
+            # Save as webm first, then convert to wav
+            with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_webm:
+                temp_webm.write(audio_bytes)
+                temp_webm_path = temp_webm.name
+            
+            # Convert webm to wav using FFmpeg
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
+                temp_audio_path = temp_wav.name
+            
+            import subprocess
+            result = subprocess.run([
+                'ffmpeg', '-i', temp_webm_path, '-ar', '16000', '-ac', '1', 
+                '-y', temp_audio_path
+            ], capture_output=True, text=True)
+            
+            os.unlink(temp_webm_path)  # Clean up webm file
+            
+            if result.returncode != 0:
+                raise Exception(f"FFmpeg conversion failed: {result.stderr}")
+        else:
+            # Direct wav file
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+                temp_audio.write(audio_bytes)
+                temp_audio_path = temp_audio.name
         
         try:
             snd = pm.Sound(temp_audio_path)
