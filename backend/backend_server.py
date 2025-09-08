@@ -1329,10 +1329,22 @@ async def record_realtime(
         finally:
             os.unlink(temp_audio_path)
         
+        # 🎯 개선된 실시간 응답: Hz, semitone, Q-tone 모든 단위 포함
+        enhanced_f0_values = []
+        for f0_data in f0_values[-10:]:  # 최근 10개 포인트만
+            f0 = f0_data['f0']
+            enhanced_f0_values.append({
+                "t": f0_data['t'],
+                "f0": f0,
+                "semitone": 12 * np.log2(f0 / 200) if f0 > 0 else 0.0,
+                "qtone": 5 * np.log2(f0 / 130) if f0 > 0 else 0.0
+            })
+        
         return JSONResponse({
             "status": "success",
-            "pitch_data": f0_values[-10:] if f0_values else [],  # Last 10 points
-            "duration": snd.duration if 'snd' in locals() else 0
+            "pitch_data": enhanced_f0_values,
+            "duration": snd.duration if 'snd' in locals() else 0,
+            "units": ["hz", "semitone", "qtone"]  # 지원되는 단위 명시
         })
         
     except Exception as e:
@@ -1957,7 +1969,8 @@ async def analyze_live_audio(audio: UploadFile = File(...)):
                     pitch_values.append({
                         "time": float(time),
                         "f0": float(f0),
-                        "semitone": float(12 * np.log2(f0 / 200)) if f0 > 0 else 0
+                        "semitone": float(12 * np.log2(f0 / 200)) if f0 > 0 else 0.0,
+                        "qtone": float(5 * np.log2(f0 / 130)) if f0 > 0 else 0.0
                     })
             
             # 임시 파일 삭제
