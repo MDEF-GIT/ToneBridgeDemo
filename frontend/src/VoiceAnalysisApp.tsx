@@ -39,8 +39,6 @@ const VoiceAnalysisApp: React.FC = () => {
   const [syllableData] = useState<SyllableData[]>([]);
   
   // 🎯 차트 설정
-  const [semitoneMin, setSemitoneMin] = useState<number>(-12);
-  const [semitoneMax, setSemitoneMax] = useState<number>(15);
   const [yAxisUnit, setYAxisUnit] = useState<'semitone' | 'qtone'>('semitone');
   
   // 🎯 API Base URL
@@ -257,16 +255,6 @@ const VoiceAnalysisApp: React.FC = () => {
 
 
   
-  // 🎯 차트 범위 업데이트
-  const updateChartRange = useCallback(() => {
-    pitchChart.updateRange(semitoneMin, semitoneMax);
-    console.log('차트 범위 업데이트:', semitoneMin, semitoneMax);
-  }, [pitchChart, semitoneMin, semitoneMax]);
-
-  // 🎯 세미톤/큐톤 범위 변경 시 자동 업데이트
-  useEffect(() => {
-    updateChartRange();
-  }, [updateChartRange]);
   
   // 🎯 성별 선택 모달
   const handleGenderSelection = useCallback((gender: string) => {
@@ -838,40 +826,8 @@ const VoiceAnalysisApp: React.FC = () => {
                 </div>
               </div>
               
-              {/* 두 번째 줄: 범위 설정 및 Y축 단위 선택 */}
-              <div className="d-flex align-items-center justify-content-between">
-                <div className="d-flex align-items-center gap-2">
-                  <small className="text-muted">표시범위 조정으로 그래프를 좀더 확대/축소 할수 있어요.</small>
-                  <i 
-                    className="fas fa-question-circle text-muted ms-1" 
-                    style={{fontSize: '0.8em', cursor: 'help'}} 
-                    title="차트의 상하 범위를 조정하여 원하는 구간을 확대하거나 전체적인 패턴을 볼 수 있습니다."
-                  ></i>
-                  <input 
-                    type="number" 
-                    className="form-control form-control-sm" 
-                    style={{width: '55px'}} 
-                    value={semitoneMin} 
-                    step="1"
-                    onChange={(e) => setSemitoneMin(Number(e.target.value))}
-                  />
-                  <small className="text-muted">~</small>
-                  <input 
-                    type="number" 
-                    className="form-control form-control-sm" 
-                    style={{width: '55px'}} 
-                    value={semitoneMax} 
-                    step="1"
-                    onChange={(e) => setSemitoneMax(Number(e.target.value))}
-                  />
-                  <small className="text-muted">st</small>
-                  <button 
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={updateChartRange}
-                  >
-                    적용
-                  </button>
-                </div>
+              {/* Y축 단위 선택 */}
+              <div className="d-flex align-items-center justify-content-end">
                 <div className="d-flex align-items-center gap-2">
                   <small className="text-muted">Y축 단위:</small>
                   <div className="btn-group" role="group">
