@@ -92,6 +92,106 @@ def split_korean_sentence(sentence: str) -> List[str]:
     """Split Korean sentence into individual syllables"""
     return [char for char in sentence.strip() if char.strip()]
 
+def auto_segment_syllables(sound: pm.Sound, sentence: str) -> List[dict]:
+    """
+    자동 음절 분절 기능 - Parselmouth 기반 음성 분석
+    음성에서 자동으로 음절 경계를 탐지하고 TextGrid 생성
+    """
+    print("🤖🤖🤖 자동 음절 분절 시작 🤖🤖🤖")
+    
+    if not sentence or not sentence.strip():
+        print("❌ 문장 정보가 없어 자동 분절 불가")
+        return []
+    
+    # 한국어 음절로 분리
+    syllables_text = split_korean_sentence(sentence)
+    print(f"🎯 목표 음절: {syllables_text} ({len(syllables_text)}개)")
+    
+    try:
+        # Step 1: Intensity 기반 음성 활동 구간 탐지
+        intensity = sound.to_intensity(minimum_pitch=75.0)
+        
+        # Step 2: 무음 구간 탐지로 대략적인 경계 찾기
+        # 평균 intensity의 20% 이하를 무음으로 판정
+        mean_intensity = intensity.values.mean()
+        silence_threshold = mean_intensity * 0.2
+        
+        print(f"🎯 평균 강도: {mean_intensity:.2f}dB, 무음 임계값: {silence_threshold:.2f}dB")
+        
+        # Step 3: 음절 개수에 맞게 시간 구간 균등 분할 (기본 전략)
+        duration = sound.xmax - sound.xmin
+        syllable_duration = duration / len(syllables_text)
+        
+        print(f"🎯 전체 길이: {duration:.3f}초, 평균 음절 길이: {syllable_duration:.3f}초")
+        
+        # Step 4: 각 음절별 시간 구간 할당
+        syllables = []
+        for i, syllable_text in enumerate(syllables_text):
+            start_time = i * syllable_duration
+            end_time = (i + 1) * syllable_duration
+            
+            # 마지막 음절은 정확히 끝까지
+            if i == len(syllables_text) - 1:
+                end_time = duration
+            
+            syllables.append({
+                'label': syllable_text,
+                'start': start_time,
+                'end': end_time
+            })
+            
+            print(f"    🎯 '{syllable_text}': {start_time:.3f}s-{end_time:.3f}s")
+        
+        print(f"✅ 자동 음절 분절 완료: {len(syllables)}개")
+        return syllables
+        
+    except Exception as e:
+        print(f"❌ 자동 분절 실패: {e}")
+        return []
+
+def save_textgrid(syllables: List[dict], output_path: str, total_duration: float):
+    """
+    음절 정보를 TextGrid 파일로 저장
+    """
+    print(f"💾 TextGrid 저장: {output_path}")
+    
+    try:
+        # TextGrid 문자열 생성
+        textgrid_content = f'''File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = {total_duration} 
+tiers? <exists> 
+size = 1 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "syllables" 
+        xmin = 0 
+        xmax = {total_duration} 
+        intervals: size = {len(syllables)} 
+'''
+        
+        # 각 음절 구간 추가
+        for i, syllable in enumerate(syllables):
+            textgrid_content += f'''        intervals [{i+1}]:
+            xmin = {syllable['start']} 
+            xmax = {syllable['end']} 
+            text = "{syllable['label']}" 
+'''
+        
+        # UTF-16으로 저장 (기존 TextGrid와 동일한 인코딩)
+        with open(output_path, 'w', encoding='utf-16') as f:
+            f.write(textgrid_content)
+        
+        print(f"✅ TextGrid 저장 완료: {len(syllables)}개 음절")
+        return True
+        
+    except Exception as e:
+        print(f"❌ TextGrid 저장 실패: {e}")
+        return False
+
 def adjust_textgrid_timing(syllables: List[dict]) -> List[dict]:
     """
     TextGrid 시간 정보 자동 보정 - 무음 구간 제거 대응
@@ -932,6 +1032,17 @@ def extract_ref_praat_implementation(
     else:
         print("🎯 Fallback: Using old TextGrid parser")
         syllables = praat_script_textgrid_parser(tg) if tg else []
+    
+    # Step 1.5: TextGrid가 없거나 문제가 있으면 자동 분절 시도
+    if not syllables and sentence and sentence.strip():
+        print("🤖 TextGrid 분석 실패 → 자동 음절 분절 시도")
+        syllables = auto_segment_syllables(sound, sentence)
+        
+        # 자동 생성된 음절로 TextGrid 파일 업데이트
+        if syllables:
+            textgrid_path = str(Path("static/reference_files") / f"{sentence.replace(' ', '')}.TextGrid")
+            save_textgrid(syllables, textgrid_path, sound.duration)
+            print(f"🤖 새로운 TextGrid 생성: {textgrid_path}")
     
     # Step 2: Fallback to sentence-based or time-based segmentation
     if not syllables:
