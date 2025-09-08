@@ -941,6 +941,18 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     }
   }, []);
 
+  // X축 범위 설정 함수 추가
+  const setXAxisRange = useCallback((xMin: number, xMax: number) => {
+    if (chartRef.current) {
+      if (chartRef.current.options?.scales?.x) {
+        chartRef.current.options.scales.x.min = xMin;
+        chartRef.current.options.scales.x.max = xMax;
+        chartRef.current.update('none'); // 애니메이션 없이 즉시 업데이트
+        console.log(`📊 X축 범위 설정됨: ${xMin.toFixed(2)} ~ ${xMax.toFixed(2)} 초`);
+      }
+    }
+  }, []);
+
   return {
     addPitchData,
     clearChart,
@@ -953,6 +965,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     scrollRight,
     resetView,
     setYAxisRange,
+    setXAxisRange,
     updateRealtimePitchLine,
     hideRealtimePitchLine,
     updateRange,
