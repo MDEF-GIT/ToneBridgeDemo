@@ -10,6 +10,7 @@ import subprocess
 import shutil
 import uuid
 from pathlib import Path
+from datetime import datetime
 from typing import List, Optional
 
 import numpy as np
@@ -2425,9 +2426,6 @@ async def auto_process_audio(
         # 자동 처리 실행
         result = automated_processor.process_audio_completely(tmp_path, sentence_hint)
         
-        # 임시 파일 정리
-        os.unlink(tmp_path)
-        
         if result['success']:
             response_data = {
                 "success": True,
@@ -2476,8 +2474,13 @@ async def auto_process_audio(
                 print(f"📋 학습자: {learner_name} ({learner_gender}, {learner_age_group})")
                 print(f"📄 연습문장: {reference_sentence}")
             
+            # 임시 파일 정리 (영구 저장 후)
+            os.unlink(tmp_path)
+            
             return JSONResponse(response_data)
         else:
+            # 실패 시에도 임시 파일 정리
+            os.unlink(tmp_path)
             return JSONResponse({
                 "success": False,
                 "error": result.get('error', '알 수 없는 오류'),
