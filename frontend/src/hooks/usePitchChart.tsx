@@ -102,6 +102,14 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     const options: ChartOptions<'line'> = {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 60,  // 🎯 음절 라벨용 상단 고정 영역 확보
+          right: 20,
+          bottom: 20,
+          left: 20
+        }
+      },
       scales: {
         x: {
           type: 'linear',
@@ -608,16 +616,17 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         borderDash: [6, 3]
       };
       
-      // 🔥 보라색 음절 라벨 박스 (절대 위치 고정)
+      // 🔥 보라색 음절 라벨 박스 (차트 최상단 고정 영역에 배치)
       const midTime = (sylStart + sylEnd) / 2;
       chart.options.plugins.annotation.annotations[`label_${index}`] = {
         type: 'label',
         xValue: midTime,
+        yValue: null,  // 🎯 yValue 제거로 상단 영역에 배치
         position: {
           x: 'center',
-          y: 'start'  // 🎯 차트 상단 절대 위치에 고정
+          y: 'start'  // 🎯 차트 캔버스 최상단에 고정
         },
-        yAdjust: 10,  // 상단에서 10px 아래
+        yAdjust: -50,  // 🎯 차트 영역 밖 상단으로 이동 (padding 영역 활용)
         content: sylLabel,
         backgroundColor: 'rgba(138, 43, 226, 0.9)',  // 보라색 배경
         borderColor: 'rgba(138, 43, 226, 1)',
