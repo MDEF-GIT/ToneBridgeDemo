@@ -41,9 +41,19 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioRef = useRef<HTMLAudioElement | null>(null);
   
+  // 🎯 최신 값을 참조하기 위한 ref들
+  const learnerInfoRef = useRef(learnerInfo);
+  const selectedFileRef = useRef(selectedFile);
+  
   // 🎯 새로운 고급 피치 분석 엔진
   const yinDetectorRef = useRef<YINPitchDetector | null>(null);
   const audioPlaybackRef = useRef<AudioPlaybackController>(new AudioPlaybackController());
+  
+  // 🎯 ref 값 업데이트
+  useEffect(() => {
+    learnerInfoRef.current = learnerInfo;
+    selectedFileRef.current = selectedFile;
+  }, [learnerInfo, selectedFile]);
 
   // 🎯 상태 변화 추적 로그
   useEffect(() => {
@@ -56,20 +66,23 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
 
   const startRecording = useCallback(async () => {
     try {
-      // 🚨 녹음 시작 전 필수 정보 체크
-      if (!learnerInfo || !learnerInfo.name || !learnerInfo.gender) {
+      // 🚨 녹음 시작 전 필수 정보 체크 (최신 ref 값 사용)
+      const currentLearnerInfo = learnerInfoRef.current;
+      const currentSelectedFile = selectedFileRef.current;
+      
+      if (!currentLearnerInfo || !currentLearnerInfo.name || !currentLearnerInfo.gender) {
         alert("⚠️ 학습자 정보를 먼저 입력해주세요!\n\n- 이름과 성별은 필수 입력 사항입니다.");
         return;
       }
       
-      if (!selectedFile) {
+      if (!currentSelectedFile) {
         alert("⚠️ 연습문장을 먼저 선택해주세요!\n\n- 10개 문장 중 하나를 선택해야 녹음할 수 있습니다.");
         return;
       }
       
       console.log("✅ 모든 필수 정보 확인 완료 - 녹음 시작");
-      console.log("📋 학습자:", `${learnerInfo.name} (${learnerInfo.gender}, ${learnerInfo.ageGroup || '연령 미지정'})`);
-      console.log("📄 연습문장:", selectedFile);
+      console.log("📋 학습자:", `${currentLearnerInfo.name} (${currentLearnerInfo.gender}, ${currentLearnerInfo.ageGroup || '연령 미지정'})`);
+      console.log("📄 연습문장:", currentSelectedFile);
       
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -166,7 +179,7 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
         error: `마이크 접근 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
       }));
     }
-  }, []);
+  }, [learnerInfo, selectedFile]);
 
   const stopRecording = useCallback(() => {
     if (animationFrameRef.current) {
@@ -197,31 +210,33 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       error: null,
       recordedBlob: null,
     }));
-  }, [state]);
+  }, [state, learnerInfo, selectedFile]);
 
   const uploadRecordedAudio = async (audioBlob: Blob) => {
     try {
-      console.log("🎤 녹음 완료 - 자동 처리 시작...");
-      console.log("📋 학습자 정보:", learnerInfo);
-      console.log("📄 선택된 문장:", selectedFile);
+      // 🎯 최신 ref 값 사용
+      const currentLearnerInfo = learnerInfoRef.current;
+      const currentSelectedFile = selectedFileRef.current;
       
-      // ✅ 이 시점에서는 필수 정보가 모두 있음 (startRecording에서 검증됨)
+      console.log("🎤 녹음 완료 - 자동 처리 시작...");
+      console.log("📋 학습자 정보:", currentLearnerInfo);
+      console.log("📄 선택된 문장:", currentSelectedFile);
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
       formData.append("sentence_hint", ""); // 힌트 없이 순수 STT
       formData.append("save_permanent", "true"); // 영구 저장 활성화
       
-      // 학습자 정보 추가
-      if (learnerInfo) {
-        formData.append("learner_name", learnerInfo.name || "");
-        formData.append("learner_gender", learnerInfo.gender || "");
-        formData.append("learner_age_group", learnerInfo.ageGroup || "");
+      // 학습자 정보 추가 (최신 ref 값 사용)
+      if (currentLearnerInfo) {
+        formData.append("learner_name", currentLearnerInfo.name || "");
+        formData.append("learner_gender", currentLearnerInfo.gender || "");
+        formData.append("learner_age_group", currentLearnerInfo.ageGroup || "");
       }
       
-      // 선택된 연습문장 정보 추가
-      if (selectedFile) {
-        formData.append("reference_sentence", selectedFile);
+      // 선택된 연습문장 정보 추가 (최신 ref 값 사용)
+      if (currentSelectedFile) {
+        formData.append("reference_sentence", currentSelectedFile);
       }
 
       const response = await fetch("/api/auto-process", {
