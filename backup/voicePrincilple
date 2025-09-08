@@ -1,0 +1,2600 @@
+음성 신호 처리 완전 가이드: PCM, WAV, 단위 변환, 그리고 Parrot 음성 분석
+목차
+
+PCM (Pulse Code Modulation) 기초
+WAV 파일 구조와 데이터 저장
+음향 단위 체계와 완전한 변환 공식
+Parrot 음성 분석 라이브러리 완전 가이드
+신호 처리 파이프라인
+실제 구현과 통합 응용
+
+
+1. PCM (Pulse Code Modulation) 기초
+1.1 PCM이란?
+PCM은 아날로그 신호를 디지털로 변환하는 가장 기본적이고 널리 사용되는 방법입니다.
+1.2 PCM 변환 과정
+pythonimport numpy as np
+import struct
+
+class PCMProcessor:
+    """
+    PCM 인코딩/디코딩 완전 구현
+    """
+
+    @staticmethod
+    def analog_to_pcm(analog_signal, sample_rate=44100, bit_depth=16):
+        """
+        아날로그 신호를 PCM으로 변환
+        """
+        # 1. 샘플링 (Sampling)
+        duration = len(analog_signal) / sample_rate
+        sample_points = np.linspace(0, duration, int(sample_rate * duration))
+
+        # 2. 양자화 (Quantization)
+        if bit_depth == 16:
+            max_val = 32767
+            min_val = -32768
+        elif bit_depth == 24:
+            max_val = 8388607
+            min_val = -8388608
+        elif bit_depth == 32:
+            # 32-bit float는 양자화 불필요
+            return analog_signal.astype(np.float32)
+
+        # 클리핑 및 스케일링
+        normalized = np.clip(analog_signal, -1.0, 1.0)
+        quantized = np.round(normalized * max_val).astype(np.int32)
+        quantized = np.clip(quantized, min_val, max_val)
+
+        # 3. 인코딩 (Encoding)
+        if bit_depth == 16:
+            pcm_data = quantized.astype(np.int16)
+        elif bit_depth == 24:
+            # 24-bit는 특별 처리 필요
+            pcm_data = PCMProcessor._encode_24bit(quantized)
+
+        return pcm_data
+
+    @staticmethod
+    def _encode_24bit(samples):
+        """
+        24-bit PCM 인코딩
+        """
+        encoded = bytearray()
+        for sample in samples:
+            # 3바이트로 패킹
+            encoded.extend([
+                sample & 0xFF,
+                (sample >> 8) & 0xFF,
+                (sample >> 16) & 0xFF
+            ])
+        return encoded
+
+    @staticmethod
+    def calculate_snr(bit_depth):
+        """
+        신호 대 잡음비 계산
+        """
+        # SNR = 6.02 * N + 1.76 dB (N = bit depth)
+        return 6.02 * bit_depth + 1.76
+1.3 PCM 형식 변환
+pythonclass PCMFormatConverter:
+    """
+    다양한 PCM 형식 간 변환
+    """
+
+    @staticmethod
+    def mu_law_encode(pcm_linear, mu=255):
+        """
+        μ-law 압축 (전화 시스템)
+        """
+        # μ-law: y = sgn(x) * ln(1 + μ|x|) / ln(1 + μ)
+        normalized = pcm_linear / 32768.0
+        sign = np.sign(normalized)
+        abs_val = np.abs(normalized)
+
+        compressed = sign * np.log(1 + mu * abs_val) / np.log(1 + mu)
+        return (compressed * 127).astype(np.int8)
+
+    @staticmethod
+    def a_law_encode(pcm_linear, a=87.6):
+        """
+        A-law 압축 (유럽 전화 시스템)
+        """
+        normalized = pcm_linear / 32768.0
+        sign = np.sign(normalized)
+        abs_val = np.abs(normalized)
+
+        compressed = np.zeros_like(abs_val)
+
+        # 두 구간으로 나누어 처리
+        mask = abs_val < 1/a
+        compressed[mask] = a * abs_val[mask] / (1 + np.log(a))
+        compressed[~mask] = (1 + np.log(a * abs_val[~mask])) / (1 + np.log(a))
+
+        return (sign * compressed * 127).astype(np.int8)
+
+    @staticmethod
+    def pcm_to_float(pcm_data, bit_depth):
+        """
+        PCM을 부동소수점으로 변환
+        """
+        if bit_depth == 16:
+            return pcm_data / 32768.0
+        elif bit_depth == 24:
+            return pcm_data / 8388608.0
+        elif bit_depth == 32:
+            return pcm_data  # 이미 float
+        else:
+            raise ValueError(f"Unsupported bit depth: {bit_depth}")
+
+2. WAV 파일 구조와 데이터 저장
+2.1 확장된 WAV 파일 처리
+pythonimport wave
+import struct
+import numpy as np
+
+class AdvancedWAVProcessor:
+    """
+    고급 WAV 파일 처리 (메타데이터 포함)
+    """
+
+    def __init__(self):
+        self.chunks = {}
+        self.pcm_data = None
+        self.metadata = {}
+
+    def read_wav_complete(self, filename):
+        """
+        모든 청크를 포함한 완전한 WAV 읽기
+        """
+        with open(filename, 'rb') as f:
+            # RIFF 헤더
+            assert f.read(4) == b'RIFF'
+            file_size = struct.unpack('<I', f.read(4))[0]
+            assert f.read(4) == b'WAVE'
+
+            # 모든 청크 읽기
+            while f.tell() < file_size + 8:
+                chunk_id = f.read(4)
+                if not chunk_id:
+                    break
+
+                chunk_size = struct.unpack('<I', f.read(4))[0]
+
+                if chunk_id == b'fmt ':
+                    self._read_fmt_chunk(f, chunk_size)
+                elif chunk_id == b'data':
+                    self._read_data_chunk(f, chunk_size)
+                elif chunk_id == b'LIST':
+                    self._read_list_chunk(f, chunk_size)
+                elif chunk_id == b'fact':
+                    self._read_fact_chunk(f, chunk_size)
+                elif chunk_id == b'cue ':
+                    self._read_cue_chunk(f, chunk_size)
+                else:
+                    # 알 수 없는 청크는 건너뛰기
+                    f.read(chunk_size)
+
+                # 패딩 처리 (청크는 짝수 바이트)
+                if chunk_size % 2:
+                    f.read(1)
+
+        return self.pcm_data, self.metadata
+
+    def _read_fmt_chunk(self, f, chunk_size):
+        """
+        Format 청크 파싱
+        """
+        fmt_data = f.read(chunk_size)
+
+        # 기본 format 정보
+        audio_format = struct.unpack('<H', fmt_data[0:2])[0]
+        channels = struct.unpack('<H', fmt_data[2:4])[0]
+        sample_rate = struct.unpack('<I', fmt_data[4:8])[0]
+        byte_rate = struct.unpack('<I', fmt_data[8:12])[0]
+        block_align = struct.unpack('<H', fmt_data[12:14])[0]
+        bits_per_sample = struct.unpack('<H', fmt_data[14:16])[0]
+
+        self.metadata['format'] = {
+            'audio_format': audio_format,
+            'format_name': self._get_format_name(audio_format),
+            'channels': channels,
+            'sample_rate': sample_rate,
+            'byte_rate': byte_rate,
+            'block_align': block_align,
+            'bits_per_sample': bits_per_sample
+        }
+
+        # 확장 format 정보
+        if chunk_size > 16:
+            cb_size = struct.unpack('<H', fmt_data[16:18])[0]
+            if cb_size > 0:
+                self.metadata['format']['extended'] = fmt_data[18:18+cb_size]
+
+    def _get_format_name(self, format_code):
+        """
+        오디오 포맷 코드를 이름으로 변환
+        """
+        formats = {
+            0x0001: 'PCM',
+            0x0003: 'IEEE_FLOAT',
+            0x0006: 'A_LAW',
+            0x0007: 'MU_LAW',
+            0x0011: 'IMA_ADPCM',
+            0x0016: 'G723_ADPCM',
+            0x0031: 'GSM',
+            0x0040: 'G721_ADPCM',
+            0xFFFE: 'EXTENSIBLE'
+        }
+        return formats.get(format_code, f'Unknown ({format_code:#04x})')
+
+    def _read_data_chunk(self, f, chunk_size):
+        """
+        Data 청크에서 PCM 데이터 읽기
+        """
+        raw_data = f.read(chunk_size)
+
+        bits = self.metadata['format']['bits_per_sample']
+
+        if bits == 8:
+            # 8-bit는 unsigned
+            self.pcm_data = np.frombuffer(raw_data, dtype=np.uint8)
+            self.pcm_data = (self.pcm_data - 128) / 128.0  # -1.0 ~ 1.0으로 정규화
+        elif bits == 16:
+            self.pcm_data = np.frombuffer(raw_data, dtype=np.int16)
+            self.pcm_data = self.pcm_data / 32768.0
+        elif bits == 24:
+            # 24-bit 특별 처리
+            self.pcm_data = self._decode_24bit(raw_data)
+            self.pcm_data = self.pcm_data / 8388608.0
+        elif bits == 32:
+            if self.metadata['format']['audio_format'] == 3:  # Float
+                self.pcm_data = np.frombuffer(raw_data, dtype=np.float32)
+            else:  # Integer
+                self.pcm_data = np.frombuffer(raw_data, dtype=np.int32)
+                self.pcm_data = self.pcm_data / 2147483648.0
+
+    def _decode_24bit(self, raw_data):
+        """
+        24-bit 데이터 디코딩
+        """
+        samples = []
+        for i in range(0, len(raw_data), 3):
+            sample = (raw_data[i] | 
+                     (raw_data[i+1] << 8) | 
+                     (raw_data[i+2] << 16))
+
+            # 부호 확장
+            if sample & 0x800000:
+                sample |= 0xFF000000
+
+            samples.append(np.int32(sample))
+
+        return np.array(samples, dtype=np.int32)
+
+3. 음향 단위 체계와 완전한 변환 공식
+3.1 모든 음향 단위 간 변환 공식
+pythonimport math
+import numpy as np
+
+class CompleteUnitConverter:
+    """
+    모든 음향 단위 간 완전한 변환 시스템
+    """
+
+    # 기준 상수
+    A4_FREQ = 440.0  # Hz
+    C0_FREQ = 16.3516  # Hz
+    SPEED_OF_SOUND = 343.0  # m/s at 20°C
+
+    def __init__(self):
+        self.reference_freq = self.A4_FREQ
+
+    # ==================== 주파수 관련 변환 ====================
+
+    def hz_to_period(self, hz):
+        """Hz → 주기 (초)"""
+        return 1.0 / hz if hz > 0 else 0
+
+    def period_to_hz(self, period):
+        """주기 (초) → Hz"""
+        return 1.0 / period if period > 0 else 0
+
+    def hz_to_angular_freq(self, hz):
+        """Hz → 각주파수 (rad/s)"""
+        return 2 * np.pi * hz
+
+    def angular_freq_to_hz(self, omega):
+        """각주파수 (rad/s) → Hz"""
+        return omega / (2 * np.pi)
+
+    def hz_to_wavelength(self, hz, speed=None):
+        """Hz → 파장 (미터)"""
+        speed = speed or self.SPEED_OF_SOUND
+        return speed / hz if hz > 0 else 0
+
+    def wavelength_to_hz(self, wavelength, speed=None):
+        """파장 (미터) → Hz"""
+        speed = speed or self.SPEED_OF_SOUND
+        return speed / wavelength if wavelength > 0 else 0
+
+    # ==================== 음악적 단위 변환 ====================
+
+    def hz_to_semitones(self, hz, ref_hz=None):
+        """Hz → Semitones"""
+        ref = ref_hz or self.reference_freq
+        return 12 * np.log2(hz / ref)
+
+    def semitones_to_hz(self, semitones, ref_hz=None):
+        """Semitones → Hz"""
+        ref = ref_hz or self.reference_freq
+        return ref * (2 ** (semitones / 12))
+
+    def hz_to_quartertones(self, hz, ref_hz=None):
+        """Hz → Quarter-tones"""
+        ref = ref_hz or self.reference_freq
+        return 24 * np.log2(hz / ref)
+
+    def quartertones_to_hz(self, quartertones, ref_hz=None):
+        """Quarter-tones → Hz"""
+        ref = ref_hz or self.reference_freq
+        return ref * (2 ** (quartertones / 24))
+
+    def hz_to_cents(self, hz, ref_hz=None):
+        """Hz → Cents"""
+        ref = ref_hz or self.reference_freq
+        return 1200 * np.log2(hz / ref)
+
+    def cents_to_hz(self, cents, ref_hz=None):
+        """Cents → Hz"""
+        ref = ref_hz or self.reference_freq
+        return ref * (2 ** (cents / 1200))
+
+    def hz_to_savarts(self, hz, ref_hz=None):
+        """Hz → Savarts (1000 * log10(f2/f1))"""
+        ref = ref_hz or self.reference_freq
+        return 1000 * np.log10(hz / ref)
+
+    def savarts_to_hz(self, savarts, ref_hz=None):
+        """Savarts → Hz"""
+        ref = ref_hz or self.reference_freq
+        return ref * (10 ** (savarts / 1000))
+
+    def hz_to_octaves(self, hz, ref_hz=None):
+        """Hz → Octaves"""
+        ref = ref_hz or self.reference_freq
+        return np.log2(hz / ref)
+
+    def octaves_to_hz(self, octaves, ref_hz=None):
+        """Octaves → Hz"""
+        ref = ref_hz or self.reference_freq
+        return ref * (2 ** octaves)
+
+    # ==================== MIDI 관련 변환 ====================
+
+    def hz_to_midi(self, hz):
+        """Hz → MIDI Note Number"""
+        return 69 + 12 * np.log2(hz / 440.0)
+
+    def midi_to_hz(self, midi):
+        """MIDI Note Number → Hz"""
+        return 440.0 * (2 ** ((midi - 69) / 12))
+
+    def midi_to_note_name(self, midi):
+        """MIDI → 음이름"""
+        notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        octave = int(midi // 12) - 1
+        note_index = int(midi % 12)
+        return f"{notes[note_index]}{octave}"
+
+    def note_name_to_midi(self, note_name):
+        """음이름 → MIDI"""
+        notes = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+
+        # 파싱 (예: "A#4", "Bb3")
+        base_note = note_name[0]
+        octave = int(note_name[-1])
+
+        midi = (octave + 1) * 12 + notes[base_note]
+
+        if len(note_name) > 2:
+            if '#' in note_name:
+                midi += 1
+            elif 'b' in note_name:
+                midi -= 1
+
+        return midi
+
+    # ==================== 단위 간 직접 변환 ====================
+
+    def semitones_to_cents(self, semitones):
+        """Semitones → Cents"""
+        return semitones * 100
+
+    def cents_to_semitones(self, cents):
+        """Cents → Semitones"""
+        return cents / 100
+
+    def semitones_to_quartertones(self, semitones):
+        """Semitones → Quarter-tones"""
+        return semitones * 2
+
+    def quartertones_to_semitones(self, quartertones):
+        """Quarter-tones → Semitones"""
+        return quartertones / 2
+
+    def quartertones_to_cents(self, quartertones):
+        """Quarter-tones → Cents"""
+        return quartertones * 50
+
+    def cents_to_quartertones(self, cents):
+        """Cents → Quarter-tones"""
+        return cents / 50
+
+    def octaves_to_semitones(self, octaves):
+        """Octaves → Semitones"""
+        return octaves * 12
+
+    def semitones_to_octaves(self, semitones):
+        """Semitones → Octaves"""
+        return semitones / 12
+
+    def octaves_to_cents(self, octaves):
+        """Octaves → Cents"""
+        return octaves * 1200
+
+    def cents_to_octaves(self, cents):
+        """Cents → Octaves"""
+        return cents / 1200
+
+    # ==================== 로그/선형 변환 ====================
+
+    def linear_to_db(self, linear_value, reference=1.0):
+        """선형 값 → dB"""
+        if linear_value <= 0:
+            return -np.inf
+        return 20 * np.log10(linear_value / reference)
+
+    def db_to_linear(self, db_value, reference=1.0):
+        """dB → 선형 값"""
+        return reference * (10 ** (db_value / 20))
+
+    def power_to_db(self, power, reference=1.0):
+        """파워 → dB"""
+        if power <= 0:
+            return -np.inf
+        return 10 * np.log10(power / reference)
+
+    def db_to_power(self, db_value, reference=1.0):
+        """dB → 파워"""
+        return reference * (10 ** (db_value / 10))
+
+    # ==================== Mel Scale 변환 ====================
+
+    def hz_to_mel(self, hz):
+        """Hz → Mel scale"""
+        return 2595 * np.log10(1 + hz / 700)
+
+    def mel_to_hz(self, mel):
+        """Mel scale → Hz"""
+        return 700 * (10 ** (mel / 2595) - 1)
+
+    # ==================== Bark Scale 변환 ====================
+
+    def hz_to_bark(self, hz):
+        """Hz → Bark scale"""
+        return 13 * np.arctan(0.00076 * hz) + 3.5 * np.arctan((hz / 7500) ** 2)
+
+    def bark_to_hz(self, bark):
+        """Bark scale → Hz (근사)"""
+        # Zwicker & Terhardt 근사식
+        if bark < 2:
+            return 600 * np.sinh(bark / 4)
+        elif bark < 20.1:
+            return 600 * np.sinh(bark / 4)
+        else:
+            return (bark + 4.422) * 228.8
+
+    # ==================== ERB (Equivalent Rectangular Bandwidth) ====================
+
+    def hz_to_erb(self, hz):
+        """Hz → ERB scale"""
+        return 21.4 * np.log10(1 + 0.00437 * hz)
+
+    def erb_to_hz(self, erb):
+        """ERB scale → Hz"""
+        return (10 ** (erb / 21.4) - 1) / 0.00437
+
+    def hz_to_erb_rate(self, hz):
+        """Hz → ERB-rate"""
+        return 11.17 * np.log((hz + 312) / (hz + 14675)) + 43
+
+    # ==================== 종합 변환 테이블 ====================
+
+    def create_conversion_table(self, hz):
+        """
+        주어진 Hz에 대한 모든 단위 변환 테이블
+        """
+        return {
+            'frequency': {
+                'hz': hz,
+                'period_ms': self.hz_to_period(hz) * 1000,
+                'angular_freq': self.hz_to_angular_freq(hz),
+                'wavelength_m': self.hz_to_wavelength(hz)
+            },
+            'musical': {
+                'midi': self.hz_to_midi(hz),
+                'note_name': self.midi_to_note_name(int(round(self.hz_to_midi(hz)))),
+                'semitones_from_a4': self.hz_to_semitones(hz),
+                'quartertones_from_a4': self.hz_to_quartertones(hz),
+                'cents_from_a4': self.hz_to_cents(hz),
+                'octaves_from_a4': self.hz_to_octaves(hz),
+                'savarts_from_a4': self.hz_to_savarts(hz)
+            },
+            'psychoacoustic': {
+                'mel': self.hz_to_mel(hz),
+                'bark': self.hz_to_bark(hz),
+                'erb': self.hz_to_erb(hz),
+                'erb_rate': self.hz_to_erb_rate(hz)
+            }
+        }
+3.2 음정 및 화음 분석
+pythonclass IntervalAndChordAnalyzer:
+    """
+    음정 및 화음 분석 시스템
+    """
+
+    def __init__(self):
+        self.converter = CompleteUnitConverter()
+
+        # 음정 정의 (cents)
+        self.intervals = {
+            0: 'Unison',
+            100: 'Minor 2nd',
+            200: 'Major 2nd',
+            300: 'Minor 3rd',
+            400: 'Major 3rd',
+            500: 'Perfect 4th',
+            600: 'Tritone',
+            700: 'Perfect 5th',
+            800: 'Minor 6th',
+            900: 'Major 6th',
+            1000: 'Minor 7th',
+            1100: 'Major 7th',
+            1200: 'Octave'
+        }
+
+        # 화음 정의 (semitones from root)
+        self.chord_types = {
+            'major': [0, 4, 7],
+            'minor': [0, 3, 7],
+            'diminished': [0, 3, 6],
+            'augmented': [0, 4, 8],
+            'major7': [0, 4, 7, 11],
+            'minor7': [0, 3, 7, 10],
+            'dominant7': [0, 4, 7, 10],
+            'diminished7': [0, 3, 6, 9],
+            'half_diminished7': [0, 3, 6, 10],
+            'major6': [0, 4, 7, 9],
+            'minor6': [0, 3, 7, 9],
+            'sus2': [0, 2, 7],
+            'sus4': [0, 5, 7],
+            'add9': [0, 4, 7, 14],
+            'minor_add9': [0, 3, 7, 14]
+        }
+
+    def analyze_interval(self, freq1, freq2):
+        """
+        두 주파수 간 음정 분석
+        """
+        cents = self.converter.hz_to_cents(freq2, freq1)
+        cents_abs = abs(cents)
+
+        # 가장 가까운 음정 찾기
+        closest_interval = min(self.intervals.keys(), 
+                              key=lambda x: abs(x - (cents_abs % 1200)))
+
+        deviation = (cents_abs % 1200) - closest_interval
+        octaves = int(cents_abs // 1200)
+
+        return {
+            'interval_name': self.intervals[closest_interval],
+            'cents': cents,
+            'deviation_cents': deviation,
+            'octaves': octaves,
+            'ratio': freq2 / freq1,
+            'direction': 'up' if cents > 0 else 'down'
+        }
+
+    def identify_chord(self, frequencies):
+        """
+        주파수 집합에서 화음 식별
+        """
+        if len(frequencies) < 2:
+            return None
+
+        # 기본음 찾기 (가장 낮은 음)
+        sorted_freqs = sorted(frequencies)
+        root = sorted_freqs[0]
+
+        # 루트로부터의 semitone 간격 계산
+        intervals = []
+        for freq in sorted_freqs:
+            semitones = round(self.converter.hz_to_semitones(freq, root))
+            intervals.append(semitones % 12)
+
+        # 화음 타입 매칭
+        for chord_name, chord_intervals in self.chord_types.items():
+            if len(intervals) == len(chord_intervals):
+                if all(abs(a - b) < 0.5 for a, b in zip(sorted(intervals), chord_intervals)):
+                    root_note = self.converter.midi_to_note_name(
+                        round(self.converter.hz_to_midi(root))
+                    )
+                    return {
+                        'chord_type': chord_name,
+                        'root_note': root_note,
+                        'root_frequency': root,
+                        'intervals': intervals,
+                        'frequencies': sorted_freqs
+                    }
+
+        return {
+            'chord_type': 'unknown',
+            'intervals': intervals,
+            'frequencies': sorted_freqs
+        }
+
+4. Parrot 음성 분석 라이브러리 완전 가이드
+4.1 Parrot (Praat-Parselmouth) 핵심 기능
+pythonimport parselmouth
+from parselmouth.praat import call
+import numpy as np
+import pandas as pd
+
+class ParrotAnalyzer:
+    """
+    Parrot(Praat-Parselmouth) 음성 분석 완전 구현
+    """
+
+    def __init__(self, sound_file=None):
+        """
+        초기화
+
+        Parameters:
+        -----------
+        sound_file : str or parselmouth.Sound
+            분석할 음성 파일 경로 또는 Sound 객체
+        """
+        if isinstance(sound_file, str):
+            self.sound = parselmouth.Sound(sound_file)
+        elif sound_file is not None:
+            self.sound = sound_file
+        else:
+            self.sound = None
+
+        self.sample_rate = self.sound.sampling_frequency if self.sound else None
+
+    # ==================== 기본 음성 처리 ====================
+
+    def load_sound(self, file_path):
+        """음성 파일 로드"""
+        self.sound = parselmouth.Sound(file_path)
+        self.sample_rate = self.sound.sampling_frequency
+        return self.sound
+
+    def create_sound(self, samples, sample_rate):
+        """NumPy 배열에서 Sound 객체 생성"""
+        self.sound = parselmouth.Sound(samples, sampling_frequency=sample_rate)
+        self.sample_rate = sample_rate
+        return self.sound
+
+    def get_basic_info(self):
+        """기본 정보 추출"""
+        if not self.sound:
+            return None
+
+        return {
+            'duration': self.sound.duration,
+            'sample_rate': self.sound.sampling_frequency,
+            'n_samples': self.sound.n_samples,
+            'n_channels': self.sound.n_channels,
+            'time_range': (self.sound.xmin, self.sound.xmax),
+            'intensity_range': (self.sound.values.min(), self.sound.values.max()),
+            'rms': np.sqrt(np.mean(self.sound.values ** 2))
+        }
+
+    # ==================== 피치 분석 ====================
+
+    def extract_pitch(self, time_step=0.01, pitch_floor=75, pitch_ceiling=600, 
+                      method='cc'):
+        """
+        피치 추출 (F0)
+
+        Parameters:
+        -----------
+        time_step : float
+            시간 간격 (초)
+        pitch_floor : float
+            최소 피치 (Hz)
+        pitch_ceiling : float
+            최대 피치 (Hz)
+        method : str
+            'cc' (cross-correlation) 또는 'ac' (autocorrelation)
+
+        Returns:
+        --------
+        dict : 피치 정보
+        """
+        if method == 'cc':
+            pitch = self.sound.to_pitch(
+                time_step=time_step,
+                pitch_floor=pitch_floor,
+                pitch_ceiling=pitch_ceiling
+            )
+        else:  # ac
+            pitch = self.sound.to_pitch_ac(
+                time_step=time_step,
+                pitch_floor=pitch_floor,
+                pitch_ceiling=pitch_ceiling
+            )
+
+        # 피치 값 추출
+        pitch_values = []
+        times = []
+
+        for i in range(pitch.n_frames):
+            time = pitch.get_time_from_frame_number(i + 1)
+            value = pitch.get_value_at_time(time)
+
+            times.append(time)
+            pitch_values.append(value if value else np.nan)
+
+        # 통계 계산
+        valid_pitches = [p for p in pitch_values if not np.isnan(p)]
+
+        return {
+            'times': np.array(times),
+            'values': np.array(pitch_values),
+            'mean': np.mean(valid_pitches) if valid_pitches else 0,
+            'median': np.median(valid_pitches) if valid_pitches else 0,
+            'std': np.std(valid_pitches) if valid_pitches else 0,
+            'min': np.min(valid_pitches) if valid_pitches else 0,
+            'max': np.max(valid_pitches) if valid_pitches else 0,
+            'pitch_object': pitch
+        }
+
+    def extract_pitch_tier(self, pitch_floor=75, pitch_ceiling=600):
+        """
+        PitchTier 추출 (편집 가능한 피치)
+        """
+        pitch = self.sound.to_pitch(pitch_floor=pitch_floor, 
+                                    pitch_ceiling=pitch_ceiling)
+        pitch_tier = call(pitch, "Down to PitchTier")
+
+        points = []
+        for i in range(call(pitch_tier, "Get number of points")):
+            time = call(pitch_tier, "Get time from index", i + 1)
+            value = call(pitch_tier, "Get value at index", i + 1)
+            points.append({'time': time, 'frequency': value})
+
+        return {
+            'pitch_tier': pitch_tier,
+            'points': points
+        }
+
+    # ==================== 포먼트 분석 ====================
+
+    def extract_formants(self, time_step=0.01, max_formants=5):
+        """
+        포먼트 추출
+
+        Parameters:
+        -----------
+        time_step : float
+            시간 간격
+        max_formants : int
+            추출할 최대 포먼트 수
+
+        Returns:
+        --------
+        dict : 포먼트 정보
+        """
+        formant = self.sound.to_formant_burg(
+            time_step=time_step,
+            max_number_of_formants=max_formants
+        )
+
+        formant_data = {f'F{i+1}': {'times': [], 'values': [], 'bandwidths': []} 
+                       for i in range(max_formants)}
+
+        times = []
+        for frame in range(1, formant.n_frames + 1):
+            time = formant.get_time_from_frame_number(frame)
+            times.append(time)
+
+            for i in range(max_formants):
+                freq = formant.get_value_at_time(i + 1, time)
+                bandwidth = formant.get_bandwidth_at_time(i + 1, time)
+
+                formant_data[f'F{i+1}']['times'].append(time)
+                formant_data[f'F{i+1}']['values'].append(freq if freq else np.nan)
+                formant_data[f'F{i+1}']['bandwidths'].append(bandwidth if bandwidth else np.nan)
+
+        # 통계 추가
+        for key in formant_data:
+            values = [v for v in formant_data[key]['values'] if not np.isnan(v)]
+            if values:
+                formant_data[key]['mean'] = np.mean(values)
+                formant_data[key]['std'] = np.std(values)
+                formant_data[key]['median'] = np.median(values)
+
+        return {
+            'formant_object': formant,
+            'times': np.array(times),
+            'formants': formant_data
+        }
+
+    # ==================== 강도 분석 ====================
+
+    def extract_intensity(self, time_step=None, minimum_pitch=100):
+        """
+        강도(Intensity) 추출
+        """
+        intensity = self.sound.to_intensity(
+            time_step=time_step,
+            minimum_pitch=minimum_pitch
+        )
+
+        times = []
+        values = []
+
+        for i in range(intensity.n_frames):
+            time = intensity.get_time_from_frame_number(i + 1)
+            value = intensity.values[0][i]
+
+            times.append(time)
+            values.append(value)
+
+        values_array = np.array(values)
+
+        return {
+            'times': np.array(times),
+            'values': values_array,
+            'mean_db': np.mean(values_array),
+            'max_db': np.max(values_array),
+            'min_db': np.min(values_array),
+            'std_db': np.std(values_array),
+            'intensity_object': intensity
+        }
+
+    # ==================== 스펙트럼 분석 ====================
+
+    def extract_spectrum(self, time=None):
+        """
+        특정 시점의 스펙트럼 추출
+        """
+        if time is None:
+            time = self.sound.duration / 2
+
+        spectrum = self.sound.to_spectrum()
+
+        frequencies = []
+        magnitudes = []
+
+        for i in range(spectrum.n_bins):
+            freq = spectrum.get_frequency_from_bin_number(i + 1)
+            mag = spectrum.get_real_value_in_bin(i + 1)
+
+            frequencies.append(freq)
+            magnitudes.append(mag)
+
+        return {
+            'frequencies': np.array(frequencies),
+            'magnitudes': np.array(magnitudes),
+            'spectrum_object': spectrum
+        }
+
+    def extract_spectrogram(self, window_length=0.005, time_step=0.002,
+                           frequency_step=20, window_shape='Gaussian'):
+        """
+        스펙트로그램 추출
+        """
+        spectrogram = self.sound.to_spectrogram(
+            window_length=window_length,
+            time_step=time_step,
+            frequency_step=frequency_step,
+            window_shape=window_shape
+        )
+
+        # 시간과 주파수 축
+        times = np.linspace(spectrogram.xmin, spectrogram.xmax, spectrogram.nx)
+        frequencies = np.linspace(spectrogram.ymin, spectrogram.ymax, spectrogram.ny)
+
+        # 파워 값 (dB)
+        power_db = 10 * np.log10(spectrogram.values + 1e-10)
+
+        return {
+            'times': times,
+            'frequencies': frequencies,
+            'power_db': power_db,
+            'spectrogram_object': spectrogram
+        }
+
+    # ==================== MFCC 분석 ====================
+
+    def extract_mfcc(self, n_coefficients=12, window_length=0.015, 
+                     time_step=0.005, firstFilterFreqency=100, 
+                     distance_between_filters=100):
+        """
+        MFCC (Mel-frequency cepstral coefficients) 추출
+        """
+        mfcc = self.sound.to_mfcc(
+            number_of_coefficients=n_coefficients,
+            window_length=window_length,
+            time_step=time_step,
+            firstFilterFreqency=firstFilterFreqency,
+            distance_between_filters=distance_between_filters
+        )
+
+        # 각 계수별 시계열 데이터
+        mfcc_data = {}
+        times = []
+
+        for frame in range(1, mfcc.n_frames + 1):
+            time = mfcc.get_time_from_frame_number(frame)
+            times.append(time)
+
+            for coef in range(n_coefficients):
+                if f'mfcc_{coef}' not in mfcc_data:
+                    mfcc_data[f'mfcc_{coef}'] = []
+
+                value = mfcc.get_value(frame, coef + 1)
+                mfcc_data[f'mfcc_{coef}'].append(value)
+
+        # NumPy 배열로 변환
+        mfcc_matrix = np.array([mfcc_data[f'mfcc_{i}'] 
+                                for i in range(n_coefficients)]).T
+
+        return {
+            'times': np.array(times),
+            'coefficients': mfcc_matrix,
+            'mfcc_object': mfcc,
+            'mean_mfcc': np.mean(mfcc_matrix, axis=0),
+            'std_mfcc': np.std(mfcc_matrix, axis=0)
+        }
+
+    # ==================== 하모니시티 분석 ====================
+
+    def extract_harmonicity(self, time_step=0.01, minimum_pitch=75, 
+                           silence_threshold=0.1, periods_per_window=1.0):
+        """
+        하모니시티 (HNR: Harmonics-to-Noise Ratio) 추출
+        """
+        harmonicity = call(self.sound, "To Harmonicity (cc)", 
+                          time_step, minimum_pitch, 
+                          silence_threshold, periods_per_window)
+
+        times = []
+        hnr_values = []
+
+        for i in range(call(harmonicity, "Get number of frames")):
+            time = call(harmonicity, "Get time from frame number", i + 1)
+            hnr = call(harmonicity, "Get value in frame", i + 1, 1)
+
+            times.append(time)
+            hnr_values.append(hnr if hnr != -200 else np.nan)  # -200은 무성음
+
+        valid_hnr = [h for h in hnr_values if not np.isnan(h)]
+
+        return {
+            'times': np.array(times),
+            'hnr_values': np.array(hnr_values),
+            'mean_hnr': np.mean(valid_hnr) if valid_hnr else 0,
+            'std_hnr': np.std(valid_hnr) if valid_hnr else 0,
+            'harmonicity_object': harmonicity
+        }
+
+    # ==================== 지터와 시머 ====================
+
+    def extract_jitter(self, pitch_floor=75, pitch_ceiling=600):
+        """
+        지터 (Jitter) 측정 - 피치 변동성
+        """
+        pitch = self.sound.to_pitch(pitch_floor=pitch_floor, 
+                                    pitch_ceiling=pitch_ceiling)
+        point_process = call(self.sound, "To PointProcess (periodic, cc)", 
+                            pitch_floor, pitch_ceiling)
+
+        jitter_metrics = {
+            'local': call(point_process, "Get jitter (local)", 
+                         0, 0, 0.0001, 0.02, 1.3),
+            'local_absolute': call(point_process, "Get jitter (local, absolute)", 
+                                  0, 0, 0.0001, 0.02, 1.3),
+            'rap': call(point_process, "Get jitter (rap)", 
+                       0, 0, 0.0001, 0.02, 1.3),
+            'ppq5': call(point_process, "Get jitter (ppq5)", 
+                        0, 0, 0.0001, 0.02, 1.3),
+            'ddp': call(point_process, "Get jitter (ddp)", 
+                       0, 0, 0.0001, 0.02, 1.3)
+        }
+
+        return jitter_metrics
+
+    def extract_shimmer(self, pitch_floor=75, pitch_ceiling=600):
+        """
+        시머 (Shimmer) 측정 - 진폭 변동성
+        """
+        pitch = self.sound.to_pitch(pitch_floor=pitch_floor, 
+                                    pitch_ceiling=pitch_ceiling)
+        point_process = call(self.sound, "To PointProcess (periodic, cc)", 
+                            pitch_floor, pitch_ceiling)
+
+        shimmer_metrics = {
+            'local': call([self.sound, point_process], "Get shimmer (local)", 
+                         0, 0, 0.0001, 0.02, 1.3, 1.6),
+            'local_db': call([self.sound, point_process], "Get shimmer (local, dB)", 
+                            0, 0, 0.0001, 0.02, 1.3, 1.6),
+            'apq3': call([self.sound, point_process], "Get shimmer (apq3)", 
+                        0, 0, 0.0001, 0.02, 1.3, 1.6),
+            'apq5': call([self.sound, point_process], "Get shimmer (apq5)", 
+                        0, 0, 0.0001, 0.02, 1.3, 1.6),
+            'apq11': call([self.sound, point_process], "Get shimmer (apq11)", 
+                         0, 0, 0.0001, 0.02, 1.3, 1.6),
+            'dda': call([self.sound, point_process], "Get shimmer (dda)", 
+                       0, 0, 0.0001, 0.02, 1.3, 1.6)
+        }
+
+        return shimmer_metrics
+
+    # ==================== 음성 품질 분석 ====================
+
+    def extract_voice_quality_measures(self):
+        """
+        종합적인 음성 품질 측정
+        """
+        pitch_floor = 75
+        pitch_ceiling = 600
+
+        # 기본 측정
+        pitch_data = self.extract_pitch(pitch_floor=pitch_floor, 
+                                       pitch_ceiling=pitch_ceiling)
+        intensity_data = self.extract_intensity()
+        harmonicity_data = self.extract_harmonicity()
+
+        # 지터와 시머
+        jitter = self.extract_jitter(pitch_floor, pitch_ceiling)
+        shimmer = self.extract_shimmer(pitch_floor, pitch_ceiling)
+
+        # 포먼트
+        formants = self.extract_formants()
+
+        return {
+            'pitch': {
+                'mean': pitch_data['mean'],
+                'std': pitch_data['std'],
+                'range': (pitch_data['min'], pitch_data['max'])
+            },
+            'intensity': {
+                'mean': intensity_data['mean_db'],
+                'std': intensity_data['std_db'],
+                'range': (intensity_data['min_db'], intensity_data['max_db'])
+            },
+            'harmonicity': {
+                'mean_hnr': harmonicity_data['mean_hnr'],
+                'std_hnr': harmonicity_data['std_hnr']
+            },
+            'jitter': jitter,
+            'shimmer': shimmer,
+            'formants': {
+                'F1_mean': formants['formants']['F1'].get('mean', 0),
+                'F2_mean': formants['formants']['F2'].get('mean', 0),
+                'F3_mean': formants['formants']['F3'].get('mean', 0)
+            }
+        }
+
+    # ==================== 시간 영역 분석 ====================
+
+    def extract_zero_crossing_rate(self, frame_length=0.02, hop_length=0.01):
+        """
+        영교차율 (Zero Crossing Rate) 계산
+        """
+        samples = self.sound.values[0]
+        sample_rate = self.sound.sampling_frequency
+
+        frame_samples = int(frame_length * sample_rate)
+        hop_samples = int(hop_length * sample_rate)
+
+        zcr = []
+        times = []
+
+        for i in range(0, len(samples) - frame_samples, hop_samples):
+            frame = samples[i:i + frame_samples]
+            crossings = np.sum(np.abs(np.diff(np.sign(frame)))) / 2
+            zcr_value = crossings / frame_samples
+
+            zcr.append(zcr_value)
+            times.append(i / sample_rate)
+
+        return {
+            'times': np.array(times),
+            'zcr': np.array(zcr),
+            'mean_zcr': np.mean(zcr),
+            'std_zcr': np.std(zcr)
+        }
+
+    # ==================== 스펙트럴 특징 ====================
+
+    def extract_spectral_features(self, frame_length=0.02, hop_length=0.01):
+        """
+        스펙트럴 특징 추출
+        """
+        spectrogram = self.extract_spectrogram()
+        power = spectrogram['power_db']
+        frequencies = spectrogram['frequencies']
+
+        spectral_features = {
+            'spectral_centroid': [],
+            'spectral_spread': [],
+            'spectral_skewness': [],
+            'spectral_kurtosis': [],
+            'spectral_rolloff': [],
+            'spectral_flux': [],
+            'spectral_entropy': []
+        }
+
+        for frame_idx in range(power.shape[1]):
+            spectrum = power[:, frame_idx]
+            spectrum_linear = 10 ** (spectrum / 10)
+
+            # Spectral Centroid
+            centroid = np.sum(frequencies * spectrum_linear) / np.sum(spectrum_linear)
+            spectral_features['spectral_centroid'].append(centroid)
+
+            # Spectral Spread
+            spread = np.sqrt(np.sum(((frequencies - centroid) ** 2) * spectrum_linear) / 
+                           np.sum(spectrum_linear))
+            spectral_features['spectral_spread'].append(spread)
+
+            # Spectral Skewness
+            skewness = np.sum(((frequencies - centroid) ** 3) * spectrum_linear) / \
+                      (np.sum(spectrum_linear) * spread ** 3)
+            spectral_features['spectral_skewness'].append(skewness)
+
+            # Spectral Kurtosis
+            kurtosis = np.sum(((frequencies - centroid) ** 4) * spectrum_linear) / \
+                      (np.sum(spectrum_linear) * spread ** 4) - 3
+            spectral_features['spectral_kurtosis'].append(kurtosis)
+
+            # Spectral Rolloff
+            cumsum = np.cumsum(spectrum_linear)
+            rolloff_idx = np.where(cumsum >= 0.85 * cumsum[-1])[0][0]
+            spectral_features['spectral_rolloff'].append(frequencies[rolloff_idx])
+
+            # Spectral Flux
+            if frame_idx > 0:
+                prev_spectrum = 10 ** (power[:, frame_idx - 1] / 10)
+                flux = np.sum((spectrum_linear - prev_spectrum) ** 2)
+                spectral_features['spectral_flux'].append(flux)
+            else:
+                spectral_features['spectral_flux'].append(0)
+
+            # Spectral Entropy
+            spectrum_norm = spectrum_linear / np.sum(spectrum_linear)
+            entropy = -np.sum(spectrum_norm * np.log2(spectrum_norm + 1e-10))
+            spectral_features['spectral_entropy'].append(entropy)
+
+        # NumPy 배열로 변환 및 통계
+        for key in spectral_features:
+            spectral_features[key] = np.array(spectral_features[key])
+
+        return spectral_features
+4.2 고급 Parrot 분석 기능
+pythonclass AdvancedParrotAnalyzer(ParrotAnalyzer):
+    """
+    고급 Parrot 분석 기능
+    """
+
+    def __init__(self, sound_file=None):
+        super().__init__(sound_file)
+
+    # ==================== 음성 조작 ====================
+
+    def change_pitch(self, semitones=0, maintain_duration=True):
+        """
+        피치 변경
+        """
+        factor = 2 ** (semitones / 12)
+
+        if maintain_duration:
+            # PSOLA 방법 사용
+            manipulated = call(self.sound, "Change pitch", factor)
+        else:
+            # 단순 리샘플링
+            new_sample_rate = self.sound.sampling_frequency * factor
+            manipulated = call(self.sound, "Resample", new_sample_rate, 50)
+
+        return manipulated
+
+    def change_duration(self, factor=1.0, maintain_pitch=True):
+        """
+        지속 시간 변경
+        """
+        if maintain_pitch:
+            # PSOLA 사용
+            manipulated = call(self.sound, "Lengthen (PSOLA)", factor)
+        else:
+            # 단순 리샘플링
+            new_sample_rate = self.sound.sampling_frequency / factor
+            manipulated = call(self.sound, "Resample", new_sample_rate, 50)
+
+        return manipulated
+
+    def apply_formant_shift(self, shift_ratio=1.0):
+        """
+        포먼트 시프트 (음색 변경)
+        """
+        # LPC 분석
+        lpc = call(self.sound, "To LPC (autocorrelation)", 
+                  16, 0.025, 0.005, 50)
+
+        # 포먼트 조작
+        formant = call(lpc, "To Formant")
+        manipulated_formant = call(formant, "Formula (frequencies)", 
+                                   f"self * {shift_ratio}")
+
+        # 재합성
+        source = call([self.sound, lpc], "Filter (inverse)")
+        result = call([source, manipulated_formant], "Filter")
+
+        return result
+
+    # ==================== 음성 인식 특징 ====================
+
+    def extract_lpc_coefficients(self, n_coefficients=12, 
+                                window_length=0.025, time_step=0.005):
+        """
+        LPC (Linear Predictive Coding) 계수 추출
+        """
+        lpc = call(self.sound, "To LPC (autocorrelation)", 
+                  n_coefficients, window_length, time_step, 50)
+
+        times = []
+        lpc_coeffs = []
+
+        for frame in range(1, call(lpc, "Get number of frames") + 1):
+            time = call(lpc, "Get time from frame number", frame)
+            times.append(time)
+
+            coeffs = []
+            for i in range(1, n_coefficients + 1):
+                coeff = call(lpc, "Get value in frame", frame, i)
+                coeffs.append(coeff)
+
+            lpc_coeffs.append(coeffs)
+
+        return {
+            'times': np.array(times),
+            'coefficients': np.array(lpc_coeffs),
+            'lpc_object': lpc
+        }
+
+    def extract_plp_coefficients(self, n_coefficients=12):
+        """
+        PLP (Perceptual Linear Prediction) 계수 추출
+        """
+        # Bark 스케일 필터뱅크 적용
+        spectrum = self.sound.to_spectrum()
+
+        # Bark 변환
+        bark_spectrum = call(spectrum, "To BarkFilter")
+
+        # Equal-loudness 전처리
+        preprocessed = call(bark_spectrum, "Equalize")
+
+        # LPC 분석
+        lpc = call(preprocessed, "To LPC", n_coefficients)
+
+        return lpc
+
+    # ==================== 음성/음악 분류 ====================
+
+    def classify_voiced_unvoiced(self, frame_length=0.02, threshold=0.3):
+        """
+        유성음/무성음 분류
+        """
+        # HNR 기반 분류
+        harmonicity = self.extract_harmonicity()
+        hnr_values = harmonicity['hnr_values']
+
+        # 영교차율 기반 분류
+        zcr = self.extract_zero_crossing_rate(frame_length)
+
+        classifications = []
+        for i in range(min(len(hnr_values), len(zcr['zcr']))):
+            if not np.isnan(hnr_values[i]) and hnr_values[i] > 0:
+                # 유성음
+                classifications.append('voiced')
+            elif zcr['zcr'][i] > threshold:
+                # 무성음 (높은 ZCR)
+                classifications.append('unvoiced')
+            else:
+                # 무음
+                classifications.append('silence')
+
+        return {
+            'classifications': classifications,
+            'voiced_ratio': classifications.count('voiced') / len(classifications),
+            'unvoiced_ratio': classifications.count('unvoiced') / len(classifications),
+            'silence_ratio': classifications.count('silence') / len(classifications)
+        }
+
+    # ==================== 감정 분석 특징 ====================
+
+    def extract_emotion_features(self):
+        """
+        감정 인식을 위한 특징 추출
+        """
+        features = {}
+
+        # 프로소디 특징
+        pitch = self.extract_pitch()
+        features['pitch_mean'] = pitch['mean']
+        features['pitch_std'] = pitch['std']
+        features['pitch_range'] = pitch['max'] - pitch['min']
+        features['pitch_median'] = pitch['median']
+
+        # 에너지 특징
+        intensity = self.extract_intensity()
+        features['intensity_mean'] = intensity['mean_db']
+        features['intensity_std'] = intensity['std_db']
+        features['intensity_range'] = intensity['max_db'] - intensity['min_db']
+
+        # 음질 특징
+        hnr = self.extract_harmonicity()
+        features['hnr_mean'] = hnr['mean_hnr']
+        features['hnr_std'] = hnr['std_hnr']
+
+        jitter = self.extract_jitter()
+        features['jitter_local'] = jitter['local']
+        features['jitter_rap'] = jitter['rap']
+
+        shimmer = self.extract_shimmer()
+        features['shimmer_local'] = shimmer['local']
+        features['shimmer_apq5'] = shimmer['apq5']
+
+        # 스펙트럴 특징
+        spectral = self.extract_spectral_features()
+        features['spectral_centroid_mean'] = np.mean(spectral['spectral_centroid'])
+        features['spectral_centroid_std'] = np.std(spectral['spectral_centroid'])
+        features['spectral_rolloff_mean'] = np.mean(spectral['spectral_rolloff'])
+        features['spectral_flux_mean'] = np.mean(spectral['spectral_flux'])
+
+        # MFCC
+        mfcc = self.extract_mfcc()
+        for i in range(13):
+            features[f'mfcc_{i}_mean'] = mfcc['mean_mfcc'][i] if i < len(mfcc['mean_mfcc']) else 0
+            features[f'mfcc_{i}_std'] = mfcc['std_mfcc'][i] if i < len(mfcc['std_mfcc']) else 0
+
+        # 템포 특징
+        tempo = self.estimate_tempo()
+        features['tempo'] = tempo['tempo']
+        features['tempo_confidence'] = tempo['confidence']
+
+        return features
+
+    def estimate_tempo(self):
+        """
+        템포 추정 (BPM)
+        """
+        # 에너지 엔벨로프
+        intensity = self.extract_intensity()
+        envelope = intensity['values']
+
+        # 자기상관
+        correlation = np.correlate(envelope, envelope, mode='full')
+        correlation = correlation[len(correlation)//2:]
+
+        # BPM 범위 (60-200 BPM)
+        sample_rate = 1 / (intensity['times'][1] - intensity['times'][0])
+        min_lag = int(sample_rate * 60 / 200)  # 200 BPM
+        max_lag = int(sample_rate * 60 / 60)   # 60 BPM
+
+        # 피크 찾기
+        correlation_window = correlation[min_lag:max_lag]
+        if len(correlation_window) > 0:
+            peak_lag = np.argmax(correlation_window) + min_lag
+            tempo = 60 * sample_rate / peak_lag
+            confidence = correlation[peak_lag] / correlation[0]
+        else:
+            tempo = 0
+            confidence = 0
+
+        return {
+            'tempo': tempo,
+            'confidence': confidence
+        }
+
+5. 신호 처리 파이프라인
+5.1 통합 파이프라인
+pythonclass IntegratedAudioPipeline:
+    """
+    PCM, WAV, 단위 변환, Parrot 분석을 통합한 파이프라인
+    """
+
+    def __init__(self):
+        self.pcm_processor = PCMProcessor()
+        self.재시도박계속편집pythonclass IntegratedAudioPipeline:
+   """
+   PCM, WAV, 단위 변환, Parrot 분석을 통합한 파이프라인
+   """
+
+   def __init__(self):
+       self.pcm_processor = PCMProcessor()
+       self.wav_processor = AdvancedWAVProcessor()
+       self.unit_converter = CompleteUnitConverter()
+       self.parrot_analyzer = AdvancedParrotAnalyzer()
+       self.interval_analyzer = IntervalAndChordAnalyzer()
+
+   def process_audio_file(self, input_file, output_format='json'):
+       """
+       오디오 파일 완전 분석
+       """
+       print(f"Processing: {input_file}")
+       print("=" * 60)
+
+       # 1. WAV 파일 읽기 및 PCM 데이터 추출
+       pcm_data, metadata = self.wav_processor.read_wav_complete(input_file)
+
+       # 2. Parrot으로 Sound 객체 생성
+       self.parrot_analyzer.load_sound(input_file)
+
+       # 3. 전체 분석 수행
+       analysis_results = self._perform_complete_analysis()
+
+       # 4. 결과 포맷팅
+       if output_format == 'json':
+           return self._format_json_output(analysis_results)
+       elif output_format == 'dataframe':
+           return self._format_dataframe_output(analysis_results)
+       else:
+           return analysis_results
+
+   def _perform_complete_analysis(self):
+       """
+       모든 분석 수행
+       """
+       results = {}
+
+       # 기본 정보
+       results['basic_info'] = self.parrot_analyzer.get_basic_info()
+
+       # 피치 분석
+       results['pitch'] = self._analyze_pitch()
+
+       # 포먼트 분석
+       results['formants'] = self.parrot_analyzer.extract_formants()
+
+       # 스펙트럴 분석
+       results['spectral'] = self.parrot_analyzer.extract_spectral_features()
+
+       # 음성 품질
+       results['voice_quality'] = self.parrot_analyzer.extract_voice_quality_measures()
+
+       # 감정 특징
+       results['emotion_features'] = self.parrot_analyzer.extract_emotion_features()
+
+       # MFCC
+       results['mfcc'] = self.parrot_analyzer.extract_mfcc()
+
+       # 음성/무성음 분류
+       results['voicing'] = self.parrot_analyzer.classify_voiced_unvoiced()
+
+       return results
+
+   def _analyze_pitch(self):
+       """
+       상세 피치 분석 with 단위 변환
+       """
+       pitch_data = self.parrot_analyzer.extract_pitch()
+
+       # 각 피치 값에 대한 단위 변환
+       converted_pitches = []
+       for pitch_hz in pitch_data['values']:
+           if not np.isnan(pitch_hz) and pitch_hz > 0:
+               conversion = self.unit_converter.create_conversion_table(pitch_hz)
+               converted_pitches.append(conversion)
+
+       # 평균 피치의 단위 변환
+       if pitch_data['mean'] > 0:
+           mean_conversion = self.unit_converter.create_conversion_table(pitch_data['mean'])
+       else:
+           mean_conversion = None
+
+       return {
+           'raw_data': pitch_data,
+           'converted_values': converted_pitches,
+           'mean_conversion': mean_conversion,
+           'statistics': {
+               'mean_hz': pitch_data['mean'],
+               'mean_semitones_from_a4': self.unit_converter.hz_to_semitones(pitch_data['mean']) if pitch_data['mean'] > 0 else None,
+               'mean_midi': self.unit_converter.hz_to_midi(pitch_data['mean']) if pitch_data['mean'] > 0 else None,
+               'mean_note': self.unit_converter.midi_to_note_name(round(self.unit_converter.hz_to_midi(pitch_data['mean']))) if pitch_data['mean'] > 0 else None
+           }
+       }
+
+   def _format_json_output(self, results):
+       """
+       JSON 형식으로 출력 포맷
+       """
+       import json
+
+       # NumPy 배열을 리스트로 변환
+       def convert_numpy(obj):
+           if isinstance(obj, np.ndarray):
+               return obj.tolist()
+           elif isinstance(obj, dict):
+               return {key: convert_numpy(value) for key, value in obj.items()}
+           elif isinstance(obj, list):
+               return [convert_numpy(item) for item in obj]
+           elif isinstance(obj, (np.integer, np.floating)):
+               return float(obj)
+           else:
+               return obj
+
+       # Parselmouth 객체 제거
+       def remove_objects(obj):
+           if isinstance(obj, dict):
+               return {key: remove_objects(value) 
+                      for key, value in obj.items() 
+                      if not key.endswith('_object')}
+           elif isinstance(obj, list):
+               return [remove_objects(item) for item in obj]
+           else:
+               return obj
+
+       cleaned = remove_objects(results)
+       converted = convert_numpy(cleaned)
+
+       return json.dumps(converted, indent=2)
+
+   def _format_dataframe_output(self, results):
+       """
+       DataFrame 형식으로 출력 포맷
+       """
+       import pandas as pd
+
+       # 플랫한 딕셔너리 생성
+       flat_dict = {}
+
+       def flatten(obj, prefix=''):
+           if isinstance(obj, dict):
+               for key, value in obj.items():
+                   if not key.endswith('_object'):
+                       new_key = f"{prefix}_{key}" if prefix else key
+                       if isinstance(value, (dict, list)):
+                           flatten(value, new_key)
+                       else:
+                           flat_dict[new_key] = value
+           elif isinstance(obj, list) and len(obj) > 0:
+               if isinstance(obj[0], (int, float)):
+                   flat_dict[prefix + '_mean'] = np.mean(obj)
+                   flat_dict[prefix + '_std'] = np.std(obj)
+                   flat_dict[prefix + '_min'] = np.min(obj)
+                   flat_dict[prefix + '_max'] = np.max(obj)
+
+       flatten(results)
+
+       return pd.DataFrame([flat_dict])
+5.2 실시간 처리 파이프라인
+pythonimport threading
+import queue
+import pyaudio
+import time
+
+class RealtimeAudioPipeline:
+    """
+    실시간 오디오 처리 파이프라인
+    """
+
+    def __init__(self, sample_rate=44100, buffer_size=2048, 
+                 overlap=0.5, process_interval=0.1):
+        self.sample_rate = sample_rate
+        self.buffer_size = buffer_size
+        self.overlap = overlap
+        self.process_interval = process_interval
+
+        # 처리 모듈
+        self.unit_converter = CompleteUnitConverter()
+        self.parrot_analyzer = AdvancedParrotAnalyzer()
+
+        # 오디오 스트림
+        self.pa = pyaudio.PyAudio()
+        self.stream = None
+
+        # 큐와 버퍼
+        self.audio_queue = queue.Queue()
+        self.results_queue = queue.Queue()
+        self.audio_buffer = np.zeros(buffer_size * 2)
+
+        # 스레드 제어
+        self.running = False
+        self.processing_thread = None
+
+    def start(self, callback=None):
+        """
+        실시간 처리 시작
+        """
+        # 오디오 스트림 열기
+        self.stream = self.pa.open(
+            format=pyaudio.paFloat32,
+            channels=1,
+            rate=self.sample_rate,
+            input=True,
+            frames_per_buffer=self.buffer_size,
+            stream_callback=self._audio_callback
+        )
+
+        self.running = True
+        self.stream.start_stream()
+
+        # 처리 스레드 시작
+        self.processing_thread = threading.Thread(
+            target=self._processing_loop,
+            args=(callback,)
+        )
+        self.processing_thread.start()
+
+        print(f"Real-time processing started at {self.sample_rate} Hz")
+
+    def _audio_callback(self, in_data, frame_count, time_info, status):
+        """
+        오디오 콜백
+        """
+        if status:
+            print(f"Stream status: {status}")
+
+        # 데이터를 큐에 추가
+        self.audio_queue.put(in_data)
+
+        return (in_data, pyaudio.paContinue)
+
+    def _processing_loop(self, callback):
+        """
+        메인 처리 루프
+        """
+        hop_size = int(self.buffer_size * (1 - self.overlap))
+
+        while self.running:
+            if not self.audio_queue.empty():
+                # 오디오 데이터 가져오기
+                raw_data = self.audio_queue.get()
+                samples = np.frombuffer(raw_data, dtype=np.float32)
+
+                # 슬라이딩 윈도우 버퍼 업데이트
+                self.audio_buffer = np.roll(self.audio_buffer, -len(samples))
+                self.audio_buffer[-len(samples):] = samples
+
+                # 처리
+                results = self._process_buffer(self.audio_buffer[-self.buffer_size:])
+
+                # 결과 저장
+                self.results_queue.put(results)
+
+                # 콜백 실행
+                if callback:
+                    callback(results)
+
+            time.sleep(self.process_interval)
+
+    def _process_buffer(self, buffer):
+        """
+        버퍼 처리
+        """
+        results = {}
+
+        # 1. 기본 통계
+        results['rms'] = np.sqrt(np.mean(buffer ** 2))
+        results['peak'] = np.max(np.abs(buffer))
+        results['zero_crossings'] = np.sum(np.abs(np.diff(np.sign(buffer)))) / 2
+
+        # 2. FFT 기반 피치 검출
+        fft = np.fft.fft(buffer * np.hanning(len(buffer)))
+        magnitude = np.abs(fft[:len(fft)//2])
+        frequencies = np.fft.fftfreq(len(buffer), 1/self.sample_rate)[:len(fft)//2]
+
+        # 피크 주파수
+        peak_idx = np.argmax(magnitude[20:2000]) + 20  # 20Hz ~ 2000Hz 범위
+        peak_freq = frequencies[peak_idx]
+
+        if peak_freq > 50:
+            results['pitch_hz'] = peak_freq
+
+            # 3. 단위 변환
+            conversion = self.unit_converter.create_conversion_table(peak_freq)
+            results['pitch_conversion'] = conversion
+
+            # 4. 음이름
+            midi = self.unit_converter.hz_to_midi(peak_freq)
+            results['note'] = self.unit_converter.midi_to_note_name(round(midi))
+            results['cents_deviation'] = (midi - round(midi)) * 100
+        else:
+            results['pitch_hz'] = None
+            results['note'] = 'Silence'
+
+        # 5. Parrot 분석 (선택적 - 더 긴 버퍼가 필요할 수 있음)
+        if len(buffer) >= 2048:
+            # Sound 객체 생성
+            sound = parselmouth.Sound(buffer, sampling_frequency=self.sample_rate)
+
+            # 간단한 분석
+            try:
+                pitch = sound.to_pitch(time_step=None, pitch_floor=75, pitch_ceiling=600)
+                pitch_value = pitch.selected_array['frequency'][0]
+                if pitch_value > 0:
+                    results['parrot_pitch'] = pitch_value
+
+                # HNR
+                harmonicity = call(sound, "To Harmonicity (cc)", 0.01, 75, 0.1, 1.0)
+                hnr_value = call(harmonicity, "Get mean", 0, 0)
+                results['hnr'] = hnr_value
+            except:
+                pass
+
+        results['timestamp'] = time.time()
+
+        return results
+
+    def stop(self):
+        """
+        실시간 처리 중지
+        """
+        self.running = False
+
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+
+        if self.processing_thread:
+            self.processing_thread.join()
+
+        self.pa.terminate()
+
+        print("Real-time processing stopped")
+
+    def get_latest_results(self, n=10):
+        """
+        최근 결과 가져오기
+        """
+        results = []
+        while not self.results_queue.empty() and len(results) < n:
+            results.append(self.results_queue.get())
+        return results
+
+6. 실제 구현과 통합 응용
+6.1 음성 변환 시스템
+pythonclass VoiceConversionSystem:
+    """
+    완전한 음성 변환 시스템
+    """
+
+    def __init__(self):
+        self.parrot = AdvancedParrotAnalyzer()
+        self.converter = CompleteUnitConverter()
+
+    def pitch_shift_semitones(self, input_file, semitones, output_file):
+        """
+        세미톤 단위로 피치 시프트
+        """
+        # 파일 로드
+        self.parrot.load_sound(input_file)
+
+        # 피치 시프트
+        shifted = self.parrot.change_pitch(semitones, maintain_duration=True)
+
+        # 저장
+        shifted.save(output_file, "WAV")
+
+        # 분석 리포트
+        original_pitch = self.parrot.extract_pitch()['mean']
+        self.parrot.sound = shifted
+        new_pitch = self.parrot.extract_pitch()['mean']
+
+        return {
+            'original_pitch_hz': original_pitch,
+            'new_pitch_hz': new_pitch,
+            'original_note': self.converter.midi_to_note_name(
+                round(self.converter.hz_to_midi(original_pitch))
+            ) if original_pitch > 0 else None,
+            'new_note': self.converter.midi_to_note_name(
+                round(self.converter.hz_to_midi(new_pitch))
+            ) if new_pitch > 0 else None,
+            'actual_shift_semitones': self.converter.hz_to_semitones(
+                new_pitch, original_pitch
+            ) if original_pitch > 0 and new_pitch > 0 else None
+        }
+
+    def auto_tune_to_scale(self, input_file, output_file, 
+                          scale='major', key='C', strength=1.0):
+        """
+        스케일에 맞춰 자동 튜닝
+        """
+        # 스케일 정의
+        scales = {
+            'major': [0, 2, 4, 5, 7, 9, 11],
+            'minor': [0, 2, 3, 5, 7, 8, 10],
+            'pentatonic': [0, 2, 4, 7, 9],
+            'blues': [0, 3, 5, 6, 7, 10],
+            'chromatic': list(range(12))
+        }
+
+        # 키 변환
+        key_offsets = {
+            'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+            'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+        }
+
+        # 파일 로드
+        sound = parselmouth.Sound(input_file)
+
+        # 피치 트랙 추출
+        pitch = sound.to_pitch()
+
+        # 피치 수정
+        for i in range(pitch.n_frames):
+            time = pitch.get_time_from_frame_number(i + 1)
+            freq = pitch.get_value_at_time(time)
+
+            if freq and freq > 0:
+                # 현재 노트 찾기
+                midi = self.converter.hz_to_midi(freq)
+                note_in_octave = (midi - key_offsets[key]) % 12
+
+                # 가장 가까운 스케일 노트 찾기
+                scale_notes = scales[scale]
+                closest = min(scale_notes, 
+                            key=lambda x: min(abs(x - note_in_octave), 
+                                            abs(x - note_in_octave + 12),
+                                            abs(x - note_in_octave - 12)))
+
+                # 목표 주파수 계산
+                target_midi = int(midi / 12) * 12 + closest + key_offsets[key]
+                target_freq = self.converter.midi_to_hz(target_midi)
+
+                # 보간 적용
+                corrected_freq = freq + (target_freq - freq) * strength
+
+                # 피치 업데이트
+                call(pitch, "Set value at time", time, corrected_freq)
+
+        # 재합성
+        manipulation = call(sound, "To Manipulation", 0.01, 75, 600)
+        pitch_tier = call(pitch, "Down to PitchTier")
+        call(manipulation, "Replace pitch tier", pitch_tier)
+        result = call(manipulation, "Get resynthesis (overlap-add)")
+
+        # 저장
+        call(result, "Save as WAV file", output_file)
+
+        return {
+            'scale': scale,
+            'key': key,
+            'strength': strength,
+            'output_file': output_file
+        }
+
+    def formant_morph(self, source_file, target_file, output_file, morph_factor=0.5):
+        """
+        포먼트 모핑 (음색 변환)
+        """
+        # 소스와 타겟 로드
+        source = parselmouth.Sound(source_file)
+        target = parselmouth.Sound(target_file)
+
+        # 포먼트 추출
+        source_formant = source.to_formant_burg()
+        target_formant = target.to_formant_burg()
+
+        # 모핑된 포먼트 생성
+        morphed_formant = call(source_formant, "Copy")
+
+        for frame in range(1, call(morphed_formant, "Get number of frames") + 1):
+            time = call(morphed_formant, "Get time from frame number", frame)
+
+            for formant_num in range(1, 6):  # F1-F5
+                source_freq = call(source_formant, "Get value at time", 
+                                 formant_num, time, "Hertz", "Linear")
+                target_freq = call(target_formant, "Get value at time", 
+                                 formant_num, time, "Hertz", "Linear")
+
+                if source_freq and target_freq:
+                    morphed_freq = source_freq + (target_freq - source_freq) * morph_factor
+                    call(morphed_formant, "Set value at time", 
+                        formant_num, time, morphed_freq)
+
+        # LPC 기반 재합성
+        source_lpc = call(source, "To LPC (autocorrelation)", 16, 0.025, 0.005, 50)
+        source_residual = call([source, source_lpc], "Filter (inverse)")
+
+        # 모핑된 포먼트로 필터링
+        result = call([source_residual, morphed_formant], "Filter")
+
+        # 저장
+        call(result, "Save as WAV file", output_file)
+
+        return {
+            'source': source_file,
+            'target': target_file,
+            'morph_factor': morph_factor,
+            'output': output_file
+        }
+6.2 음성 품질 평가 시스템
+pythonclass VoiceQualityAssessment:
+    """
+    음성 품질 종합 평가 시스템
+    """
+
+    def __init__(self):
+        self.analyzer = AdvancedParrotAnalyzer()
+        self.converter = CompleteUnitConverter()
+
+    def comprehensive_assessment(self, audio_file):
+        """
+        종합적인 음성 품질 평가
+        """
+        self.analyzer.load_sound(audio_file)
+
+        results = {
+            'file': audio_file,
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'metrics': {}
+        }
+
+        # 1. 기본 메트릭
+        basic = self.analyzer.get_basic_info()
+        results['metrics']['duration'] = basic['duration']
+        results['metrics']['sample_rate'] = basic['sample_rate']
+
+        # 2. 피치 안정성
+        pitch_data = self.analyzer.extract_pitch()
+        results['metrics']['pitch_stability'] = {
+            'mean_hz': pitch_data['mean'],
+            'std_hz': pitch_data['std'],
+            'coefficient_of_variation': pitch_data['std'] / pitch_data['mean'] if pitch_data['mean'] > 0 else None,
+            'range_semitones': self.converter.hz_to_semitones(
+                pitch_data['max'], pitch_data['min']
+            ) if pitch_data['min'] > 0 else None
+        }
+
+        # 3. 음성 품질 지표
+        jitter = self.analyzer.extract_jitter()
+        shimmer = self.analyzer.extract_shimmer()
+        hnr = self.analyzer.extract_harmonicity()
+
+        results['metrics']['perturbation'] = {
+            'jitter': jitter,
+            'shimmer': shimmer,
+            'hnr_mean': hnr['mean_hnr'],
+            'hnr_std': hnr['std_hnr']
+        }
+
+        # 4. 포먼트 분석
+        formants = self.analyzer.extract_formants()
+        results['metrics']['formants'] = {
+            'F1_mean': formants['formants']['F1'].get('mean', 0),
+            'F2_mean': formants['formants']['F2'].get('mean', 0),
+            'F3_mean': formants['formants']['F3'].get('mean', 0),
+            'vowel_space_area': self._calculate_vowel_space(formants)
+        }
+
+        # 5. 스펙트럴 특성
+        spectral = self.analyzer.extract_spectral_features()
+        results['metrics']['spectral'] = {
+            'centroid_mean': np.mean(spectral['spectral_centroid']),
+            'centroid_std': np.std(spectral['spectral_centroid']),
+            'rolloff_mean': np.mean(spectral['spectral_rolloff']),
+            'flux_mean': np.mean(spectral['spectral_flux']),
+            'entropy_mean': np.mean(spectral['spectral_entropy'])
+        }
+
+        # 6. 품질 점수 계산
+        results['quality_scores'] = self._calculate_quality_scores(results['metrics'])
+
+        # 7. 권장사항
+        results['recommendations'] = self._generate_recommendations(results)
+
+        return results
+
+    def _calculate_vowel_space(self, formants):
+        """
+        모음 공간 면적 계산
+        """
+        # 간단한 삼각형 면적 계산 (F1-F2 공간)
+        f1_values = formants['formants']['F1']['values']
+        f2_values = formants['formants']['F2']['values']
+
+        valid_indices = [i for i in range(len(f1_values)) 
+                        if not np.isnan(f1_values[i]) and not np.isnan(f2_values[i])]
+
+        if len(valid_indices) < 3:
+            return 0
+
+        # 컨벡스 헐 면적 (간단화)
+        f1_valid = [f1_values[i] for i in valid_indices]
+        f2_valid = [f2_values[i] for i in valid_indices]
+
+        # 최대/최소 점들로 사각형 면적 근사
+        area = (max(f1_valid) - min(f1_valid)) * (max(f2_valid) - min(f2_valid))
+
+        return area
+
+    def _calculate_quality_scores(self, metrics):
+        """
+        품질 점수 계산 (0-100)
+        """
+        scores = {}
+
+        # 피치 안정성 점수
+        cv = metrics['pitch_stability'].get('coefficient_of_variation', 1)
+        scores['pitch_stability'] = max(0, min(100, 100 * (1 - cv)))
+
+        # 음성 품질 점수 (지터, 시머, HNR 기반)
+        jitter_score = max(0, 100 * (1 - metrics['perturbation']['jitter']['local'] / 0.02))
+        shimmer_score = max(0, 100 * (1 - metrics['perturbation']['shimmer']['local'] / 0.05))
+        hnr_score = min(100, metrics['perturbation']['hnr_mean'] * 5)
+
+        scores['voice_quality'] = (jitter_score + shimmer_score + hnr_score) / 3
+
+        # 명료도 점수 (포먼트 기반)
+        f1 = metrics['formants'].get('F1_mean', 0)
+        f2 = metrics['formants'].get('F2_mean', 0)
+
+        if f1 > 0 and f2 > 0:
+            # 정상 범위 체크
+            f1_normal = 300 < f1 < 900
+            f2_normal = 800 < f2 < 2800
+            scores['clarity'] = 100 if (f1_normal and f2_normal) else 50
+        else:
+            scores['clarity'] = 0
+
+        # 전체 점수
+        scores['overall'] = np.mean(list(scores.values()))
+
+        return scores
+
+    def _generate_recommendations(self, results):
+        """
+        개선 권장사항 생성
+        """
+        recommendations = []
+        scores = results['quality_scores']
+        metrics = results['metrics']
+
+        # 피치 안정성
+        if scores['pitch_stability'] < 70:
+            recommendations.append({
+                'category': 'Pitch Stability',
+                'issue': 'High pitch variation detected',
+                'suggestion': 'Practice sustained vowel phonation with steady pitch'
+            })
+
+        # 지터
+        if metrics['perturbation']['jitter']['local'] > 0.01:
+            recommendations.append({
+                'category': 'Voice Regularity',
+                'issue': 'Elevated jitter levels',
+                'suggestion': 'Consider vocal exercises for improved glottal control'
+            })
+
+        # 시머
+        if metrics['perturbation']['shimmer']['local'] > 0.03:
+            recommendations.append({
+                'category': 'Amplitude Stability',
+                'issue': 'Elevated shimmer levels',
+                'suggestion': 'Focus on breath support and consistent airflow'
+            })
+
+        # HNR
+        if metrics['perturbation']['hnr_mean'] < 15:
+            recommendations.append({
+                'category': 'Voice Quality',
+                'issue': 'Low harmonics-to-noise ratio',
+                'suggestion': 'Reduce vocal strain and practice relaxed phonation'
+            })
+
+        # 포먼트
+        if scores['clarity'] < 70:
+            recommendations.append({
+                'category': 'Articulation',
+                'issue': 'Unclear formant structure',
+                'suggestion': 'Practice clear articulation of vowels'
+            })
+
+        return recommendations
+
+    def compare_recordings(self, reference_file, test_file):
+        """
+        두 녹음 비교
+        """
+        # 레퍼런스 분석
+        ref_results = self.comprehensive_assessment(reference_file)
+
+        # 테스트 분석
+        test_results = self.comprehensive_assessment(test_file)
+
+        # 비교
+        comparison = {
+            'reference': reference_file,
+            'test': test_file,
+            'differences': {},
+            'similarity_scores': {}
+        }
+
+        # 각 메트릭 비교
+        for category in ['pitch_stability', 'voice_quality', 'clarity']:
+            ref_score = ref_results['quality_scores'][category]
+            test_score = test_results['quality_scores'][category]
+
+            comparison['differences'][category] = test_score - ref_score
+            comparison['similarity_scores'][category] = 100 - abs(test_score - ref_score)
+
+        # 전체 유사도
+        comparison['overall_similarity'] = np.mean(list(comparison['similarity_scores'].values()))
+
+        return comparison
+6.3 음성 시각화 시스템
+pythonimport matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import seaborn as sns
+
+class AudioVisualizationSystem:
+    """
+    고급 음성 시각화 시스템
+    """
+
+    def __init__(self):
+        self.analyzer = AdvancedParrotAnalyzer()
+        self.converter = CompleteUnitConverter()
+        sns.set_style("whitegrid")
+
+    def create_comprehensive_plot(self, audio_file, save_path=None):
+        """
+        종합 시각화 생성
+        """
+        # 데이터 로드 및 분석
+        self.analyzer.load_sound(audio_file)
+
+        # 서브플롯 생성
+        fig = plt.figure(figsize=(16, 12))
+        gs = fig.add_gridspec(4, 3, hspace=0.3, wspace=0.3)
+
+        # 1. Waveform
+        ax1 = fig.add_subplot(gs[0, :])
+        self._plot_waveform(ax1)
+
+        # 2. Spectrogram
+        ax2 = fig.add_subplot(gs[1, :])
+        self._plot_spectrogram(ax2)
+
+        # 3. Pitch contour
+        ax3 = fig.add_subplot(gs[2, :])
+        self._plot_pitch_contour(ax3)
+
+        # 4. Formants
+        ax4 = fig.add_subplot(gs[3, 0])
+        self._plot_formants(ax4)
+
+        # 5. Intensity
+        ax5 = fig.add_subplot(gs[3, 1])
+        self._plot_intensity(ax5)
+
+        # 6. Voice quality metrics
+        ax6 = fig.add_subplot(gs[3, 2])
+        self._plot_voice_quality(ax6)
+
+        plt.suptitle(f'Audio Analysis: {audio_file}', fontsize=16)
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.show()
+
+        return fig
+
+    def _plot_waveform(self, ax):
+        """
+        파형 플롯
+        """
+        sound = self.analyzer.sound
+        time = np.linspace(0, sound.duration, sound.n_samples)
+
+        ax.plot(time, sound.values[0], linewidth=0.5, alpha=0.8)
+        ax.set_title('Waveform')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Amplitude')
+        ax.set_xlim(0, sound.duration)
+
+    def _plot_spectrogram(self, ax):
+        """
+        스펙트로그램 플롯
+        """
+        spectrogram = self.analyzer.extract_spectrogram()
+
+        im = ax.pcolormesh(spectrogram['times'], 
+                          spectrogram['frequencies'][:1000],  # 최대 1000Hz
+                          spectrogram['power_db'][:1000, :],
+                          shading='gouraud',
+                          cmap='viridis',
+                          vmin=-80, vmax=0)
+
+        ax.set_title('Spectrogram')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.set_ylim(0, 1000)
+
+        plt.colorbar(im, ax=ax, label='Power (dB)')
+
+    def _plot_pitch_contour(self, ax):
+        """
+        피치 컨투어 플롯 (다중 단위)
+        """
+        pitch_data = self.analyzer.extract_pitch()
+
+        # Hz 스케일 (왼쪽 축)
+        ax1 = ax
+        color1 = 'tab:blue'
+        ax1.plot(pitch_data['times'], pitch_data['values'], 
+                color=color1, linewidth=2, label='Pitch (Hz)')
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Frequency (Hz)', color=color1)
+        ax1.tick_params(axis='y', labelcolor=color1)
+        ax1.set_title('Pitch Contour')
+
+        # Semitones 스케일 (오른쪽 축)
+        ax2 = ax1.twinx()
+        color2 = 'tab:red'
+
+        semitones = []
+        for hz in pitch_data['values']:
+            if not np.isnan(hz) and hz > 0:
+                st = self.converter.hz_to_semitones(hz, 440)
+                semitones.append(st)
+            else:
+                semitones.append(np.nan)
+
+        ax2.plot(pitch_data['times'], semitones, 
+                color=color2, linewidth=1, alpha=0.5, linestyle='--')
+        ax2.set_ylabel('Semitones from A4', color=color2)
+        ax2.tick_params(axis='y', labelcolor=color2)
+
+        # 평균선
+        if pitch_data['mean'] > 0:
+            ax1.axhline(y=pitch_data['mean'], color='green', 
+                       linestyle=':', alpha=0.5, label=f"Mean: {pitch_data['mean']:.1f} Hz")
+
+        ax1.legend(loc='upper left')
+
+    def _plot_formants(self, ax):
+        """
+        포먼트 플롯
+        """
+        formants = self.analyzer.extract_formants()
+
+        colors = ['red', 'green', 'blue', 'orange', 'purple']
+
+        for i in range(3):  # F1-F3
+            formant_key = f'F{i+1}'
+            if formant_key in formants['formants']:
+                data = formants['formants'][formant_key]
+                valid_indices = [j for j, v in enumerate(data['values']) 
+                               if not np.isnan(v)]
+
+                if valid_indices:
+                    times = [data['times'][j] for j in valid_indices]
+                    values = [data['values'][j] for j in valid_indices]
+
+                    ax.plot(times, values, color=colors[i], 
+                           label=f'F{i+1}', linewidth=2)
+
+        ax.set_title('Formants')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    def _plot_intensity(self, ax):
+        """
+        강도 플롯
+        """
+        intensity = self.analyzer.extract_intensity()
+
+        ax.plot(intensity['times'], intensity['values'], 
+               color='darkgreen', linewidth=2)
+        ax.fill_between(intensity['times'], intensity['values'], 
+                        alpha=0.3, color='lightgreen')
+
+        ax.set_title('Intensity')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Intensity (dB)')
+        ax.grid(True, alpha=0.3)
+
+        # 통계 표시
+        ax.text(0.02, 0.98, f"Mean: {intensity['mean_db']:.1f} dB\n"
+                           f"Max: {intensity['max_db']:.1f} dB\n"
+                           f"Min: {intensity['min_db']:.1f} dB",
+                transform=ax.transAxes,
+                verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+    def _plot_voice_quality(self, ax):
+        """
+        음성 품질 메트릭 바 차트
+        """
+        # 품질 메트릭 추출
+        jitter = self.analyzer.extract_jitter()
+        shimmer = self.analyzer.extract_shimmer()
+        hnr = self.analyzer.extract_harmonicity()
+
+        # 데이터 준비
+        metrics = {
+            'Jitter\n(local)': jitter['local'] * 100,  # 퍼센트로 변환
+            'Jitter\n(RAP)': jitter['rap'] * 100,
+            'Shimmer\n(local)': shimmer['local'] * 100,
+            'Shimmer\n(APQ5)': shimmer['apq5'] * 100,
+            'HNR\n(mean)': hnr['mean_hnr'] / 20 * 100  # 정규화
+        }
+
+        # 바 차트
+        bars = ax.bar(range(len(metrics)), list(metrics.values()))
+        ax.set_xticks(range(len(metrics)))
+        ax.set_xticklabels(list(metrics.keys()), rotation=0, fontsize=9)
+        ax.set_ylabel('Value')
+        ax.set_title('Voice Quality Metrics')
+        ax.set_ylim(0, 100)
+
+        # 색상 코딩 (좋음/나쁨)
+        for i, (bar, value) in enumerate(zip(bars, metrics.values())):
+            if i < 4:  # Jitter, Shimmer는 낮을수록 좋음
+                color = 'green' if value < 30 else 'orange' if value < 60 else 'red'
+            else:  # HNR은 높을수록 좋음
+                color = 'green' if value > 70 else 'orange' if value > 40 else 'red'
+            bar.set_color(color)
+
+            # 값 표시
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                   f'{value:.1f}', ha='center', fontsize=8)
+
+    def create_realtime_visualization(self, duration=30):
+        """
+        실시간 시각화
+        """
+        fig, axes = plt.subplots(3, 1, figsize=(12, 8))
+
+        # 실시간 파이프라인 시작
+        pipeline = RealtimeAudioPipeline()
+
+        # 데이터 버퍼
+        time_buffer = []
+        pitch_buffer = []
+        note_buffer = []
+        intensity_buffer = []
+
+        def update(frame):
+            # 최신 데이터 가져오기
+            results = pipeline.get_latest_results(1)
+
+            if results:
+                result = results[0]
+                current_time = result['timestamp']
+
+                # 버퍼 업데이트
+                time_buffer.append(current_time)
+
+                if result.get('pitch_hz'):
+                    pitch_buffer.append(result['pitch_hz'])
+                    note_buffer.append(result['note'])
+                else:
+                    pitch_buffer.append(np.nan)
+                    note_buffer.append('')
+
+                intensity_buffer.append(result.get('rms', 0))
+
+                # 최근 10초만 유지
+                if len(time_buffer) > 100:
+                    time_buffer.pop(0)
+                    pitch_buffer.pop(0)
+                    note_buffer.pop(0)
+                    intensity_buffer.pop(0)
+
+                # 플롯 업데이트
+                axes[0].clear()
+                axes[0].plot(time_buffer, pitch_buffer, 'b-', linewidth=2)
+                axes[0].set_ylabel('Pitch (Hz)')
+                axes[0].set_title('Real-time Pitch Tracking')
+                axes[0].grid(True, alpha=0.3)
+
+                axes[1].clear()
+                axes[1].plot(time_buffer, intensity_buffer, 'g-', linewidth=2)
+                axes[1].set_ylabel('RMS Amplitude')
+                axes[1].set_title('Intensity')
+                axes[1].grid(True, alpha=0.3)
+
+                # 현재 노트 표시
+                axes[2].clear()
+                if note_buffer and note_buffer[-1]:
+                    axes[2].text(0.5, 0.5, note_buffer[-1], 
+                               fontsize=48, ha='center', va='center')
+                axes[2].set_title('Current Note')
+                axes[2].axis('off')
+
+        # 애니메이션 시작
+        pipeline.start()
+        ani = FuncAnimation(fig, update, interval=100, 
+                          frames=duration*10, repeat=False)
+
+        plt.show()
+
+        # 정리
+        pipeline.stop()
+
+        return ani
+6.4 통합 CLI 애플리케이션
+pythonimport argparse
+import json
+import sys
+
+class AudioAnalysisCLI:
+    """
+    커맨드라인 인터페이스
+    """
+
+    def __init__(self):
+        self.pipeline = IntegratedAudioPipeline()
+        self.converter = VoiceConversionSystem()
+        self.quality = VoiceQualityAssessment()
+        self.visualizer = AudioVisualizationSystem()
+
+    def run(self):
+        parser = argparse.ArgumentParser(
+            description='Advanced Audio Analysis System'
+        )
+
+        subparsers = parser.add_subparsers(dest='command', help='Commands')
+
+        # Analyze 명령
+        analyze_parser = subparsers.add_parser('analyze', 
+                                              help='Analyze audio file')
+        analyze_parser.add_argument('input', help='Input audio file')
+        analyze_parser.add_argument('-o', '--output', help='Output file')
+        analyze_parser.add_argument('-f', '--format', 
+                                   choices=['json', 'csv', 'text'],
+                                   default='json', help='Output format')
+
+        # Convert 명령
+        convert_parser = subparsers.add_parser('convert', 
+                                              help='Convert audio')
+        convert_parser.add_argument('input', help='Input audio file')
+        convert_parser.add_argument('output', help='Output audio file')
+        convert_parser.add_argument('-p', '--pitch', type=float, 
+                                   help='Pitch shift in semitones')
+        convert_parser.add_argument('-t', '--tempo', type=float, 
+                                   help='Tempo change factor')
+        convert_parser.add_argument('--autotune', action='store_true',
+                                   help='Apply auto-tune')
+
+        # Quality 명령
+        quality_parser = subparsers.add_parser('quality', 
+                                              help='Assess voice quality')
+        quality_parser.add_argument('input', help='Input audio file')
+        quality_parser.add_argument('-r', '--reference', 
+                                   help='Reference file for comparison')
+
+        # Visualize 명령
+        viz_parser = subparsers.add_parser('visualize', 
+                                          help='Visualize audio')
+        viz_parser.add_argument('input', help='Input audio file')
+        viz_parser.add_argument('-o', '--output', help='Output image file')
+        viz_parser.add_argument('--realtime', action='store_true',
+                              help='Real-time visualization')
+
+        args = parser.parse_args()
+
+        if args.command == 'analyze':
+            self.analyze(args)
+        elif args.command == 'convert':
+            self.convert(args)
+        elif args.command == 'quality':
+            self.assess_quality(args)
+        elif args.command == 'visualize':
+            self.visualize(args)
+        else:
+            parser.print_help()
+
+    def analyze(self, args):
+        """
+        분석 실행
+        """
+        print(f"Analyzing {args.input}...")
+        results = self.pipeline.process_audio_file(args.input, args.format)
+
+        if args.output:
+            with open(args.output, 'w') as f:
+                f.write(results)
+            print(f"Results saved to {args.output}")
+        else:
+            print(results)
+
+    def convert(self, args):
+        """
+        변환 실행
+        """
+        if args.pitch:
+            print(f"Shifting pitch by {args.pitch} semitones...")
+            result = self.converter.pitch_shift_semitones(
+                args.input, args.pitch, args.output
+            )
+            print(f"Original: {result['original_note']} ({result['original_pitch_hz']:.1f} Hz)")
+            print(f"New: {result['new_note']} ({result['new_pitch_hz']:.1f} Hz)")
+
+        if args.autotune:
+            print("Applying auto-tune...")
+            result = self.converter.auto_tune_to_scale(
+                args.input, args.output
+            )
+            print(f"Auto-tuned to {result['key']} {result['scale']}")
+
+        print(f"Output saved to {args.output}")
+
+    def assess_quality(self, args):
+        """
+        품질 평가 실행
+        """
+        if args.reference:
+            print(f"Comparing {args.input} with {args.reference}...")
+            results = self.quality.compare_recordings(args.reference, args.input)
+            print(f"Overall similarity: {results['overall_similarity']:.1f}%")
+
+            for metric, diff in results['differences'].items():
+                sign = '+' if diff > 0 else ''
+                print(f"  {metric}: {sign}{diff:.1f}")
+        else:
+            print(f"Assessing quality of {args.input}...")
+            results = self.quality.comprehensive_assessment(args.input)
+
+            print("\nQuality Scores:")
+            for metric, score in results['quality_scores'].items():
+                print(f"  {metric}: {score:.1f}/100")
+
+            if results['recommendations']:
+                print("\nRecommendations:")
+                for rec in results['recommendations']:
+                    print(f"  • {rec['category']}: {rec['suggestion']}")
+
+    def visualize(self, args):
+        """
+        시각화 실행
+        """
+        if args.realtime:
+            print("Starting real-time visualization...")
+            self.visualizer.create_realtime_visualization()
+        else:
+            print(f"Creating visualization for {args.input}...")
+            self.visualizer.create_comprehensive_plot(args.input, args.output)
+
+            if args.output:
+                print(f"Visualization saved to {args.output}")
+
+if __name__ == "__main__":
+    cli = AudioAnalysisCLI()
+    cli.run()
+결론
+이 문서는 음성 신호 처리의 전체 생태계를 포괄적으로 다루었습니다:
+
+PCM 기초: 아날로그-디지털 변환의 기본 원리
+WAV 파일 구조: 실제 오디오 데이터 저장 방식
+단위 변환 체계: Hz, Semitones, Quarter-tones, Cents 등 모든 음향 단위 간 변환
+Parrot(Praat-Parselmouth): 전문적인 음성 분석 도구의 완전한 활용
+통합 파이프라인: 실시간 처리부터 배치 분석까지
+실용적 응용: 음성 변환, 품질 평가, 시각화 시스템
+
+이 시스템을 통해 음성 인식, 음악 정보 검색, 음성 합성, 감정 인식, 화자 인식 등 다양한 응용 분야에 활용할 수 있습니다.
