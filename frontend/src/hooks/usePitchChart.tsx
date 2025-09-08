@@ -87,11 +87,14 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         {
           label: '실시간 음성',
           data: [],
-          borderColor: 'transparent',  // 🎯 실시간 데이터는 수직선으로만 표시하므로 데이터셋은 숨김
-          backgroundColor: 'transparent',
+          borderColor: 'rgba(34, 197, 94, 1)',  // 🟢 녹색
+          backgroundColor: 'rgba(34, 197, 94, 0.3)',
           showLine: false,
-          pointRadius: 0,
-          borderWidth: 0
+          pointRadius: 12,  // 큰 포인트로 표시
+          pointHoverRadius: 15,
+          borderWidth: 3,
+          pointBorderColor: 'rgba(34, 197, 94, 1)',
+          pointBackgroundColor: 'rgba(34, 197, 94, 0.8)'
         }
       ]
     };
@@ -264,13 +267,16 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         y: convertedValue
       });
     } else {
-      // 🎯 실시간 데이터는 가로 막대(수직선)로만 표시
+      // 🎯 실시간 데이터는 Y축에만 고정 표시 (x=0 위치)
       const convertedValue = convertFrequency(frequency);
       
-      console.log(`🎤 실시간 데이터: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)} ${yAxisUnit} (t=${relativeTime.toFixed(2)}s)`);
+      console.log(`🎤 실시간 데이터: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)} ${yAxisUnit} (고정표시)`);
       
-      // 🎯 실시간 수직선 위치 업데이트
-      realtimeLineRef.current = relativeTime;
+      // 🎯 실시간 데이터를 dataset[1]에 업데이트 (x=0 고정)
+      chart.data.datasets[1].data = [{
+        x: 0, // 시간과 무관하게 x=0에 고정
+        y: convertedValue
+      }];
       
       // 🎯 Y축 자동 스케일링 - 실시간 데이터가 범위 밖이면 확장
       const yScale = chart.options.scales?.y as any;
@@ -291,19 +297,20 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         }
       }
       
-      // 🎯 실시간 수직선을 annotation으로 표시
+      // 🎯 실시간 값을 Y축 고정 위치에 annotation으로 라벨 표시
       if (chart.options.plugins?.annotation?.annotations) {
-        (chart.options.plugins.annotation.annotations as any).realtimeLine = {
-          type: 'line',
-          xMin: relativeTime,
-          xMax: relativeTime,
-          borderColor: 'rgba(34, 197, 94, 0.8)', // 🟢 녹색 수직선
+        (chart.options.plugins.annotation.annotations as any).realtimeValue = {
+          type: 'point',
+          xValue: 0,
+          yValue: convertedValue,
+          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+          borderColor: 'rgba(34, 197, 94, 1)',
           borderWidth: 3,
-          borderDash: [5, 5],
+          radius: 8,
           label: {
             display: true,
-            position: 'start',
-            content: `${convertedValue.toFixed(1)}`,
+            position: 'end',
+            content: `실시간: ${convertedValue.toFixed(1)}`,
             backgroundColor: 'rgba(34, 197, 94, 0.9)',
             color: 'white',
             font: {
@@ -328,41 +335,56 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     startTimeRef.current = 0;
     realtimeLineRef.current = null;
 
-    // 🎯 실시간 수직선 제거
+    // 🎯 실시간 데이터 제거
     if (chartRef.current.options.plugins?.annotation?.annotations) {
-      delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeLine;
+      delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue;
     }
 
     chartRef.current.update();
   }, []);
 
-  // 🎯 실시간 수직선 숨기기 (녹음 중지 시)
+  // 🎯 실시간 데이터 숨기기 (녹음 중지 시)
   const hideRealtimePitchLine = useCallback(() => {
     if (!chartRef.current) return;
     
+    // 실시간 데이터셋 클리어
+    chartRef.current.data.datasets[1].data = [];
+    
+    // 실시간 annotation 제거
     if (chartRef.current.options.plugins?.annotation?.annotations) {
-      delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeLine;
+      delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue;
       chartRef.current.update('none');
-      console.log('🎯 실시간 수직선 숨김');
+      console.log('🎯 실시간 데이터 숨김');
     }
   }, []);
 
-  // 🎯 실시간 수직선 이동 (녹음 중)
+  // 🎯 실시간 데이터 업데이트 (녹음 중)
   const updateRealtimePitchLine = useCallback((time: number, value: number) => {
     if (!chartRef.current) return;
     
+    // Y축 단위에 맞게 값 변환
+    const convertedValue = convertFrequency(value); // value는 이미 Hz 값
+    
+    // 실시간 데이터를 x=0에 고정하여 업데이트
+    chartRef.current.data.datasets[1].data = [{
+      x: 0,
+      y: convertedValue
+    }];
+    
+    // 실시간 annotation 업데이트
     if (chartRef.current.options.plugins?.annotation?.annotations) {
-      (chartRef.current.options.plugins.annotation.annotations as any).realtimeLine = {
-        type: 'line',
-        xMin: time,
-        xMax: time,
-        borderColor: 'rgba(34, 197, 94, 0.8)', // 🟢 녹색 수직선
+      (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue = {
+        type: 'point',
+        xValue: 0,
+        yValue: convertedValue,
+        backgroundColor: 'rgba(34, 197, 94, 0.8)',
+        borderColor: 'rgba(34, 197, 94, 1)',
         borderWidth: 3,
-        borderDash: [5, 5],
+        radius: 8,
         label: {
           display: true,
-          position: 'start',
-          content: `${value.toFixed(1)}`,
+          position: 'end',
+          content: `실시간: ${convertedValue.toFixed(1)}`,
           backgroundColor: 'rgba(34, 197, 94, 0.9)',
           color: 'white',
           font: {
@@ -372,7 +394,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       };
       chartRef.current.update('none');
     }
-  }, []);
+  }, [convertFrequency]);
 
   const loadReferenceData = useCallback(async (fileId: string) => {
     try {
