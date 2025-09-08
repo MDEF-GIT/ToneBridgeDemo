@@ -229,14 +229,36 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       
       // 학습자 정보 추가 (최신 ref 값 사용)
       if (currentLearnerInfo) {
-        formData.append("learner_name", currentLearnerInfo.name || "");
-        formData.append("learner_gender", currentLearnerInfo.gender || "");
-        formData.append("learner_age_group", currentLearnerInfo.ageGroup || "");
+        const name = currentLearnerInfo.name || "";
+        const gender = currentLearnerInfo.gender || "";
+        const ageGroup = currentLearnerInfo.ageGroup || "";
+        
+        formData.append("learner_name", name);
+        formData.append("learner_gender", gender);
+        formData.append("learner_age_group", ageGroup);
+        
+        console.log("📤 FormData에 추가된 학습자 정보:");
+        console.log("  - learner_name:", name);
+        console.log("  - learner_gender:", gender);
+        console.log("  - learner_age_group:", ageGroup);
+      } else {
+        console.warn("❌ currentLearnerInfo가 null/undefined입니다!");
       }
       
       // 선택된 연습문장 정보 추가 (최신 ref 값 사용)
       if (currentSelectedFile) {
         formData.append("reference_sentence", currentSelectedFile);
+        console.log("📤 FormData에 추가된 연습문장:", currentSelectedFile);
+      } else {
+        console.warn("❌ currentSelectedFile이 null/undefined입니다!");
+      }
+      
+      // FormData 전체 내용 확인
+      console.log("📤 전송할 FormData 전체 내용:");
+      for (let [key, value] of formData.entries()) {
+        if (key !== 'file') { // 파일은 너무 크니 제외
+          console.log(`  ${key}: ${value}`);
+        }
       }
 
       const response = await fetch("/api/auto-process", {
