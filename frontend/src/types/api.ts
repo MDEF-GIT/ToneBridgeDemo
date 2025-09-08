@@ -8,6 +8,7 @@ export interface ReferenceFile {
   average_f0: number;
   wav: string;
   textgrid: string;
+  filename?: string; // 백엔드 호환성을 위한 선택적 속성
 }
 
 export interface AnalysisResult {
