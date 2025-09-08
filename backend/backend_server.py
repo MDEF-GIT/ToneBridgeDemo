@@ -2417,11 +2417,39 @@ async def auto_process_audio(
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:
-        # 임시 파일로 저장
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
-            tmp_path = tmp_file.name
+        # 임시 파일로 저장 및 변환
+        content = await file.read()
+        
+        if file.filename and file.filename.endswith('.webm'):
+            # webm 파일인 경우 FFmpeg로 변환
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as webm_file:
+                webm_file.write(content)
+                webm_path = webm_file.name
+            
+            # Parselmouth 호환성 최적화 변환
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as wav_file:
+                tmp_path = wav_file.name
+            
+            import subprocess
+            result = subprocess.run([
+                'ffmpeg', '-i', webm_path, 
+                '-acodec', 'pcm_s16le',  # 16-bit PCM 
+                '-ar', '22050',          # 22kHz 샘플링 (Parselmouth 호환)
+                '-ac', '1',              # 모노
+                '-y', tmp_path
+            ], capture_output=True, text=True)
+            
+            os.unlink(webm_path)  # webm 파일 정리
+            
+            if result.returncode != 0:
+                raise HTTPException(status_code=400, detail=f"오디오 변환 실패: {result.stderr}")
+                
+            print(f"🎵 webm → wav 변환 완료: {tmp_path}")
+        else:
+            # 직접 wav 파일인 경우
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+                tmp_file.write(content)
+                tmp_path = tmp_file.name
         
         # 자동 처리 실행
         result = automated_processor.process_audio_completely(tmp_path, sentence_hint)

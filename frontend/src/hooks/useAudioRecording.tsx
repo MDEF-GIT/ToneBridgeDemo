@@ -56,7 +56,6 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
 
   const startRecording = useCallback(async () => {
     try {
-      console.log("🎬🎬🎬 [START] 녹음 시작 요청");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
@@ -65,7 +64,6 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
           sampleRate: 44100,
         },
       });
-      console.log("🎬 [START] 미디어 스트림 획득 완료");
 
       const audioContext = new AudioContext({ sampleRate: 44100 });
       const analyser = audioContext.createAnalyser();
@@ -96,19 +94,9 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       };
 
       mediaRecorder.onstop = async () => {
-        console.log("🎬 [DEBUG] MediaRecorder 중지됨 - onstop 실행");
-        console.log("🎬 [DEBUG] 오디오 청크 수:", audioChunksRef.current.length);
-        
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/webm",
         });
-        
-        console.log("🎬 [DEBUG] 오디오 Blob 생성 완료:", {
-          size: audioBlob.size,
-          type: audioBlob.type
-        });
-        console.log("🎬 [DEBUG] learnerInfo:", learnerInfo);
-        console.log("🎬 [DEBUG] selectedFile:", selectedFile);
 
         setState((prev) => ({
           ...prev,
@@ -119,15 +107,11 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
         }));
 
         // Upload to backend
-        console.log("🎬 [DEBUG] uploadRecordedAudio 호출 시작");
         await uploadRecordedAudio(audioBlob);
-        console.log("🎬 [DEBUG] uploadRecordedAudio 호출 완료");
       };
 
       mediaRecorderRef.current = mediaRecorder;
-      console.log("🎬 [START] MediaRecorder 설정 완료");
       mediaRecorder.start(1000); // Record in 1-second chunks
-      console.log("🎬 [START] MediaRecorder 시작됨");
 
       setState((prev) => ({
         ...prev,
@@ -137,7 +121,6 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
         analyser,
         error: null,
       }));
-      console.log("🎬 [START] 녹음 상태 업데이트 완료");
 
       // Start pitch detection
       const detectPitch = () => {
@@ -171,33 +154,23 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
   }, []);
 
   const stopRecording = useCallback(() => {
-    console.log("🛑🛑🛑 [STOP] stopRecording 호출됨");
-    console.log("🛑 [STOP] mediaRecorderRef.current:", !!mediaRecorderRef.current);
-    console.log("🛑 [STOP] mediaRecorderRef state:", mediaRecorderRef.current?.state);
-    
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
-      console.log("🛑 [STOP] AnimationFrame 취소됨");
     }
 
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
     ) {
-      console.log("🛑 [STOP] MediaRecorder.stop() 호출");
       mediaRecorderRef.current.stop();
-    } else {
-      console.log("❌ [STOP] MediaRecorder가 없거나 이미 비활성 상태");
     }
 
     if (state.audioStream) {
       state.audioStream.getTracks().forEach((track) => track.stop());
-      console.log("🛑 [STOP] AudioStream 트랙 정지됨");
     }
 
     if (state.audioContext) {
       state.audioContext.close();
-      console.log("🛑 [STOP] AudioContext 닫힘");
     }
 
     setState((prev) => ({
@@ -209,16 +182,13 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       error: null,
       recordedBlob: null,
     }));
-    
-    console.log("🛑 [STOP] setState 완료");
   }, [state]);
 
   const uploadRecordedAudio = async (audioBlob: Blob) => {
     try {
-      console.log("🎤🎤🎤 [UPLOAD] 녹음 완료 - 자동 처리 시작...");
-      console.log("📋 [UPLOAD] 학습자 정보:", learnerInfo);
-      console.log("📄 [UPLOAD] 선택된 문장:", selectedFile);
-      console.log("💾 [UPLOAD] 오디오 Blob 크기:", audioBlob.size);
+      console.log("🎤 녹음 완료 - 자동 처리 시작...");
+      console.log("📋 학습자 정보:", learnerInfo);
+      console.log("📄 선택된 문장:", selectedFile);
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
