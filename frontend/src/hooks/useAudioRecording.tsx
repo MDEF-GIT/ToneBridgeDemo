@@ -94,9 +94,19 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       };
 
       mediaRecorder.onstop = async () => {
+        console.log("🎬 [DEBUG] MediaRecorder 중지됨 - onstop 실행");
+        console.log("🎬 [DEBUG] 오디오 청크 수:", audioChunksRef.current.length);
+        
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/webm",
         });
+        
+        console.log("🎬 [DEBUG] 오디오 Blob 생성 완료:", {
+          size: audioBlob.size,
+          type: audioBlob.type
+        });
+        console.log("🎬 [DEBUG] learnerInfo:", learnerInfo);
+        console.log("🎬 [DEBUG] selectedFile:", selectedFile);
 
         setState((prev) => ({
           ...prev,
@@ -107,7 +117,9 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
         }));
 
         // Upload to backend
+        console.log("🎬 [DEBUG] uploadRecordedAudio 호출 시작");
         await uploadRecordedAudio(audioBlob);
+        console.log("🎬 [DEBUG] uploadRecordedAudio 호출 완료");
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -186,9 +198,10 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
 
   const uploadRecordedAudio = async (audioBlob: Blob) => {
     try {
-      console.log("🎤 녹음 완료 - 자동 처리 시작...");
-      console.log("📋 학습자 정보:", learnerInfo);
-      console.log("📄 선택된 문장:", selectedFile);
+      console.log("🎤🎤🎤 [UPLOAD] 녹음 완료 - 자동 처리 시작...");
+      console.log("📋 [UPLOAD] 학습자 정보:", learnerInfo);
+      console.log("📄 [UPLOAD] 선택된 문장:", selectedFile);
+      console.log("💾 [UPLOAD] 오디오 Blob 크기:", audioBlob.size);
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
