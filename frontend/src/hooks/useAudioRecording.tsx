@@ -56,6 +56,21 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
 
   const startRecording = useCallback(async () => {
     try {
+      // 🚨 녹음 시작 전 필수 정보 체크
+      if (!learnerInfo || !learnerInfo.name || !learnerInfo.gender) {
+        alert("⚠️ 학습자 정보를 먼저 입력해주세요!\n\n- 이름과 성별은 필수 입력 사항입니다.");
+        return;
+      }
+      
+      if (!selectedFile) {
+        alert("⚠️ 연습문장을 먼저 선택해주세요!\n\n- 10개 문장 중 하나를 선택해야 녹음할 수 있습니다.");
+        return;
+      }
+      
+      console.log("✅ 모든 필수 정보 확인 완료 - 녹음 시작");
+      console.log("📋 학습자:", `${learnerInfo.name} (${learnerInfo.gender}, ${learnerInfo.ageGroup || '연령 미지정'})`);
+      console.log("📄 연습문장:", selectedFile);
+      
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
@@ -190,13 +205,7 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       console.log("📋 학습자 정보:", learnerInfo);
       console.log("📄 선택된 문장:", selectedFile);
       
-      // 🚨 값이 비어있을 때 경고 표시
-      if (!learnerInfo || !learnerInfo.name || !learnerInfo.gender) {
-        console.warn("⚠️ 학습자 정보가 비어있습니다! 이름과 성별을 입력해주세요.");
-      }
-      if (!selectedFile) {
-        console.warn("⚠️ 연습문장이 선택되지 않았습니다! 문장을 먼저 선택해주세요.");
-      }
+      // ✅ 이 시점에서는 필수 정보가 모두 있음 (startRecording에서 검증됨)
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
