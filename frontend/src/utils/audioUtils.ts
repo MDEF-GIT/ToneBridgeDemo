@@ -33,23 +33,21 @@ export function f0ToSemitone(f0: number, refMedian: number = 200): number {
 }
 
 /**
- * F0를 Q-tone으로 변환 (5-등급 시스템)
+ * F0를 Q-tone으로 변환 (Quarter-tone, 1/4 세미톤)
  * 원본: f0ToQt() (line 2439)
  */
-export function f0ToQt(f0: number): number {
-  if (f0 <= 0) return 0;
-  // Q-tone 공식: 베이스 주파수 대비 로그 스케일
-  const baseFreq = 130; // 기준 주파수 (Hz)
-  return 5 * Math.log2(f0 / baseFreq);
+export function f0ToQt(f0: number, refMedian: number = 200): number {
+  if (f0 <= 0 || refMedian <= 0) return 0;
+  // Q-tone = Quarter-tone = 24 * log2(f/f0) (1 semitone = 2 Q-tones)
+  return 24 * Math.log2(f0 / refMedian);
 }
 
 /**
  * Q-tone을 F0로 변환
  * 원본: qtToF0() (line 2447)
  */
-export function qtToF0(qt: number): number {
-  const baseFreq = 130;
-  return baseFreq * Math.pow(2, qt / 5);
+export function qtToF0(qt: number, refMedian: number = 200): number {
+  return refMedian * Math.pow(2, qt / 24);
 }
 
 /**

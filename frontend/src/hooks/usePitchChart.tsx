@@ -163,10 +163,11 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     return 12 * Math.log2(frequency / baseFrequency);
   };
 
-  const frequencyToQtone = (frequency: number): number => {
-    if (frequency <= 0) return 0;
-    const baseFreq = 130; // Q-tone 기준 주파수
-    return 5 * Math.log2(frequency / baseFreq);
+  const frequencyToQtone = (frequency: number, baseFrequency: number = 200): number => {
+    if (frequency <= 0 || baseFrequency <= 0) return 0;
+    // Q-tone = Quarter-tone = 1/4 semitone = 24 * log2(f/f0)
+    // 1 semitone = 2 Q-tones
+    return 24 * Math.log2(frequency / baseFrequency);
   };
 
   const convertFrequency = useCallback((frequency: number): number => {
@@ -194,14 +195,23 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         yScale.title.text = yAxisTitle;
       }
       
-      // Y축 범위 업데이트
+      // Y축 범위 업데이트 - Q-tone은 세미톤의 2배 값
       const newRange = yAxisUnit === 'qtone' 
-        ? { min: -4, max: 8 }    // 큐톤 범위
+        ? { min: -20, max: 30 }  // 큐톤 범위 (세미톤 × 2)
         : { min: -10, max: 15 }; // 세미톤 범위
         
       yScale.min = newRange.min;
       yScale.max = newRange.max;
       console.log(`🔄 Y축 범위 변경: ${newRange.min} ~ ${newRange.max} (${yAxisUnit})`);
+    }
+    
+    // 🎯 툴팁 콜백 업데이트 - 단위 표시 수정
+    if (chart.options.plugins?.tooltip?.callbacks) {
+      chart.options.plugins.tooltip.callbacks.label = function(context: any) {
+        const unit = yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone';
+        return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} ${unit}`;
+      };
+      console.log(`🔄 툴팁 단위 변경: ${yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone'}`);
     }
     
     // 데이터가 있으면 재변환 및 Y축 범위 재계산
