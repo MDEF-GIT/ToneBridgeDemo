@@ -68,11 +68,13 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         {
           label: '참조 음성',
           data: [],
-          borderColor: 'rgb(255, 159, 64)',  // 🟠 오렌지색 (기존 완성본과 동일)
-          backgroundColor: 'rgba(255, 159, 64, 0.2)',
-          tension: 0.4,
-          pointRadius: 4,  // 기존 완성본처럼 점 표시
-          borderWidth: 2
+          borderColor: 'rgb(255, 159, 64)',
+          backgroundColor: 'rgb(255, 159, 64)',
+          showLine: false,  // 🎯 연결선 제거 (음절별 포인트만 표시)
+          pointRadius: 8,   // 🎯 포인트 크기 증가
+          pointHoverRadius: 12,
+          borderWidth: 0,   // 🎯 테두리 제거
+          tension: 0
         },
         {
           label: '실시간 음성',
@@ -103,9 +105,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         y: {
           title: {
             display: true,
-            text: 'Semitone (세미톤)'  // 🎯 기존 완성본과 동일한 Y축 제목
+            text: 'Semitone (세미톤)'
           },
-          min: -12,  // 🎯 기존 완성본과 동일한 범위
+          min: -10,  // 🎯 오리지널과 유사한 범위로 조정
           max: 15
         }
       },
@@ -213,9 +215,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   const loadReferenceData = useCallback(async (fileId: string) => {
     try {
-      // 🎯 Load reference pitch data AND syllable analysis from backend
+      // 🎯 Load syllable-only pitch data (오리지널과 동일한 음절별 대표값)
       const [pitchResponse, syllableResponse] = await Promise.all([
-        fetch(`/api/reference_files/${fileId}/pitch`),
+        fetch(`/api/reference_files/${fileId}/pitch?syllable_only=true`),
         fetch(`/api/reference_files/${fileId}/syllables`)
       ]);
       

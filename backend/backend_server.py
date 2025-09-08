@@ -1593,10 +1593,10 @@ async def analyze_reference_file(file_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/reference_files/{file_id}/pitch")
-async def get_reference_pitch(file_id: str):
+async def get_reference_pitch(file_id: str, syllable_only: bool = False):
     """참조 파일의 피치 데이터 반환 - Chart.js에서 사용"""
     try:
-        print(f"🎯 Getting pitch data for reference file: {file_id}")
+        print(f"🎯 Getting pitch data for reference file: {file_id} (syllable_only={syllable_only})")
         
         # 파일 경로 설정
         wav_path = f"static/reference_files/{file_id}.wav"
@@ -1616,20 +1616,23 @@ async def get_reference_pitch(file_id: str):
             # 피치 데이터 추출
             pitch = snd.to_pitch(time_step=0.01, pitch_floor=75.0, pitch_ceiling=500.0)
             times = pitch.xs()
-            pitch_points = []
             
-            for t in times:
-                f0 = pitch.get_value_at_time(t)
-                if f0 and not np.isnan(f0) and 75.0 < f0 < 500.0:
-                    pitch_points.append({
-                        "time": float(t), 
-                        "frequency": float(f0)
-                    })
-            
-            print(f"🎯 Extracted {len(pitch_points)} pitch points")
-            
-            # Chart.js가 예상하는 형태로 반환
-            return JSONResponse(pitch_points)
+            if syllable_only:
+                # 🎯 음절별 대표 포인트만 반환
+                return await get_syllable_representative_pitch(file_id, wav_path, tg_path, snd, pitch)
+            else:
+                # 🎯 모든 피치 포인트 반환 (기존 동작)
+                pitch_points = []
+                for t in times:
+                    f0 = pitch.get_value_at_time(t)
+                    if f0 and not np.isnan(f0) and 75.0 < f0 < 500.0:
+                        pitch_points.append({
+                            "time": float(t), 
+                            "frequency": float(f0)
+                        })
+                
+                print(f"🎯 Extracted {len(pitch_points)} pitch points")
+                return JSONResponse(pitch_points)
             
         except Exception as parse_error:
             print(f"❌ Parselmouth parsing error: {parse_error}")
@@ -1640,6 +1643,114 @@ async def get_reference_pitch(file_id: str):
     except Exception as e:
         print(f"❌ Get reference pitch error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+async def get_syllable_representative_pitch(file_id: str, wav_path: str, tg_path: str, snd, pitch):
+    """음절별 대표 피치 포인트 계산"""
+    try:
+        # TextGrid 파일 로드
+        if not os.path.exists(tg_path):
+            print(f"🎯 No TextGrid file found: {tg_path}")
+            return JSONResponse([])
+        
+        # TextGrid 파싱 (기존 정규식 로직 재사용)
+        syllables = []
+        try:
+            # UTF-16 인코딩으로 TextGrid 파일 읽기
+            encodings_to_try = ['utf-16', 'utf-16-le', 'utf-16-be', 'utf-8', 'cp949']
+            content = None
+            
+            for encoding in encodings_to_try:
+                try:
+                    with open(tg_path, 'r', encoding=encoding) as f:
+                        content = f.read()
+                    print(f"✅ TextGrid 파일 읽기 성공: {encoding}")
+                    break
+                except UnicodeDecodeError:
+                    continue
+            
+            if content is None:
+                print(f"❌ TextGrid 파일 인코딩 실패: {tg_path}")
+                return JSONResponse([])
+                
+            # 정규식 패턴으로 음절 구간 추출
+            import re
+            interval_pattern = r'intervals\s*\[\s*(\d+)\s*\]:\s*\n\s*xmin\s*=\s*([0-9.]+)\s*\n\s*xmax\s*=\s*([0-9.]+)\s*\n\s*text\s*=\s*"([^"]*)"'
+            
+            matches = re.findall(interval_pattern, content, re.MULTILINE)
+            print(f"🎯 정규식 매칭 결과: {len(matches)}개 구간 발견")
+            
+            for i, (index, xmin, xmax, text) in enumerate(matches):
+                if text.strip() and text.strip().lower() not in ['', 'sp', 'sil', '<p:>', 'p']:
+                    syllables.append({
+                        "label": text.strip(),
+                        "start": float(xmin),
+                        "end": float(xmax),
+                        "duration": float(xmax) - float(xmin)
+                    })
+                    print(f"  🎯 음절 {i+1}: '{text}' ({xmin}s-{xmax}s)")
+                    
+        except Exception as e:
+            print(f"🚨 TextGrid 파싱 오류: {str(e)}")
+            return JSONResponse([])
+        
+        if not syllables:
+            print(f"🎯 No syllables found in TextGrid")
+            return JSONResponse([])
+        
+        # 피치 데이터 추출
+        times = pitch.xs()
+        valid_points = []
+        for t in times:
+            f0 = pitch.get_value_at_time(t)
+            if f0 and not np.isnan(f0) and 75.0 < f0 < 500.0:
+                valid_points.append((float(t), float(f0)))
+        
+        print(f"🎯 Processing {len(syllables)} syllables with {len(valid_points)} pitch points")
+        
+        syllable_pitch_points = []
+        
+        # 각 음절별 대표 피치 계산
+        for syl in syllables:
+            start_t = syl['start']
+            end_t = syl['end'] 
+            center_t = (start_t + end_t) / 2
+            label = syl['label']
+            
+            # 음절 구간 내 피치 데이터 찾기
+            syllable_data = [(t, f0) for t, f0 in valid_points 
+                           if start_t <= t <= end_t]
+            
+            if len(syllable_data) >= 2:
+                # 중앙값 사용 (가장 안정적)
+                pitches = [f0 for t, f0 in syllable_data]
+                representative_f0 = float(np.median(pitches))
+                print(f"  🎯 '{label}': {len(syllable_data)}개 → {representative_f0:.1f}Hz")
+            elif len(syllable_data) == 1:
+                representative_f0 = syllable_data[0][1]
+                print(f"  🎯 '{label}': 1개 → {representative_f0:.1f}Hz")
+            else:
+                # 가장 가까운 피치 포인트 사용
+                if valid_points:
+                    distances = [(abs(t - center_t), f0) for t, f0 in valid_points]
+                    distances.sort()
+                    representative_f0 = distances[0][1] if distances else 200.0
+                    print(f"  🎯 '{label}': 최근접 → {representative_f0:.1f}Hz")
+                else:
+                    representative_f0 = 200.0
+                    print(f"  🎯 '{label}': 기본값 → {representative_f0:.1f}Hz")
+            
+            syllable_pitch_points.append({
+                "time": float(center_t),  # 음절 중심 시간
+                "frequency": representative_f0,
+                "syllable": label
+            })
+        
+        print(f"🎯 Returning {len(syllable_pitch_points)} syllable representative points")
+        return JSONResponse(syllable_pitch_points)
+        
+    except Exception as e:
+        print(f"❌ Syllable pitch calculation error: {e}")
+        return JSONResponse([])
 
 @app.get("/api/reference_files/{file_id}/textgrid")
 async def get_reference_textgrid(file_id: str):
