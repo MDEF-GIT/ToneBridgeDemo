@@ -2392,10 +2392,13 @@ else:
     print("🆕 새 STT 인스턴스 생성")
 
 @app.post("/api/auto-process")
-async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = Form("")):
+async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = Form(""), save_permanent: bool = Form(False)):
     """
     완전 자동화된 오디오 처리 API
     STT + 자동 분절 + TextGrid 생성
+    
+    Parameters:
+    - save_permanent: True시 WAV + TextGrid를 uploads/ 폴더에 영구 저장
     """
     if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
@@ -2414,13 +2417,38 @@ async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = 
         os.unlink(tmp_path)
         
         if result['success']:
-            return JSONResponse({
+            response_data = {
                 "success": True,
                 "transcription": result['transcription'],
                 "syllables": result['syllables'],
                 "duration": result['duration'],
                 "message": f"✅ 자동 처리 완료 - {len(result['syllables'])}개 음절 분절"
-            })
+            }
+            
+            # 영구 저장이 요청된 경우
+            if save_permanent:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"recording_{timestamp}"
+                
+                # WAV 파일 저장
+                wav_path = UPLOAD_DIR / f"{filename}.wav"
+                shutil.copy2(tmp_path, wav_path)
+                
+                # TextGrid 파일 저장  
+                textgrid_path = UPLOAD_DIR / f"{filename}.TextGrid"
+                save_textgrid(result['syllables'], str(textgrid_path), result['duration'])
+                
+                response_data.update({
+                    "saved_files": {
+                        "wav": str(wav_path),
+                        "textgrid": str(textgrid_path)
+                    },
+                    "message": f"✅ 자동 처리 및 영구 저장 완료 - {len(result['syllables'])}개 음절 분절"
+                })
+                
+                print(f"💾 영구 저장 완료: {filename}.wav + {filename}.TextGrid")
+            
+            return JSONResponse(response_data)
         else:
             return JSONResponse({
                 "success": False,
