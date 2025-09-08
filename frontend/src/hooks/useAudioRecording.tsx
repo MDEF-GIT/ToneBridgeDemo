@@ -190,6 +190,14 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
       console.log("📋 학습자 정보:", learnerInfo);
       console.log("📄 선택된 문장:", selectedFile);
       
+      // 🚨 값이 비어있을 때 경고 표시
+      if (!learnerInfo || !learnerInfo.name || !learnerInfo.gender) {
+        console.warn("⚠️ 학습자 정보가 비어있습니다! 이름과 성별을 입력해주세요.");
+      }
+      if (!selectedFile) {
+        console.warn("⚠️ 연습문장이 선택되지 않았습니다! 문장을 먼저 선택해주세요.");
+      }
+      
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
       formData.append("sentence_hint", ""); // 힌트 없이 순수 STT
