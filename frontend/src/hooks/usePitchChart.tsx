@@ -44,6 +44,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);
+  const realtimeLineRef = useRef<number | null>(null); // 🎯 실시간 수직선 위치 추적
 
   const initChart = useCallback(() => {
     if (!canvasRef || !canvasRef.current) {
@@ -79,12 +80,11 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         {
           label: '실시간 음성',
           data: [],
-          borderColor: 'rgb(40, 167, 69)',  // 🟢 초록색
-          backgroundColor: 'rgba(40, 167, 69, 0.2)',
-          tension: 0,  // 직선 연결
-          pointRadius: 1,
-          borderWidth: 3,
-          stepped: true  // 가로선 스타일
+          borderColor: 'transparent',  // 🎯 실시간 데이터는 수직선으로만 표시하므로 데이터셋은 숨김
+          backgroundColor: 'transparent',
+          showLine: false,
+          pointRadius: 0,
+          borderWidth: 0
         }
       ]
     };
@@ -230,25 +230,68 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     };
 
     pitchDataRef.current.push(newData);
-
-    // Update chart data
     const chart = chartRef.current;
-    const datasetIndex = type === 'reference' ? 0 : 1;
-    
-    // 🎯 주파수를 선택된 단위(semitone/Q-tone)로 변환해서 차트에 표시
-    const convertedValue = convertFrequency(frequency);
-    
-    console.log(`🎤 실시간 데이터: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)} ${yAxisUnit} (t=${relativeTime.toFixed(2)}s)`);
-    
-    chart.data.datasets[datasetIndex].data.push({
-      x: relativeTime,
-      y: convertedValue  // 🎯 실시간으로 선택된 단위로 변환된 값
-    });
 
-    // 🎯 녹음 중에는 x축 범위를 고정 (참조 데이터 범위 유지)
-    // 실시간 녹음 데이터가 참조 데이터의 x축 범위 내에서만 표시되도록 함
+    if (type === 'reference') {
+      // 🎯 참조 데이터는 포인트로 표시
+      const convertedValue = convertFrequency(frequency);
+      
+      chart.data.datasets[0].data.push({
+        x: relativeTime,
+        y: convertedValue
+      });
+    } else {
+      // 🎯 실시간 데이터는 가로 막대(수직선)로만 표시
+      const convertedValue = convertFrequency(frequency);
+      
+      console.log(`🎤 실시간 데이터: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)} ${yAxisUnit} (t=${relativeTime.toFixed(2)}s)`);
+      
+      // 🎯 실시간 수직선 위치 업데이트
+      realtimeLineRef.current = relativeTime;
+      
+      // 🎯 Y축 자동 스케일링 - 실시간 데이터가 범위 밖이면 확장
+      const yScale = chart.options.scales?.y as any;
+      if (yScale) {
+        let needsUpdate = false;
+        
+        if (convertedValue < yScale.min) {
+          yScale.min = Math.floor(convertedValue - 2);
+          needsUpdate = true;
+        }
+        if (convertedValue > yScale.max) {
+          yScale.max = Math.ceil(convertedValue + 2);
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          console.log(`📈 Y축 자동 스케일링: ${yScale.min} ~ ${yScale.max} (실시간 값: ${convertedValue.toFixed(1)})`);
+        }
+      }
+      
+      // 🎯 실시간 수직선을 annotation으로 표시
+      if (chart.options.plugins?.annotation?.annotations) {
+        (chart.options.plugins.annotation.annotations as any).realtimeLine = {
+          type: 'line',
+          xMin: relativeTime,
+          xMax: relativeTime,
+          borderColor: 'rgba(34, 197, 94, 0.8)', // 🟢 녹색 수직선
+          borderWidth: 3,
+          borderDash: [5, 5],
+          label: {
+            display: true,
+            position: 'start',
+            content: `${convertedValue.toFixed(1)}`,
+            backgroundColor: 'rgba(34, 197, 94, 0.9)',
+            color: 'white',
+            font: {
+              size: 11
+            }
+          }
+        };
+      }
+    }
 
-    chart.update('none'); // Update without animation for real-time performance
+    chart.update('none');
   }, [convertFrequency, startTimeRef]);
 
   const clearChart = useCallback(() => {
@@ -260,10 +303,52 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     
     pitchDataRef.current = [];
     startTimeRef.current = 0;
+    realtimeLineRef.current = null;
 
-    // 🎯 x축 범위는 참조 데이터가 설정한 범위를 유지 (변경하지 않음)
+    // 🎯 실시간 수직선 제거
+    if (chartRef.current.options.plugins?.annotation?.annotations) {
+      delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeLine;
+    }
 
     chartRef.current.update();
+  }, []);
+
+  // 🎯 실시간 수직선 숨기기 (녹음 중지 시)
+  const hideRealtimePitchLine = useCallback(() => {
+    if (!chartRef.current) return;
+    
+    if (chartRef.current.options.plugins?.annotation?.annotations) {
+      delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeLine;
+      chartRef.current.update('none');
+      console.log('🎯 실시간 수직선 숨김');
+    }
+  }, []);
+
+  // 🎯 실시간 수직선 이동 (녹음 중)
+  const updateRealtimePitchLine = useCallback((time: number, value: number) => {
+    if (!chartRef.current) return;
+    
+    if (chartRef.current.options.plugins?.annotation?.annotations) {
+      (chartRef.current.options.plugins.annotation.annotations as any).realtimeLine = {
+        type: 'line',
+        xMin: time,
+        xMax: time,
+        borderColor: 'rgba(34, 197, 94, 0.8)', // 🟢 녹색 수직선
+        borderWidth: 3,
+        borderDash: [5, 5],
+        label: {
+          display: true,
+          position: 'start',
+          content: `${value.toFixed(1)}`,
+          backgroundColor: 'rgba(34, 197, 94, 0.9)',
+          color: 'white',
+          font: {
+            size: 11
+          }
+        }
+      };
+      chartRef.current.update('none');
+    }
   }, []);
 
   const loadReferenceData = useCallback(async (fileId: string) => {
@@ -562,63 +647,20 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     };
   }, [initChart]);
 
-  // 🟢 실시간 피치 가로바 업데이트 (녹음 중)
-  const updateRealtimePitchLine = useCallback((frequency: number) => {
-    if (!chartRef.current) return;
-    
-    const chart = chartRef.current;
-    const convertedValue = convertFrequency(frequency);
-    
-    // annotation plugin 확인
-    if (!chart.options.plugins?.annotation) {
-      chart.options.plugins = { ...chart.options.plugins, annotation: { annotations: {} } };
-    }
-    
-    // 실시간 가로바 annotation 업데이트
-    chart.options.plugins.annotation.annotations['realtimePitchLine'] = {
-      type: 'line',
-      yMin: convertedValue,
-      yMax: convertedValue,
-      borderColor: 'rgb(40, 167, 69)',  // 🟢 초록색
-      borderWidth: 3,
-      borderDash: [],  // 실선
-      label: {
-        display: false
-      }
-    };
-    
-    chart.update('none');  // 애니메이션 없이 즉시 업데이트
-  }, []);
 
-  // 🟢 실시간 피치 가로바 숨김
-  const hideRealtimePitchLine = useCallback(() => {
-    if (!chartRef.current) return;
-    
-    const chart = chartRef.current;
-    if (chart.options.plugins?.annotation?.annotations) {
-      delete chart.options.plugins.annotation.annotations['realtimePitchLine'];
-      chart.update('none');
-    }
-  }, []);
 
   return {
     addPitchData,
     clearChart,
     loadReferenceData,
-    resetForNewRecording,
-    pitchData: pitchDataRef.current,
-    // 🎯 차트 인스턴스 노출 (ChartControls에서 사용)
-    chartInstance: chartRef.current,
-    // 🎯 새로 추가된 컨트롤 기능들
+    addSyllableAnnotations,
     adjustPitch,
-    resetPitch,
     zoomIn,
     zoomOut,
     scrollLeft,
     scrollRight,
     resetView,
-    addSyllableAnnotations,  // 🎯 핵심 함수 export
-    updateRealtimePitchLine,  // 🟢 실시간 가로바 업데이트
-    hideRealtimePitchLine     // 🟢 실시간 가로바 숨김
+    updateRealtimePitchLine,
+    hideRealtimePitchLine
   };
 };

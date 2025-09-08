@@ -87,8 +87,6 @@ const VoiceAnalysisApp: React.FC = () => {
         console.log(`🎤 실시간 피치 데이터: ${frequency.toFixed(2)}Hz, 시간: ${timestamp}`);
         if (pitchChart && pitchChart.addPitchData) {
           pitchChart.addPitchData(frequency, timestamp, 'live');
-          // 🟢 실시간 가로바 업데이트 (녹음 중)
-          pitchChart.updateRealtimePitchLine(frequency);
         }
       });
     } else {
@@ -922,7 +920,7 @@ const VoiceAnalysisApp: React.FC = () => {
                         <button 
                           className="btn btn-sm btn-outline-secondary" 
                           title="그래프 위치 초기화"
-                          onClick={() => pitchChart.resetPitch()}
+                          onClick={() => pitchChart.resetView()}
                         >
                           <i className="fas fa-undo"></i>
                         </button>
