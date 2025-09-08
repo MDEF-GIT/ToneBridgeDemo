@@ -81,7 +81,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           backgroundColor: 'rgb(255, 159, 64)',
           showLine: false,  // 🎯 연결선 제거 (음절별 포인트만 표시)
           pointRadius: 8,   // 🎯 포인트 크기 증가
-          pointHoverRadius: 12,
+          pointHoverRadius: 8,  // 🎯 호버 시에도 동일한 크기 유지 (호버 효과 제거)
           borderWidth: 0,   // 🎯 테두리 제거
           tension: 0
         },
