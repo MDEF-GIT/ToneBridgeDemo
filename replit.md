@@ -145,6 +145,22 @@ React App Target: Configurable API_BASE for both development and production
 
 ## Recent Changes
 
+### 2025-09-08: Chart.js Annotation 및 음절 시각화 기능 구현
+- **Chart.js annotation 플러그인 설치**: React 프론트엔드에 chartjs-plugin-annotation@3.0.1 패키지 추가
+- **음절 구간 표시 기능 구현**: 
+  - usePitchChart 훅에 addSyllableAnnotations() 함수 추가
+  - 오리지널 vanilla JS와 동일한 음절 시각화 로직 (점선 구간, 보라색 라벨 박스)
+  - 음절 시작/끝 경계선: rgba(255, 99, 132, 0.8) 색상의 점선 표시
+  - 음절 라벨: rgba(138, 43, 226, 0.9) 보라색 배경의 한글 라벨
+- **백엔드 syllables API 추가**:
+  - `/api/reference_files/{file_id}/syllables` 엔드포인트 구현
+  - TextGrid 파일 파싱 대비 테스트용 더미 데이터 반환
+  - 에러 시 빈 배열 반환으로 프론트엔드 호환성 보장
+- **차트 컨트롤 기능 확장**: 
+  - adjustPitch (피치 위/아래 조정), zoomIn/zoomOut (시간축 확대/축소)
+  - scrollLeft/scrollRight (좌우 스크롤), resetView (전체 보기)
+  - 오리지널 버전의 모든 차트 조작 기능 React로 이식
+
 ### 2025-09-07: Complete TypeScript and React Syntax Resolution
 - **Fixed all TypeScript configuration issues**: Updated `tsconfig.json` with proper ES2020 target, comprehensive lib array including DOM, ES2015-2020, and webworker
 - **Resolved React import compatibility**: Changed all React imports from `import * as React` to `import React` for React 19 compatibility
