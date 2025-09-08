@@ -41,7 +41,7 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 차트 설정
   const [semitoneMin, setSemitoneMin] = useState<number>(-12);
   const [semitoneMax, setSemitoneMax] = useState<number>(15);
-  const [yAxisUnit, setYAxisUnit] = useState<string>('semitone');
+  const [yAxisUnit, setYAxisUnit] = useState<'semitone' | 'qtone'>('semitone');
   
   // 🎯 API Base URL
   const API_BASE = '';
@@ -259,9 +259,14 @@ const VoiceAnalysisApp: React.FC = () => {
   
   // 🎯 차트 범위 업데이트
   const updateChartRange = useCallback(() => {
-    // pitchChart.updateRange(semitoneMin, semitoneMax); // 훅에 구현 필요
+    pitchChart.updateRange(semitoneMin, semitoneMax);
     console.log('차트 범위 업데이트:', semitoneMin, semitoneMax);
-  }, [semitoneMin, semitoneMax]);
+  }, [pitchChart, semitoneMin, semitoneMax]);
+
+  // 🎯 세미톤/큐톤 범위 변경 시 자동 업데이트
+  useEffect(() => {
+    updateChartRange();
+  }, [updateChartRange]);
   
   // 🎯 성별 선택 모달
   const handleGenderSelection = useCallback((gender: string) => {
@@ -877,7 +882,7 @@ const VoiceAnalysisApp: React.FC = () => {
                       id="yAxisSemitone" 
                       value="semitone" 
                       checked={yAxisUnit === 'semitone'}
-                      onChange={(e) => setYAxisUnit(e.target.value)}
+                      onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
                     />
                     <label className="btn btn-outline-primary btn-sm" htmlFor="yAxisSemitone">
                       Semitone
@@ -890,7 +895,7 @@ const VoiceAnalysisApp: React.FC = () => {
                       id="yAxisQtone" 
                       value="qtone" 
                       checked={yAxisUnit === 'qtone'}
-                      onChange={(e) => setYAxisUnit(e.target.value)}
+                      onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
                     />
                     <label className="btn btn-outline-success btn-sm" htmlFor="yAxisQtone">
                       Q-tone

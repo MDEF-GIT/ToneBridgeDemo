@@ -637,6 +637,20 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     console.log('🔄 전체 보기 리셋: 0-10초');
   }, []);
 
+  // 🎯 Y축 범위 업데이트 (세미톤/큐톤 범위 설정)
+  const updateRange = useCallback((min: number, max: number) => {
+    if (!chartRef.current) return;
+
+    const yScale = chartRef.current.options.scales?.y;
+    if (!yScale) return;
+
+    yScale.min = min;
+    yScale.max = max;
+
+    chartRef.current.update('none');
+    console.log(`📊 Y축 범위 업데이트: ${min} ~ ${max} (${yAxisUnit})`);
+  }, [yAxisUnit]);
+
   useEffect(() => {
     initChart();
     
@@ -661,6 +675,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     scrollRight,
     resetView,
     updateRealtimePitchLine,
-    hideRealtimePitchLine
+    hideRealtimePitchLine,
+    updateRange
   };
 };
