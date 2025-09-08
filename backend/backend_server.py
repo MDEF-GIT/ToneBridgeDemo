@@ -2374,7 +2374,7 @@ async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = 
     완전 자동화된 오디오 처리 API
     STT + 자동 분절 + TextGrid 생성
     """
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
+    if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:
@@ -2477,7 +2477,7 @@ async def advanced_stt_process(file: UploadFile = File(...),
     고급 STT 처리 API
     다중 엔진 지원 및 신뢰도 평가
     """
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
+    if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:
@@ -2524,7 +2524,7 @@ async def multi_engine_comparison(file: UploadFile = File(...),
     """
     다중 STT 엔진 비교 분석
     """
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
+    if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:

@@ -13,6 +13,8 @@ interface AudioRecordingState {
   // 🎯 새로운 고급 피치 분석 상태
   advancedPitchData: PitchResult[];
   currentPitchConfidence: number;
+  // 🎯 자동 처리 결과
+  autoProcessResult: any | null;
 }
 
 export const useAudioRecording = () => {
@@ -27,6 +29,8 @@ export const useAudioRecording = () => {
     // 🎯 새로운 고급 피치 분석 상태
     advancedPitchData: [],
     currentPitchConfidence: 0,
+    // 🎯 자동 처리 결과
+    autoProcessResult: null,
   });
 
   const animationFrameRef = useRef<number | undefined>(undefined);
@@ -182,22 +186,36 @@ export const useAudioRecording = () => {
 
   const uploadRecordedAudio = async (audioBlob: Blob) => {
     try {
+      console.log("🎤 녹음 완료 - 자동 처리 시작...");
+      
       const formData = new FormData();
-      formData.append("audio_data", audioBlob, "recording.webm");
-      formData.append("session_id", `session_${Date.now()}`);
+      formData.append("file", audioBlob, "recording.webm");
+      formData.append("sentence_hint", ""); // 힌트 없이 순수 STT
 
-      const response = await fetch("/api/record_realtime", {
+      const response = await fetch("/api/auto-process", {
         method: "POST",
         body: formData,
       });
 
       if (response.ok) {
-        console.log("✅ 녹음 파일 업로드 성공");
+        const result = await response.json();
+        console.log("✅ 자동 처리 완료:", result);
+        
+        // 처리 결과 상태에 저장
+        setState((prev) => ({
+          ...prev,
+          autoProcessResult: result,
+        }));
+        
+        if (result.success) {
+          console.log(`🎯 STT 결과: "${result.transcription}"`);
+          console.log(`🔤 ${result.syllables?.length || 0}개 음절 분절 완료`);
+        }
       } else {
-        console.error("❌ 녹음 파일 업로드 실패:", response.statusText);
+        console.error("❌ 자동 처리 실패:", response.statusText);
       }
     } catch (error) {
-      console.error("❌ 업로드 중 오류:", error);
+      console.error("❌ 자동 처리 중 오류:", error);
     }
   };
 
