@@ -121,9 +121,23 @@ const UploadedFileTestSection: React.FC = () => {
         testPitchChart.addPitchData(point.frequency, point.time, 'reference');
       });
       
-      // 7. 음절 annotation 추가
+      // 7. 음절 annotation 추가 - 업로드 파일용 데이터 구조 변환
       if (syllables.length > 0 && syllablePitch.length > 0) {
-        testPitchChart.addSyllableAnnotations(syllablePitch);
+        // syllablePitch 데이터를 SyllableData 형식으로 변환
+        const annotationData = syllablePitch.map((sp: any) => ({
+          label: sp.syllable,
+          start: sp.start,
+          end: sp.end,
+          frequency: sp.frequency,
+          semitone: sp.frequency // Hz 모드에서는 frequency 그대로 사용
+        }));
+        
+        console.log(`🎯 업로드 파일 음절 annotation 추가: ${annotationData.length}개`);
+        console.log(`🎯 annotation 데이터:`, annotationData);
+        
+        testPitchChart.addSyllableAnnotations(annotationData);
+      } else {
+        console.log(`⚠️ 음절 annotation 생략: syllables=${syllables.length}, syllablePitch=${syllablePitch.length}`);
       }
 
       console.log(`✅ 업로드 파일 분석 완료: ${pitchData.length}개 피치 포인트, ${syllables.length}개 음절`);

@@ -2849,6 +2849,11 @@ async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
             textgrid_path = UPLOAD_DIR / textgrid_file
             
             if textgrid_path.exists():
+                # 피치 데이터 시간 범위 로깅
+                if pitch_data:
+                    pitch_times = [p['time'] for p in pitch_data]
+                    print(f"🎯 피치 데이터 시간 범위: {min(pitch_times):.3f}s ~ {max(pitch_times):.3f}s")
+                
                 syllable_pitch = calculate_syllable_pitch_from_textgrid(str(textgrid_path), pitch_data)
                 print(f"🎯 {len(syllable_pitch)}개 음절 대표 피치 반환")
                 return syllable_pitch
@@ -2926,27 +2931,45 @@ def calculate_syllable_pitch_from_textgrid(textgrid_path: str, pitch_data: list)
         
         # 각 음절의 대표 피치 계산
         syllable_pitch = []
-        for region in syllable_regions:
+        print(f"🎯 음절 구간 처리: {len(syllable_regions)}개 구간, {len(pitch_data)}개 피치 포인트")
+        
+        for i, region in enumerate(syllable_regions):
             start_time = region['start']
             end_time = region['end']
             syllable = region['text']
             
-            # 해당 구간의 피치 데이터 필터링
-            region_pitches = [
-                p['frequency'] for p in pitch_data 
-                if start_time <= p['time'] <= end_time
-            ]
+            print(f"  🎯 음절 {i+1}: '{syllable}' ({start_time:.3f}s ~ {end_time:.3f}s)")
+            
+            # 해당 구간의 피치 데이터 필터링 (경계 조건 완화)
+            region_pitches = []
+            region_times = []
+            for p in pitch_data:
+                # 구간 경계에서 약간의 여유를 둠 (0.05초)
+                margin = 0.05
+                if (start_time - margin) <= p['time'] <= (end_time + margin):
+                    region_pitches.append(p['frequency'])
+                    region_times.append(p['time'])
+            
+            if region_times:
+                print(f"    📊 구간 내 시간 범위: {min(region_times):.3f}s ~ {max(region_times):.3f}s")
+            
+            print(f"    📊 구간 내 피치 포인트: {len(region_pitches)}개")
             
             if region_pitches:
                 avg_pitch = sum(region_pitches) / len(region_pitches)
-                syllable_pitch.append({
+                syllable_data = {
                     "time": (start_time + end_time) / 2,  # 구간 중점
                     "frequency": avg_pitch,
                     "syllable": syllable,
                     "start": start_time,
                     "end": end_time
-                })
+                }
+                syllable_pitch.append(syllable_data)
+                print(f"    ✅ 평균 피치: {avg_pitch:.1f}Hz")
+            else:
+                print(f"    ❌ 구간 내 피치 데이터 없음")
         
+        print(f"🎯 최종 음절 피치 결과: {len(syllable_pitch)}개 반환")
         return syllable_pitch
         
     except Exception as e:
