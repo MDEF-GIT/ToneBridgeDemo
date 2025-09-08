@@ -30,8 +30,9 @@ except ImportError as e:
     print(f"❌ Failed to import parselmouth: {e}")
     sys.exit(1)
 
-# Import our new automation system
+# Import our enhanced automation systems
 from audio_enhancement import AutomatedProcessor
+from advanced_stt_processor import AdvancedSTTProcessor
 
 app = FastAPI(title="ToneBridge Praat Analysis API")
 
@@ -2357,8 +2358,9 @@ async def normalize_single_file(file_name: str):
         print(f"❌ 단일 파일 정규화 오류: {e}")
         raise HTTPException(status_code=500, detail=f"정규화 중 오류가 발생했습니다: {e}")
 
-# Initialize automation processor
+# Initialize processors
 automated_processor = AutomatedProcessor()
+advanced_stt_processor = AdvancedSTTProcessor(preferred_engine='whisper')
 
 @app.post("/api/auto-process")
 async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = Form("")):
@@ -2451,11 +2453,182 @@ async def get_stt_status():
     """
     STT(음성인식) 시스템 상태 확인
     """
+    status = advanced_stt_processor.get_engine_status()
+    
     return JSONResponse({
-        "whisper_available": automated_processor.stt.whisper_available,
-        "status": "ready" if automated_processor.stt.whisper_available else "limited",
-        "message": "🎤 Whisper STT 사용 가능" if automated_processor.stt.whisper_available else "⚠️ 파일명 기반 추정만 가능"
+        "current_engine": status['current_engine'],
+        "available_engines": status['available_engines'],
+        "confidence_threshold": status['confidence_threshold'],
+        "status": "ready" if len(status['available_engines']) > 1 else "limited",
+        "message": f"🎤 {status['current_engine']} 엔진 활성화" if status['current_engine'] != 'local_fallback' else "⚠️ 제한된 기능만 사용 가능"
     })
+
+@app.post("/api/advanced-stt")
+async def advanced_stt_process(file: UploadFile = File(...), 
+                              target_text: str = Form(""),
+                              engine: str = Form("auto")):
+    """
+    고급 STT 처리 API
+    다중 엔진 지원 및 신뢰도 평가
+    """
+    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
+        raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
+    
+    try:
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        # 엔진 선택
+        if engine != "auto":
+            # 특정 엔진 요청 시 새로 초기화
+            processor = AdvancedSTTProcessor(preferred_engine=engine)
+        else:
+            processor = advanced_stt_processor
+        
+        # 고급 STT 처리
+        result = processor.process_audio_with_confidence(tmp_path, target_text)
+        
+        # 임시 파일 정리
+        os.unlink(tmp_path)
+        
+        return JSONResponse({
+            "success": True,
+            "transcription": result['transcription'],
+            "syllables": result['syllables'],
+            "confidence": result['confidence'],
+            "engine": result['engine'],
+            "quality_metrics": result['quality_metrics'],
+            "word_timestamps": result.get('word_timestamps', []),
+            "message": f"✅ 고급 STT 처리 완료 ({result['engine']} 엔진)"
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "❌ 고급 STT 처리 오류"
+        }, status_code=500)
+
+@app.post("/api/multi-engine-comparison")
+async def multi_engine_comparison(file: UploadFile = File(...), 
+                                target_text: str = Form("")):
+    """
+    다중 STT 엔진 비교 분석
+    """
+    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
+        raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
+    
+    try:
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        # 사용 가능한 엔진들로 처리
+        available_engines = advanced_stt_processor.stt.available_engines
+        results = {}
+        
+        for engine in available_engines:
+            if engine == 'local_fallback':
+                continue  # 비교에서 제외
+            
+            try:
+                processor = AdvancedSTTProcessor(preferred_engine=engine)
+                result = processor.process_audio_with_confidence(tmp_path, target_text)
+                
+                results[engine] = {
+                    "transcription": result['transcription'],
+                    "confidence": result['confidence'],
+                    "syllable_count": result['quality_metrics']['syllable_count'],
+                    "avg_syllable_confidence": result['quality_metrics']['avg_syllable_confidence'],
+                    "has_word_timestamps": result['quality_metrics']['has_word_timestamps']
+                }
+            except Exception as e:
+                results[engine] = {
+                    "error": str(e),
+                    "transcription": "",
+                    "confidence": 0.0
+                }
+        
+        # 임시 파일 정리
+        os.unlink(tmp_path)
+        
+        # 최고 신뢰도 엔진 선택
+        best_engine = max(results.keys(), key=lambda k: results[k].get('confidence', 0))
+        
+        return JSONResponse({
+            "success": True,
+            "results": results,
+            "best_engine": best_engine,
+            "target_text": target_text,
+            "message": f"✅ 다중 엔진 비교 완료 - 최적: {best_engine}"
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "❌ 다중 엔진 비교 오류"
+        }, status_code=500)
+
+@app.post("/api/syllable-alignment-analysis")
+async def syllable_alignment_analysis(file: UploadFile = File(...),
+                                    text: str = Form(...)):
+    """
+    음절 정렬 상세 분석
+    """
+    try:
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        # 고급 처리
+        result = advanced_stt_processor.process_audio_with_confidence(tmp_path, text)
+        
+        # 상세 분석 정보 추가
+        syllable_analysis = []
+        for syllable in result['syllables']:
+            analysis = {
+                "syllable": syllable['label'],
+                "start": syllable['start'],
+                "end": syllable['end'],
+                "duration": syllable['end'] - syllable['start'],
+                "confidence": syllable['confidence'],
+                "phonetic_features": syllable.get('phonetic_features', {}),
+                "analysis": {
+                    "is_valid_duration": 0.05 <= (syllable['end'] - syllable['start']) <= 0.8,
+                    "confidence_level": "high" if syllable['confidence'] > 0.8 else "medium" if syllable['confidence'] > 0.6 else "low"
+                }
+            }
+            syllable_analysis.append(analysis)
+        
+        # 임시 파일 정리
+        os.unlink(tmp_path)
+        
+        return JSONResponse({
+            "success": True,
+            "syllable_analysis": syllable_analysis,
+            "summary": {
+                "total_syllables": len(syllable_analysis),
+                "avg_duration": np.mean([s['duration'] for s in syllable_analysis]),
+                "avg_confidence": np.mean([s['confidence'] for s in syllable_analysis]),
+                "high_confidence_ratio": len([s for s in syllable_analysis if s['confidence'] > 0.8]) / len(syllable_analysis)
+            },
+            "message": "✅ 음절 정렬 분석 완료"
+        })
+        
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "❌ 음절 정렬 분석 오류"
+        }, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

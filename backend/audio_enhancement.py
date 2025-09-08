@@ -15,11 +15,20 @@ import os
 
 class STTProcessor:
     """
-    음성-텍스트 변환 처리기
+    기존 호환성을 위한 STT 래퍼 클래스
     """
     
     def __init__(self):
-        self.whisper_available = self._check_whisper()
+        # 새로운 고급 STT 시스템 초기화
+        try:
+            from advanced_stt_processor import AdvancedSTTProcessor
+            self.advanced_stt = AdvancedSTTProcessor(preferred_engine='whisper')
+            self.whisper_available = 'whisper' in self.advanced_stt.stt.available_engines
+            print(f"🎯 고급 STT 시스템 활성화: {self.advanced_stt.stt.engine}")
+        except Exception as e:
+            print(f"⚠️ 고급 STT 초기화 실패, 기본 모드 사용: {e}")
+            self.advanced_stt = None
+            self.whisper_available = self._check_whisper()
     
     def _check_whisper(self) -> bool:
         """Whisper 설치 여부 확인"""
@@ -32,8 +41,20 @@ class STTProcessor:
     
     def transcribe_audio(self, audio_file: str, language: str = 'ko') -> str:
         """
-        오디오 파일을 텍스트로 변환
+        오디오 파일을 텍스트로 변환 (고급 STT 또는 기본 STT)
         """
+        if self.advanced_stt:
+            # 고급 STT 사용
+            try:
+                result = self.advanced_stt.stt.transcribe(audio_file, language=language)
+                korean_text = self._filter_korean_text(result.text)
+                print(f"🎤 고급 STT 결과 ({result.engine}): {korean_text}")
+                return korean_text
+            except Exception as e:
+                print(f"❌ 고급 STT 오류, fallback 사용: {e}")
+                return self._fallback_transcription(audio_file)
+        
+        # 기본 STT 사용
         if not self.whisper_available:
             return self._fallback_transcription(audio_file)
         
@@ -44,14 +65,19 @@ class STTProcessor:
             
             # 한국어 텍스트만 추출
             text = result["text"].strip()
-            korean_text = ''.join(c for c in text if self._is_korean(c) or c.isspace())
+            korean_text = self._filter_korean_text(text)
             
-            print(f"🎤 STT 결과: {korean_text}")
-            return korean_text.strip()
+            print(f"🎤 기본 STT 결과: {korean_text}")
+            return korean_text
             
         except Exception as e:
             print(f"❌ STT 오류: {e}")
             return self._fallback_transcription(audio_file)
+    
+    def _filter_korean_text(self, text: str) -> str:
+        """한국어 텍스트만 필터링"""
+        korean_text = ''.join(c for c in text if self._is_korean(c) or c.isspace())
+        return korean_text.strip()
     
     def _is_korean(self, char: str) -> bool:
         """한국어 문자인지 확인"""
@@ -62,7 +88,7 @@ class STTProcessor:
         filename = Path(audio_file).stem
         
         # 파일명에서 한국어 추출
-        korean_chars = ''.join(c for c in filename if self._is_korean(c))
+        korean_chars = self._filter_korean_text(filename)
         
         if korean_chars:
             print(f"📁 파일명 기반 추정: {korean_chars}")
