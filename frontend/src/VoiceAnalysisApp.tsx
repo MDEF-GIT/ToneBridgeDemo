@@ -8,6 +8,7 @@ import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './type
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import { useDualAxisChart } from './hooks/useDualAxisChart';
+import UploadedFileTestSection from './components/UploadedFileTestSection';
 // import { PitchTestMode } from './components/PitchTestMode';
 // import { ChartControls } from './components/ChartControls';
 import './custom.css';
@@ -1211,6 +1212,23 @@ const VoiceAnalysisApp: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 📁 업로드 파일 테스트 섹션 */}
+      <div className="container-fluid px-2 mt-5">
+        <div className="row">
+          <div className="col-12">
+            <div className="card border-success">
+              <div className="card-header bg-success text-white">
+                <h4 className="mb-0">📁 업로드된 파일 테스트</h4>
+                <small>생성된 WAV와 TextGrid 파일을 선택해서 차트로 확인할 수 있습니다</small>
+              </div>
+              <div className="card-body">
+                <UploadedFileTestSection />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 🎯 푸터 (base.html 구조 준수) */}
       <footer className="border-top py-3 mt-5">
