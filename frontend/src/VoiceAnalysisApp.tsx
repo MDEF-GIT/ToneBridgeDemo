@@ -259,12 +259,61 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [audioRecording]);
   
   const handlePlayReference = useCallback(() => {
-    if (selectedFile) {
+    if (selectedFile && pitchChart) {
       const audio = new Audio(`${API_BASE}/static/reference_files/${selectedFile}.wav`);
-      audio.play().catch(err => console.error('참조 음성 재생 실패:', err));
+      
+      // 🎯 재생 진행 추적을 위한 타이머
+      let progressTimer: NodeJS.Timeout | null = null;
+      
+      // 🎯 재생 시작 시 진행 표시 시작
+      audio.addEventListener('play', () => {
+        console.log('🎵 참조음성 재생 시작');
+        
+        progressTimer = setInterval(() => {
+          if (audio.currentTime && pitchChart.updatePlaybackProgress) {
+            pitchChart.updatePlaybackProgress(audio.currentTime);
+          }
+        }, 50); // 50ms마다 진행 상황 업데이트
+      });
+      
+      // 🎯 재생 완료 또는 일시정지 시 진행 표시 제거
+      const clearProgress = () => {
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+        if (pitchChart.clearPlaybackProgress) {
+          pitchChart.clearPlaybackProgress();
+        }
+      };
+      
+      audio.addEventListener('ended', () => {
+        console.log('🎵 참조음성 재생 완료');
+        clearProgress();
+        setStatus('✅ 참조 음성 재생이 완료되었습니다.');
+      });
+      
+      audio.addEventListener('pause', () => {
+        console.log('🎵 참조음성 재생 일시정지');
+        clearProgress();
+      });
+      
+      audio.addEventListener('error', (err) => {
+        console.error('🎵 참조음성 재생 실패:', err);
+        clearProgress();
+        setStatus('❌ 참조 음성 재생 중 오류가 발생했습니다.');
+      });
+      
+      // 재생 시작
+      audio.play().catch(err => {
+        console.error('참조 음성 재생 실패:', err);
+        clearProgress();
+        setStatus('❌ 참조 음성 재생에 실패했습니다.');
+      });
+      
       setStatus('🔊 참조 음성을 재생합니다.');
     }
-  }, [selectedFile, API_BASE]);
+  }, [selectedFile, API_BASE, pitchChart]);
 
 
   // 🎯 Y축 단위 변경을 두 차트에 전달

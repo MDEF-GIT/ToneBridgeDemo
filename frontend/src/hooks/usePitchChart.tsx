@@ -45,6 +45,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);
   const realtimeLineRef = useRef<number | null>(null); // 🎯 실시간 수직선 위치 추적
+  const playbackLineRef = useRef<number | null>(null); // 🎯 참조음성 재생 진행 표시선
   const [yAxisUnit, setYAxisUnitInternal] = React.useState<'semitone' | 'qtone'>('semitone');
 
   // 🎯 외부에서 Y축 단위를 설정하는 함수
@@ -830,6 +831,64 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     console.log(`📊 Y축 범위 업데이트: ${min} ~ ${max} (${yAxisUnit})`);
   }, [yAxisUnit]);
 
+  // 🎯 참조음성 재생 진행 표시선 업데이트
+  const updatePlaybackProgress = useCallback((currentTime: number) => {
+    if (!chartRef.current) return;
+
+    const chart = chartRef.current;
+    
+    // 🧹 기존 재생 진행선 제거
+    if (chart.options.plugins?.annotation?.annotations) {
+      delete chart.options.plugins.annotation.annotations['playback_progress'];
+    }
+
+    playbackLineRef.current = currentTime;
+
+    // 🎯 재생 진행 표시선 추가 (빨간색 수직선)
+    chart.options.plugins.annotation.annotations['playback_progress'] = {
+      type: 'line',
+      xMin: currentTime,
+      xMax: currentTime,
+      borderColor: 'rgba(255, 0, 0, 0.8)',  // 빨간색 진행선
+      borderWidth: 4,
+      borderDash: [4, 2],
+      label: {
+        content: '재생 중',
+        position: 'start',
+        backgroundColor: 'rgba(255, 0, 0, 0.9)',
+        borderColor: 'rgba(255, 0, 0, 1)',
+        borderRadius: 4,
+        borderWidth: 1,
+        color: 'white',
+        font: {
+          size: 12,
+          weight: 'bold'
+        },
+        padding: {
+          x: 6,
+          y: 3
+        }
+      }
+    };
+
+    chart.update('none');
+  }, []);
+
+  // 🎯 재생 진행선 제거
+  const clearPlaybackProgress = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const chart = chartRef.current;
+    
+    // 🧹 재생 진행선 제거
+    if (chart.options.plugins?.annotation?.annotations) {
+      delete chart.options.plugins.annotation.annotations['playback_progress'];
+    }
+
+    playbackLineRef.current = null;
+    chart.update('none');
+  }, []);
+
   useEffect(() => {
     initChart();
     
@@ -856,6 +915,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     updateRealtimePitchLine,
     hideRealtimePitchLine,
     updateRange,
+    updatePlaybackProgress,  // 🎯 재생 진행 표시 함수 추가
+    clearPlaybackProgress,   // 🎯 재생 진행 표시 제거 함수 추가
     setYAxisUnit, // Y축 단위 설정 메서드 추가
     yAxisUnit    // 현재 Y축 단위 반환
   };
