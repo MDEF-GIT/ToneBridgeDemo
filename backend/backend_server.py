@@ -1421,7 +1421,8 @@ async def get_reference_files():
     """저장된 참조 파일 목록 조회 - 파일 시스템 기반"""
     try:
         # 직접 파일 시스템에서 파일 목록 조회 - 마이크로서비스 구조 반영
-        reference_dir = "static/reference_files"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        reference_dir = os.path.join(base_dir, "reference_files")
         if not os.path.exists(reference_dir):
             return JSONResponse({"files": []})
         
@@ -1661,7 +1662,8 @@ async def get_reference_textgrid(file_id: str):
 async def get_syllable_pitch_analysis():
     """모든 참조 파일의 음절 대표 피치를 남성/여성 버전으로 추출"""
     try:
-        reference_dir = "static/reference_files"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        reference_dir = os.path.join(base_dir, "reference_files")
         if not os.path.exists(reference_dir):
             return JSONResponse({"analysis": []})
         
