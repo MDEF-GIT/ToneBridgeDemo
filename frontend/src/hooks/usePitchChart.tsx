@@ -215,10 +215,18 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   const loadReferenceData = useCallback(async (fileId: string) => {
     try {
+      console.log(`🎯 loadReferenceData called with fileId: ${fileId}, API_BASE: "${API_BASE}"`);
+      
       // 🎯 Load syllable-only pitch data (오리지널과 동일한 음절별 대표값)
+      const pitchUrl = `${API_BASE}/api/reference_files/${fileId}/pitch?syllable_only=true`;
+      const syllableUrl = `${API_BASE}/api/reference_files/${fileId}/syllables`;
+      
+      console.log(`🎯 Fetching pitch data: ${pitchUrl}`);
+      console.log(`🎯 Fetching syllable data: ${syllableUrl}`);
+      
       const [pitchResponse, syllableResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/reference_files/${fileId}/pitch?syllable_only=true`),
-        fetch(`${API_BASE}/api/reference_files/${fileId}/syllables`)
+        fetch(pitchUrl),
+        fetch(syllableUrl)
       ]);
       
       const pitchData = await pitchResponse.json();
@@ -243,21 +251,26 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         let maxTime = 0;
         
         // Add reference data points  
-        pitchData.forEach((point: {time: number, frequency: number}) => {
+        pitchData.forEach((point: {time: number, frequency: number, syllable?: string}) => {
           // 🎯 백엔드에서 이미 초 단위로 온 데이터를 그대로 사용 (1000 곱하지 않음)
           addPitchData(point.frequency, point.time, 'reference');
           maxTime = Math.max(maxTime, point.time);
+          if (point.syllable) {
+            console.log(`🎯 Added syllable point: ${point.syllable} at ${point.time}s, ${point.frequency}Hz`);
+          }
         });
         
-        console.log(`🎯 Loaded ${pitchData.length} reference pitch points, maxTime: ${maxTime}s`);
+        console.log(`🎯 Loaded ${pitchData.length} syllable representative points, maxTime: ${maxTime}s`);
         
         // 🎯 참조 데이터 길이에 맞게 x축 범위 조정 (TextGrid 시간에 맞춤)
         if (chartRef.current?.options?.scales?.x && maxTime > 0) {
+          const newMax = Math.max(maxTime + 0.3, 2); // 여유 0.3초, 최소 2초
           chartRef.current.options.scales.x.min = 0;
-          // 실제 음성 길이에 맞게 조정 (최소 여유 0.2초, 최소 범위 2초)
-          chartRef.current.options.scales.x.max = Math.max(maxTime + 0.2, 2);
-          console.log(`🎯 X-axis adjusted to audio duration: 0 - ${chartRef.current.options.scales.x.max} seconds (maxTime: ${maxTime}s)`);
+          chartRef.current.options.scales.x.max = newMax;
+          console.log(`🎯 X-axis adjusted to audio duration: 0 - ${newMax} seconds (maxTime: ${maxTime}s)`);
           chartRef.current.update('none');
+        } else {
+          console.warn('🚨 Could not adjust X-axis: chart or maxTime invalid');
         }
         
         // 🎯 Add syllable annotations to chart
