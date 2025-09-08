@@ -235,7 +235,8 @@ export const useDualAxisChart = (
       convertedValue: convertFrequencyToUnit(data.frequency)
     }));
 
-    // 차트 데이터 업데이트
+    // 차트 데이터 업데이트 - 주파수와 변환값 모두 업데이트
+    chartRef.current.data.datasets[0].data = chartDataRef.current.map(data => ({ x: data.time, y: data.frequency }));
     chartRef.current.data.datasets[1].data = chartDataRef.current.map(data => ({ x: data.time, y: data.convertedValue }));
     chartRef.current.data.datasets[1].label = yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)';
     
