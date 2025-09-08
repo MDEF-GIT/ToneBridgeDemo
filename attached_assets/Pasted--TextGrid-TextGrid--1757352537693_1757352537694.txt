@@ -1,0 +1,2392 @@
+음성 자동 분절 및 TextGrid 생성 시스템
+목차
+
+음절 분절 기술 개요
+TextGrid 구조 및 처리
+자동 음절 분절 시스템
+노이즈 제거와 음절 분절 통합
+고급 분절 및 정렬 시스템
+
+
+1. 음절 분절 기술 개요
+1.1 음절 분절 방법론
+pythonimport numpy as np
+import parselmouth
+from parselmouth.praat import call
+import librosa
+import scipy.signal
+from dataclasses import dataclass
+from typing import List, Tuple, Optional, Dict
+
+@dataclass
+class Syllable:
+    """음절 정보 클래스"""
+    start_time: float
+    end_time: float
+    text: str = ""
+    pitch_mean: float = 0.0
+    intensity_mean: float = 0.0
+    confidence: float = 0.0
+    phonemes: List[str] = None
+    
+class SyllableSegmentation:
+    """
+    음절 자동 분절 시스템
+    """
+    
+    def __init__(self):
+        self.sample_rate = None
+        self.audio = None
+        self.sound = None
+        
+    def segment_syllables(self, audio_file: str, method: str = 'energy_based') -> List[Syllable]:
+        """
+        음절 분절 메인 함수
+        
+        Parameters:
+        -----------
+        audio_file : str
+            입력 오디오 파일
+        method : str
+            분절 방법 ('energy_based', 'spectral_based', 'hybrid')
+        
+        Returns:
+        --------
+        List[Syllable] : 분절된 음절 리스트
+        """
+        # 오디오 로드
+        self.sound = parselmouth.Sound(audio_file)
+        self.audio, self.sample_rate = librosa.load(audio_file, sr=None)
+        
+        if method == 'energy_based':
+            return self._energy_based_segmentation()
+        elif method == 'spectral_based':
+            return self._spectral_based_segmentation()
+        elif method == 'hybrid':
+            return self._hybrid_segmentation()
+        else:
+            raise ValueError(f"Unknown method: {method}")
+    
+    def _energy_based_segmentation(self) -> List[Syllable]:
+        """
+        에너지 기반 음절 분절
+        """
+        # 1. 에너지 엔벨로프 계산
+        intensity = self.sound.to_intensity(time_step=0.01)
+        times = intensity.xs()
+        values = intensity.values[0]
+        
+        # 2. 에너지 피크와 밸리 찾기
+        peaks, valleys = self._find_peaks_and_valleys(values)
+        
+        # 3. 음절 경계 결정
+        boundaries = self._determine_boundaries_from_energy(
+            times, values, peaks, valleys
+        )
+        
+        # 4. 음절 객체 생성
+        syllables = []
+        for i in range(len(boundaries) - 1):
+            syllable = Syllable(
+                start_time=boundaries[i],
+                end_time=boundaries[i + 1],
+                intensity_mean=np.mean(values[
+                    int(boundaries[i] * 100):int(boundaries[i + 1] * 100)
+                ])
+            )
+            syllables.append(syllable)
+        
+        return syllables
+    
+    def _spectral_based_segmentation(self) -> List[Syllable]:
+        """
+        스펙트럴 특징 기반 음절 분절
+        """
+        # 1. 스펙트럴 특징 추출
+        spectral_flux = self._compute_spectral_flux()
+        spectral_centroid = librosa.feature.spectral_centroid(
+            y=self.audio, sr=self.sample_rate
+        )[0]
+        
+        # 2. 변화점 검출
+        change_points = self._detect_spectral_changes(
+            spectral_flux, spectral_centroid
+        )
+        
+        # 3. 음절 경계로 변환
+        boundaries = change_points / self.sample_rate
+        
+        # 4. 음절 생성
+        syllables = []
+        for i in range(len(boundaries) - 1):
+            syllables.append(
+                Syllable(
+                    start_time=boundaries[i],
+                    end_time=boundaries[i + 1]
+                )
+            )
+        
+        return syllables
+    
+    def _hybrid_segmentation(self) -> List[Syllable]:
+        """
+        하이브리드 음절 분절 (에너지 + 스펙트럴 + 피치)
+        """
+        # 1. 다중 특징 추출
+        features = self._extract_multiple_features()
+        
+        # 2. 특징 융합
+        combined_score = self._fuse_features(features)
+        
+        # 3. 동적 프로그래밍으로 최적 경계 찾기
+        boundaries = self._dynamic_programming_segmentation(combined_score)
+        
+        # 4. 음절 정보 추출
+        syllables = self._extract_syllable_info(boundaries)
+        
+        return syllables
+    
+    def _find_peaks_and_valleys(self, signal: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        신호에서 피크와 밸리 찾기
+        """
+        # 스무딩
+        smoothed = scipy.signal.savgol_filter(signal, 11, 3)
+        
+        # 피크 찾기
+        peaks, _ = scipy.signal.find_peaks(
+            smoothed, 
+            prominence=np.std(smoothed) * 0.3,
+            distance=20  # 최소 200ms 간격
+        )
+        
+        # 밸리 찾기 (반전 신호의 피크)
+        valleys, _ = scipy.signal.find_peaks(
+            -smoothed,
+            prominence=np.std(smoothed) * 0.2,
+            distance=10
+        )
+        
+        return peaks, valleys
+    
+    def _determine_boundaries_from_energy(self, times, values, peaks, valleys):
+        """
+        에너지 피크와 밸리로부터 음절 경계 결정
+        """
+        boundaries = [0.0]  # 시작점
+        
+        # 밸리를 경계로 사용
+        for valley_idx in valleys:
+            # 밸리가 두 피크 사이에 있는지 확인
+            if valley_idx < len(times):
+                time = times[valley_idx]
+                
+                # 너무 짧은 음절 방지 (최소 50ms)
+                if len(boundaries) == 0 or time - boundaries[-1] > 0.05:
+                    boundaries.append(time)
+        
+        boundaries.append(times[-1])  # 끝점
+        
+        return boundaries
+    
+    def _compute_spectral_flux(self):
+        """
+        스펙트럴 플럭스 계산
+        """
+        stft = librosa.stft(self.audio)
+        magnitude = np.abs(stft)
+        
+        # 스펙트럴 플럭스
+        flux = np.sum(np.diff(magnitude, axis=1) ** 2, axis=0)
+        flux = np.pad(flux, (1, 0), mode='constant', constant_values=0)
+        
+        return flux
+    
+    def _detect_spectral_changes(self, flux, centroid):
+        """
+        스펙트럴 변화점 검출
+        """
+        # 정규화
+        flux_norm = (flux - np.mean(flux)) / np.std(flux)
+        centroid_norm = (centroid - np.mean(centroid)) / np.std(centroid)
+        
+        # 변화 스코어
+        change_score = np.abs(np.diff(flux_norm)) + np.abs(np.diff(centroid_norm))
+        
+        # 피크 검출
+        peaks, _ = scipy.signal.find_peaks(
+            change_score,
+            prominence=1.0,
+            distance=int(0.05 * self.sample_rate)  # 최소 50ms
+        )
+        
+        return peaks
+    
+    def _extract_multiple_features(self):
+        """
+        다중 특징 추출
+        """
+        features = {}
+        
+        # 1. 에너지
+        features['energy'] = librosa.feature.rms(
+            y=self.audio, 
+            frame_length=2048, 
+            hop_length=512
+        )[0]
+        
+        # 2. 영교차율
+        features['zcr'] = librosa.feature.zero_crossing_rate(
+            self.audio,
+            frame_length=2048,
+            hop_length=512
+        )[0]
+        
+        # 3. 스펙트럴 중심
+        features['spectral_centroid'] = librosa.feature.spectral_centroid(
+            y=self.audio,
+            sr=self.sample_rate
+        )[0]
+        
+        # 4. 피치 (Praat)
+        pitch = self.sound.to_pitch(time_step=0.01)
+        features['pitch'] = pitch.selected_array['frequency']
+        
+        # 5. 포먼트
+        formant = self.sound.to_formant_burg()
+        f1_values = []
+        for i in range(formant.n_frames):
+            time = formant.get_time_from_frame_number(i + 1)
+            f1 = formant.get_value_at_time(1, time)
+            f1_values.append(f1 if f1 else 0)
+        features['formant'] = np.array(f1_values)
+        
+        return features
+    
+    def _fuse_features(self, features):
+        """
+        특징 융합
+        """
+        # 모든 특징을 동일한 시간 해상도로 리샘플링
+        target_length = min(len(v) for v in features.values())
+        
+        fused = np.zeros(target_length)
+        weights = {
+            'energy': 0.3,
+            'zcr': 0.1,
+            'spectral_centroid': 0.2,
+            'pitch': 0.25,
+            'formant': 0.15
+        }
+        
+        for name, feature in features.items():
+            # 리샘플링
+            if len(feature) != target_length:
+                feature = scipy.signal.resample(feature, target_length)
+            
+            # 정규화
+            if np.std(feature) > 0:
+                feature = (feature - np.mean(feature)) / np.std(feature)
+            
+            # 가중 합
+            fused += weights.get(name, 0.1) * np.abs(np.diff(np.pad(feature, (1, 0))))
+        
+        return fused
+    
+    def _dynamic_programming_segmentation(self, score, min_duration=0.05, max_duration=0.5):
+        """
+        동적 프로그래밍을 이용한 최적 분절
+        """
+        n = len(score)
+        hop_length = 512
+        time_per_frame = hop_length / self.sample_rate
+        
+        min_frames = int(min_duration / time_per_frame)
+        max_frames = int(max_duration / time_per_frame)
+        
+        # DP 테이블
+        dp = np.full(n + 1, np.inf)
+        dp[0] = 0
+        parent = np.zeros(n + 1, dtype=int)
+        
+        # DP 실행
+        for i in range(n):
+            if dp[i] == np.inf:
+                continue
+                
+            for j in range(i + min_frames, min(i + max_frames + 1, n + 1)):
+                # 세그먼트 비용
+                segment_cost = -np.sum(score[i:j])
+                
+                # 길이 페널티
+                length = j - i
+                optimal_length = (min_frames + max_frames) / 2
+                length_penalty = abs(length - optimal_length) * 0.1
+                
+                total_cost = dp[i] + segment_cost + length_penalty
+                
+                if total_cost < dp[j]:
+                    dp[j] = total_cost
+                    parent[j] = i
+        
+        # 백트래킹
+        boundaries = []
+        i = n
+        while i > 0:
+            boundaries.append(i * time_per_frame)
+            i = parent[i]
+        boundaries.append(0)
+        
+        return list(reversed(boundaries))
+    
+    def _extract_syllable_info(self, boundaries):
+        """
+        경계로부터 음절 정보 추출
+        """
+        syllables = []
+        
+        for i in range(len(boundaries) - 1):
+            start = boundaries[i]
+            end = boundaries[i + 1]
+            
+            # 구간 내 특징 추출
+            start_frame = int(start * self.sample_rate)
+            end_frame = int(end * self.sample_rate)
+            
+            if end_frame > start_frame:
+                segment = self.audio[start_frame:end_frame]
+                
+                # 피치 평균
+                pitch = self.sound.to_pitch(time_step=0.01)
+                pitch_values = []
+                for t in np.linspace(start, end, 10):
+                    p = pitch.get_value_at_time(t)
+                    if p:
+                        pitch_values.append(p)
+                
+                pitch_mean = np.mean(pitch_values) if pitch_values else 0
+                
+                # 강도 평균
+                intensity = self.sound.to_intensity()
+                intensity_values = []
+                for t in np.linspace(start, end, 10):
+                    intensity_values.append(
+                        call(intensity, "Get value at time", t, "cubic")
+                    )
+                intensity_mean = np.mean(intensity_values)
+                
+                syllables.append(
+                    Syllable(
+                        start_time=start,
+                        end_time=end,
+                        pitch_mean=pitch_mean,
+                        intensity_mean=intensity_mean,
+                        confidence=0.8  # 임시 신뢰도
+                    )
+                )
+        
+        return syllables
+
+2. TextGrid 구조 및 처리
+2.1 TextGrid 생성 및 관리
+pythonimport tgt  # TextGridTools
+import json
+from pathlib import Path
+
+class TextGridManager:
+    """
+    TextGrid 파일 생성 및 관리
+    """
+    
+    def __init__(self):
+        self.textgrid = None
+        self.tiers = {}
+        
+    def create_textgrid(self, duration: float, tiers_config: Dict = None):
+        """
+        새 TextGrid 생성
+        
+        Parameters:
+        -----------
+        duration : float
+            전체 지속 시간
+        tiers_config : Dict
+            계층 구성 {'name': 'type'}
+        """
+        self.textgrid = tgt.TextGrid(maxTime=duration)
+        
+        default_tiers = {
+            'words': 'IntervalTier',
+            'syllables': 'IntervalTier',
+            'phonemes': 'IntervalTier',
+            'pitch': 'PointTier',
+            'breaks': 'PointTier'
+        }
+        
+        tiers_config = tiers_config or default_tiers
+        
+        for tier_name, tier_type in tiers_config.items():
+            if tier_type == 'IntervalTier':
+                tier = tgt.IntervalTier(
+                    start_time=0,
+                    end_time=duration,
+                    name=tier_name
+                )
+            else:  # PointTier
+                tier = tgt.PointTier(
+                    start_time=0,
+                    end_time=duration,
+                    name=tier_name
+                )
+            
+            self.textgrid.add_tier(tier)
+            self.tiers[tier_name] = tier
+    
+    def add_syllables_to_tier(self, syllables: List[Syllable], tier_name: str = 'syllables'):
+        """
+        음절을 TextGrid 계층에 추가
+        """
+        if tier_name not in self.tiers:
+            raise ValueError(f"Tier '{tier_name}' not found")
+        
+        tier = self.tiers[tier_name]
+        
+        for syllable in syllables:
+            interval = tgt.Interval(
+                start_time=syllable.start_time,
+                end_time=syllable.end_time,
+                text=syllable.text or ""
+            )
+            tier.add_interval(interval)
+    
+    def add_words_to_tier(self, words: List[Dict], tier_name: str = 'words'):
+        """
+        단어를 TextGrid 계층에 추가
+        """
+        tier = self.tiers[tier_name]
+        
+        for word in words:
+            interval = tgt.Interval(
+                start_time=word['start'],
+                end_time=word['end'],
+                text=word['text']
+            )
+            tier.add_interval(interval)
+    
+    def add_pitch_points(self, pitch_data: List[Tuple[float, float]], 
+                        tier_name: str = 'pitch'):
+        """
+        피치 포인트 추가
+        """
+        tier = self.tiers[tier_name]
+        
+        for time, pitch in pitch_data:
+            point = tgt.Point(time=time, text=f"{pitch:.1f}")
+            tier.add_point(point)
+    
+    def save_textgrid(self, output_path: str, format: str = 'long'):
+        """
+        TextGrid 파일 저장
+        
+        Parameters:
+        -----------
+        output_path : str
+            출력 파일 경로
+        format : str
+            'long' (Praat long format) 또는 'short' (Praat short format)
+        """
+        tgt.write_to_file(
+            self.textgrid, 
+            output_path, 
+            format=format,
+            encoding='utf-8'
+        )
+    
+    def load_textgrid(self, file_path: str):
+        """
+        TextGrid 파일 로드
+        """
+        self.textgrid = tgt.read_textgrid(file_path, encoding='utf-8')
+        self.tiers = {tier.name: tier for tier in self.textgrid.tiers}
+        return self.textgrid
+    
+    def update_tier(self, tier_name: str, intervals: List[Dict]):
+        """
+        기존 계층 업데이트
+        """
+        if tier_name not in self.tiers:
+            raise ValueError(f"Tier '{tier_name}' not found")
+        
+        tier = self.tiers[tier_name]
+        
+        # 기존 인터벌 제거
+        tier.intervals = []
+        
+        # 새 인터벌 추가
+        for interval in intervals:
+            tier.add_interval(
+                tgt.Interval(
+                    start_time=interval['start'],
+                    end_time=interval['end'],
+                    text=interval.get('text', '')
+                )
+            )
+    
+    def merge_intervals(self, tier_name: str, threshold: float = 0.1):
+        """
+        인접한 유사 인터벌 병합
+        """
+        tier = self.tiers[tier_name]
+        merged = []
+        
+        for interval in tier.intervals:
+            if not merged:
+                merged.append(interval)
+            else:
+                last = merged[-1]
+                # 간격이 threshold 이하이고 텍스트가 같으면 병합
+                if (interval.start_time - last.end_time < threshold and 
+                    interval.text == last.text):
+                    last.end_time = interval.end_time
+                else:
+                    merged.append(interval)
+        
+        tier.intervals = merged
+    
+    def export_to_json(self, output_path: str):
+        """
+        TextGrid를 JSON으로 내보내기
+        """
+        data = {
+            'duration': self.textgrid.end_time,
+            'tiers': {}
+        }
+        
+        for tier_name, tier in self.tiers.items():
+            if isinstance(tier, tgt.IntervalTier):
+                data['tiers'][tier_name] = {
+                    'type': 'interval',
+                    'intervals': [
+                        {
+                            'start': interval.start_time,
+                            'end': interval.end_time,
+                            'text': interval.text
+                        }
+                        for interval in tier.intervals
+                    ]
+                }
+            else:  # PointTier
+                data['tiers'][tier_name] = {
+                    'type': 'point',
+                    'points': [
+                        {
+                            'time': point.time,
+                            'text': point.text
+                        }
+                        for point in tier.points
+                    ]
+                }
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+2.2 Praat 연동
+pythonclass PraatInterface:
+    """
+    Praat와의 직접 연동
+    """
+    
+    def __init__(self):
+        self.sound = None
+        self.textgrid = None
+    
+    def create_textgrid_with_praat(self, sound_file: str, 
+                                  syllable_tier: bool = True,
+                                  word_tier: bool = True,
+                                  phoneme_tier: bool = True) -> str:
+        """
+        Praat 스크립트로 TextGrid 생성
+        """
+        # Sound 로드
+        self.sound = parselmouth.Sound(sound_file)
+        
+        # TextGrid 생성
+        self.textgrid = call(self.sound, "To TextGrid", 
+                            "syllables words phonemes", "")
+        
+        return self.textgrid
+    
+    def segment_with_praat_silences(self, sound_file: str,
+                                   silence_threshold: float = -25.0,
+                                   min_silent_duration: float = 0.1,
+                                   min_sounding_duration: float = 0.05):
+        """
+        Praat의 무음 검출을 이용한 분절
+        """
+        sound = parselmouth.Sound(sound_file)
+        
+        # 무음 기반 TextGrid 생성
+        textgrid = call(sound, "To TextGrid (silences)",
+                       100, 0.0, silence_threshold,
+                       min_silent_duration, min_sounding_duration,
+                       "silent", "sounding")
+        
+        # 결과 파싱
+        segments = []
+        tier = textgrid.tiers[0]
+        
+        for interval in tier:
+            if interval.mark == "sounding":
+                segments.append({
+                    'start': interval.xmin,
+                    'end': interval.xmax,
+                    'label': 'speech'
+                })
+        
+        return segments
+    
+    def annotate_pitch_tier(self, sound_file: str, textgrid_file: str = None):
+        """
+        피치 정보를 TextGrid에 추가
+        """
+        sound = parselmouth.Sound(sound_file)
+        
+        # 피치 추출
+        pitch = sound.to_pitch()
+        
+        # TextGrid 로드 또는 생성
+        if textgrid_file:
+            textgrid = call("Read from file", textgrid_file)
+        else:
+            textgrid = call(sound, "To TextGrid", "pitch", "")
+        
+        # 피치 계층 추가
+        pitch_tier = call(pitch, "Down to PitchTier")
+        call([textgrid, pitch_tier], "Append")
+        
+        return textgrid
+    
+    def forced_alignment(self, sound_file: str, transcript: str, 
+                        language: str = 'ko'):
+        """
+        강제 정렬 (Forced Alignment)
+        """
+        # 실제 구현은 외부 도구 필요 (예: Montreal Forced Aligner)
+        # 여기서는 간단한 균등 분할 예시
+        
+        sound = parselmouth.Sound(sound_file)
+        duration = sound.duration
+        
+        # 음절 분리 (한국어 예시)
+        if language == 'ko':
+            syllables = self._split_korean_syllables(transcript)
+        else:
+            syllables = transcript.split()
+        
+        # 균등 분할 (실제로는 음성 인식 모델 사용)
+        syllable_duration = duration / len(syllables)
+        
+        aligned = []
+        for i, syllable in enumerate(syllables):
+            aligned.append({
+                'start': i * syllable_duration,
+                'end': (i + 1) * syllable_duration,
+                'text': syllable
+            })
+        
+        return aligned
+    
+    def _split_korean_syllables(self, text: str) -> List[str]:
+        """
+        한국어 음절 분리
+        """
+        import re
+        
+        # 한글 음절 패턴
+        pattern = re.compile(r'[가-힣]')
+        syllables = pattern.findall(text)
+        
+        return syllables
+
+3. 자동 음절 분절 시스템
+3.1 딥러닝 기반 음절 분절
+pythonimport torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+
+class SyllableBoundaryDetector(nn.Module):
+    """
+    딥러닝 기반 음절 경계 검출 모델
+    """
+    
+    def __init__(self, input_dim=40, hidden_dim=256, num_layers=3):
+        super().__init__()
+        
+        # Bi-LSTM
+        self.lstm = nn.LSTM(
+            input_dim, hidden_dim, 
+            num_layers=num_layers,
+            bidirectional=True,
+            batch_first=True,
+            dropout=0.3
+        )
+        
+        # Attention
+        self.attention = nn.MultiheadAttention(
+            hidden_dim * 2, num_heads=8,
+            batch_first=True
+        )
+        
+        # 분류 레이어
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(hidden_dim, 2)  # 경계/비경계
+        )
+    
+    def forward(self, x, lengths=None):
+        # LSTM
+        lstm_out, _ = self.lstm(x)
+        
+        # Self-Attention
+        attn_out, _ = self.attention(lstm_out, lstm_out, lstm_out)
+        
+        # Residual connection
+        combined = lstm_out + attn_out
+        
+        # 분류
+        output = self.classifier(combined)
+        
+        return output
+
+class AdvancedSyllableSegmenter:
+    """
+    고급 음절 분절 시스템
+    """
+    
+    def __init__(self, model_path: str = None):
+        self.model = SyllableBoundaryDetector()
+        if model_path:
+            self.load_model(model_path)
+        
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
+    
+    def segment_with_deep_learning(self, audio_file: str) -> List[Syllable]:
+        """
+        딥러닝 모델을 이용한 음절 분절
+        """
+        # 특징 추출
+        features = self._extract_features(audio_file)
+        
+        # 모델 예측
+        self.model.eval()
+        with torch.no_grad():
+            features_tensor = torch.FloatTensor(features).unsqueeze(0).to(self.device)
+            predictions = self.model(features_tensor)
+            probabilities = F.softmax(predictions, dim=-1)
+        
+        # 경계 검출
+        boundaries = self._detect_boundaries(probabilities[0].cpu().numpy())
+        
+        # 음절 생성
+        syllables = self._create_syllables(boundaries, audio_file)
+        
+        return syllables
+    
+    def _extract_features(self, audio_file: str) -> np.ndarray:
+        """
+        오디오에서 특징 추출
+        """
+        # 오디오 로드
+        y, sr = librosa.load(audio_file, sr=16000)
+        
+        # MFCC
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        
+        # Delta, Delta-Delta
+        delta = librosa.feature.delta(mfcc)
+        delta2 = librosa.feature.delta(mfcc, order=2)
+        
+        # 에너지
+        energy = librosa.feature.rms(y=y)
+        
+        # 피치 (근사)
+        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+        pitch = np.max(pitches, axis=0).reshape(1, -1)
+        
+        # 결합
+        features = np.vstack([mfcc, delta, delta2, energy, pitch])
+        
+        # Transpose for time-first format
+        return features.T
+    
+    def _detect_boundaries(self, probabilities: np.ndarray, 
+                          threshold: float = 0.5) -> List[float]:
+        """
+        확률에서 경계 검출
+        """
+        # 경계 클래스 확률
+        boundary_probs = probabilities[:, 1]
+        
+        # 피크 검출
+        peaks, properties = scipy.signal.find_peaks(
+            boundary_probs,
+            height=threshold,
+            distance=20  # 최소 간격
+        )
+        
+        # 프레임을 시간으로 변환
+        hop_length = 512
+        sr = 16000
+        boundaries = peaks * hop_length / sr
+        
+        return boundaries.tolist()
+    
+    def _create_syllables(self, boundaries: List[float], 
+                         audio_file: str) -> List[Syllable]:
+        """
+        경계에서 음절 객체 생성
+        """
+        sound = parselmouth.Sound(audio_file)
+        
+        # 경계 정렬
+        boundaries = [0.0] + boundaries + [sound.duration]
+        
+        syllables = []
+        for i in range(len(boundaries) - 1):
+            start = boundaries[i]
+            end = boundaries[i + 1]
+            
+            # 음절 정보 추출
+            syllable = self._analyze_syllable(sound, start, end)
+            syllables.append(syllable)
+        
+        return syllables
+    
+    def _analyze_syllable(self, sound, start: float, end: float) -> Syllable:
+        """
+        음절 구간 분석
+        """
+        # 피치
+        pitch = sound.to_pitch()
+        pitch_values = []
+        for t in np.linspace(start, end, 10):
+            p = pitch.get_value_at_time(t)
+            if p:
+                pitch_values.append(p)
+        
+        # 강도
+        intensity = sound.to_intensity()
+        intensity_values = []
+        for t in np.linspace(start, end, 10):
+            i = call(intensity, "Get value at time", t, "cubic")
+            if i:
+                intensity_values.append(i)
+        
+        return Syllable(
+            start_time=start,
+            end_time=end,
+            pitch_mean=np.mean(pitch_values) if pitch_values else 0,
+            intensity_mean=np.mean(intensity_values) if intensity_values else 0,
+            confidence=0.9  # 모델 신뢰도
+        )
+    
+    def train_model(self, dataset_path: str, epochs: int = 50):
+        """
+        모델 학습
+        """
+        # 데이터셋 로드
+        train_dataset = SyllableDataset(dataset_path)
+        train_loader = DataLoader(
+            train_dataset, 
+            batch_size=32, 
+            shuffle=True
+        )
+        
+        # 옵티마이저
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        criterion = nn.CrossEntropyLoss()
+        
+        self.model.train()
+        for epoch in range(epochs):
+            total_loss = 0
+            
+            for batch in train_loader:
+                features, labels = batch
+                features = features.to(self.device)
+                labels = labels.to(self.device)
+                
+                # Forward
+                outputs = self.model(features)
+                loss = criterion(outputs.view(-1, 2), labels.view(-1))
+                
+                # Backward
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(train_loader):.4f}")
+    
+    def save_model(self, path: str):
+        """모델 저장"""
+        torch.save(self.model.state_dict(), path)
+    
+    def load_model(self, path: str):
+        """모델 로드"""
+        self.model.load_state_dict(torch.load(path, map_location=self.device))
+3.2 음절 정제 및 후처리
+pythonclass SyllableRefinement:
+    """
+    음절 분절 결과 정제
+    """
+    
+    def __init__(self):
+        self.min_syllable_duration = 0.05  # 50ms
+        self.max_syllable_duration = 0.5   # 500ms
+        
+    def refine_syllables(self, syllables: List[Syllable], 
+                         audio_file: str) -> List[Syllable]:
+        """
+        음절 분절 결과 정제
+        """
+        # 1. 너무 짧거나 긴 음절 처리
+        syllables = self._adjust_durations(syllables)
+        
+        # 2. 에너지 기반 병합
+        syllables = self._merge_low_energy_syllables(syllables, audio_file)
+        
+        # 3. 음성학적 제약 적용
+        syllables = self._apply_phonetic_constraints(syllables, audio_file)
+        
+        # 4. 경계 스무딩
+        syllables = self._smooth_boundaries(syllables, audio_file)
+        
+        return syllables
+    
+    def _adjust_durations(self, syllables: List[Syllable]) -> List[Syllable]:
+        """
+        지속 시간 조정
+        """
+        adjusted = []
+        
+        i = 0
+        while i < len(syllables):
+            syllable = syllables[i]
+            duration = syllable.end_time - syllable.start_time
+            
+            if duration < self.min_syllable_duration:
+                # 너무 짧으면 다음 음절과 병합
+                if i + 1 < len(syllables):
+                    next_syllable = syllables[i + 1]
+                    merged = Syllable(
+                        start_time=syllable.start_time,
+                        end_time=next_syllable.end_time,
+                        pitch_mean=(syllable.pitch_mean + next_syllable.pitch_mean) / 2,
+                        intensity_mean=(syllable.intensity_mean + next_syllable.intensity_mean) / 2
+                    )
+                    adjusted.append(merged)
+                    i += 2
+                else:
+                    # 마지막 음절이면 이전 음절과 병합
+                    if adjusted:
+                        adjusted[-1].end_time = syllable.end_time
+                    i += 1
+            
+            elif duration > self.max_syllable_duration:
+                # 너무 길면 분할
+                mid_point = syllable.start_time + duration / 2
+                
+                first = Syllable(
+                    start_time=syllable.start_time,
+                    end_time=mid_point,
+                    pitch_mean=syllable.pitch_mean,
+                    intensity_mean=syllable.intensity_mean
+                )
+                
+                second = Syllable(
+                    start_time=mid_point,
+                    end_time=syllable.end_time,
+                    pitch_mean=syllable.pitch_mean,
+                    intensity_mean=syllable.intensity_mean
+                )
+                
+                adjusted.extend([first, second])
+                i += 1
+            
+            else:
+                adjusted.append(syllable)
+                i += 1
+        
+        return adjusted
+    
+    def _merge_low_energy_syllables(self, syllables: List[Syllable], 
+                                   audio_file: str) -> List[Syllable]:
+        """
+        저에너지 음절 병합
+        """
+        sound = parselmouth.Sound(audio_file)
+        intensity = sound.to_intensity()
+        
+        # 평균 강도 계산
+        mean_intensity = call(intensity, "Get mean", 0, 0, "energy")
+        threshold = mean_intensity * 0.5
+        
+        merged = []
+        skip_next = False
+        
+        for i in range(len(syllables)):
+            if skip_next:
+                skip_next = False
+                continue
+            
+            syllable = syllables[i]
+            
+            # 음절의 평균 강도 체크
+            if syllable.intensity_mean < threshold:
+                # 인접 음절과 병합
+                if i > 0 and i < len(syllables) - 1:
+                    # 더 강한 인접 음절과 병합
+                    prev_intensity = syllables[i-1].intensity_mean
+                    next_intensity = syllables[i+1].intensity_mean
+                    
+                    if prev_intensity > next_intensity:
+                        # 이전 음절과 병합
+                        merged[-1].end_time = syllable.end_time
+                    else:
+                        # 다음 음절과 병합
+                        syllables[i+1].start_time = syllable.start_time
+                else:
+                    merged.append(syllable)
+            else:
+                merged.append(syllable)
+        
+        return merged
+    
+    def _apply_phonetic_constraints(self, syllables: List[Syllable], 
+                                   audio_file: str) -> List[Syllable]:
+        """
+        음성학적 제약 적용
+        """
+        sound = parselmouth.Sound(audio_file)
+        
+        # 포먼트 연속성 체크
+        formant = sound.to_formant_burg()
+        
+        refined = []
+        for syllable in syllables:
+            # F1, F2 변화 체크
+            start_f1 = formant.get_value_at_time(1, syllable.start_time)
+            end_f1 = formant.get_value_at_time(1, syllable.end_time)
+            
+            if start_f1 and end_f1:
+                f1_change = abs(end_f1 - start_f1)
+                
+                # F1 변화가 너무 크면 경계 조정
+                if f1_change > 500:  # 500Hz 이상 변화
+                    # 변화점 찾기
+                    times = np.linspace(syllable.start_time, syllable.end_time, 20)
+                    f1_values = [formant.get_value_at_time(1, t) for t in times]
+                    f1_values = [f for f in f1_values if f]
+                    
+                    if len(f1_values) > 2:
+                        # 최대 변화점 찾기
+                        diffs = np.abs(np.diff(f1_values))
+                        max_change_idx = np.argmax(diffs)
+                        
+                        # 분할
+                        split_time = times[max_change_idx + 1]
+                        
+                        first = Syllable(
+                            start_time=syllable.start_time,
+                            end_time=split_time,
+                            pitch_mean=syllable.pitch_mean,
+                            intensity_mean=syllable.intensity_mean
+                        )
+                        
+                        second = Syllable(
+                            start_time=split_time,
+                            end_time=syllable.end_time,
+                            pitch_mean=syllable.pitch_mean,
+                            intensity_mean=syllable.intensity_mean
+                        )
+                        
+                        refined.extend([first, second])
+                    else:
+                        refined.append(syllable)
+                else:
+                    refined.append(syllable)
+            else:
+                refined.append(syllable)
+        
+        return refined
+    
+    def _smooth_boundaries(self, syllables: List[Syllable], 
+                          audio_file: str) -> List[Syllable]:
+        """
+        경계 스무딩
+        """
+        y, sr = librosa.load(audio_file, sr=None)
+        
+        smoothed = []
+        for syllable in syllables:
+            # 경계 근처의 영교차율 체크
+            start_sample = int(syllable.start_time * sr)
+            end_sample = int(syllable.end_time * sr)
+            
+            # 시작 경계 조정
+            window = 0.01  # 10ms 윈도우
+            window_samples = int(window * sr)
+            
+            if start_sample > window_samples:
+                start_window = y[start_sample - window_samples:start_sample + window_samples]
+                zcr = np.sum(np.abs(np.diff(np.sign(start_window))))
+                
+                # ZCR이 낮은 지점으로 이동
+                min_zcr = zcr
+                best_start = start_sample
+                
+                for offset in range(-window_samples//2, window_samples//2):
+                    if start_sample + offset < 0 or start_sample + offset >= len(y):
+                        continue
+                    
+                    test_window = y[start_sample + offset - window_samples//2:
+                                  start_sample + offset + window_samples//2]
+                    test_zcr = np.sum(np.abs(np.diff(np.sign(test_window))))
+                    
+                    if test_zcr < min_zcr:
+                        min_zcr = test_zcr
+                        best_start = start_sample + offset
+                
+                syllable.start_time = best_start / sr
+            
+            # 끝 경계도 동일하게 조정
+            if end_sample < len(y) - window_samples:
+                end_window = y[end_sample - window_samples:end_sample + window_samples]
+                zcr = np.sum(np.abs(np.diff(np.sign(end_window))))
+                
+                min_zcr = zcr
+                best_end = end_sample
+                
+                for offset in range(-window_samples//2, window_samples//2):
+                    if end_sample + offset < 0 or end_sample + offset >= len(y):
+                        continue
+                    
+                    test_window = y[end_sample + offset - window_samples//2:
+                                  end_sample + offset + window_samples//2]
+                    test_zcr = np.sum(np.abs(np.diff(np.sign(test_window))))
+                    
+                    if test_zcr < min_zcr:
+                        min_zcr = test_zcr
+                        best_end = end_sample + offset
+                
+                syllable.end_time = best_end / sr
+            
+            smoothed.append(syllable)
+        
+        return smoothed
+
+4. 노이즈 제거와 음절 분절 통합
+4.1 통합 파이프라인
+pythonclass IntegratedSpeechProcessor:
+    """
+    노이즈 제거와 음절 분절 통합 시스템
+    """
+    
+    def __init__(self):
+        self.noise_reducer = NoiseReducer()
+        self.segmenter = SyllableSegmentation()
+        self.refiner = SyllableRefinement()
+        self.textgrid_manager = TextGridManager()
+        self.dl_segmenter = AdvancedSyllableSegmenter()
+        
+    def process_audio(self, input_file: str, output_dir: str,
+                      use_deep_learning: bool = False,
+                      denoise: bool = True,
+                      create_textgrid: bool = True):
+        """
+        전체 처리 파이프라인
+        """
+        results = {
+            'input_file': input_file,
+            'processed_files': {}
+        }
+        
+        # 1. 노이즈 제거
+        if denoise:
+            print("Step 1: Removing noise...")
+            clean_audio = self._remove_noise(input_file)
+            clean_file = f"{output_dir}/clean_audio.wav"
+            self._save_audio(clean_audio, clean_file)
+            results['processed_files']['clean_audio'] = clean_file
+            processing_file = clean_file
+        else:
+            processing_file = input_file
+        
+        # 2. 음절 분절
+        print("Step 2: Segmenting syllables...")
+        if use_deep_learning:
+            syllables = self.dl_segmenter.segment_with_deep_learning(processing_file)
+        else:
+            syllables = self.segmenter.segment_syllables(
+                processing_file, 
+                method='hybrid'
+            )
+        
+        # 3. 음절 정제
+        print("Step 3: Refining syllables...")
+        syllables = self.refiner.refine_syllables(syllables, processing_file)
+        results['syllables'] = syllables
+        
+        # 4. TextGrid 생성
+        if create_textgrid:
+            print("Step 4: Creating TextGrid...")
+            textgrid_file = self._create_textgrid(
+                syllables, 
+                processing_file, 
+                output_dir
+            )
+            results['processed_files']['textgrid'] = textgrid_file
+        
+        # 5. 분석 리포트 생성
+        print("Step 5: Generating analysis report...")
+        report = self._generate_report(syllables, processing_file)
+        results['analysis'] = report
+        
+        return results
+    
+    def _remove_noise(self, audio_file: str) -> np.ndarray:
+        """
+        노이즈 제거
+        """
+        y, sr = librosa.load(audio_file, sr=None)
+        
+        # 스펙트럴 게이팅
+        clean = self.noise_reducer.spectral_gating(y, sr)
+        
+        # 적응형 필터링
+        clean = self.noise_reducer.adaptive_filtering(clean, sr)
+        
+        return clean
+    
+    def _save_audio(self, audio: np.ndarray, output_file: str, sr: int = 16000):
+        """
+        오디오 저장
+        """
+        import soundfile as sf
+        sf.write(output_file, audio, sr)
+    
+    def _create_textgrid(self, syllables: List[Syllable], 
+                        audio_file: str, output_dir: str) -> str:
+        """
+        TextGrid 생성 및 저장
+        """
+        # 오디오 길이 확인
+        sound = parselmouth.Sound(audio_file)
+        duration = sound.duration
+        
+        # TextGrid 생성
+        self.textgrid_manager.create_textgrid(duration)
+        
+        # 음절 추가
+        self.textgrid_manager.add_syllables_to_tier(syllables)
+        
+        # 피치 정보 추가
+        pitch = sound.to_pitch()
+        pitch_points = []
+        for syllable in syllables:
+            mid_time = (syllable.start_time + syllable.end_time) / 2
+            pitch_value = pitch.get_value_at_time(mid_time)
+            if pitch_value:
+                pitch_points.append((mid_time, pitch_value))
+        
+        self.textgrid_manager.add_pitch_points(pitch_points)
+        
+        # 저장
+        textgrid_file = f"{output_dir}/segmented.TextGrid"
+        self.textgrid_manager.save_textgrid(textgrid_file)
+        
+        # JSON으로도 저장
+        json_file = f"{output_dir}/segmented.json"
+        self.textgrid_manager.export_to_json(json_file)
+        
+        return textgrid_file
+    
+    def _generate_report(self, syllables: List[Syllable], 
+                        audio_file: str) -> Dict:
+        """
+        분석 리포트 생성
+        """
+        sound = parselmouth.Sound(audio_file)
+        
+        # 기본 통계
+        durations = [s.end_time - s.start_time for s in syllables]
+        pitches = [s.pitch_mean for s in syllables if s.pitch_mean > 0]
+        intensities = [s.intensity_mean for s in syllables]
+        
+        report = {
+            'total_syllables': len(syllables),
+            'total_duration': sound.duration,
+            'syllables_per_second': len(syllables) / sound.duration,
+            'duration_stats': {
+                'mean': np.mean(durations),
+                'std': np.std(durations),
+                'min': np.min(durations),
+                'max': np.max(durations)
+            },
+            'pitch_stats': {
+                'mean': np.mean(pitches) if pitches else 0,
+                'std': np.std(pitches) if pitches else 0,
+                'range': (np.min(pitches), np.max(pitches)) if pitches else (0, 0)
+            },
+            'intensity_stats': {
+                'mean': np.mean(intensities),
+                'std': np.std(intensities),
+                'range': (np.min(intensities), np.max(intensities))
+            }
+        }
+        
+        return report
+4.2 노이즈 제거 모듈
+pythonclass NoiseReducer:
+    """
+    고급 노이즈 제거 시스템
+    """
+    
+    def __init__(self):
+        self.noise_profile = None
+        
+    def spectral_gating(self, audio: np.ndarray, sr: int,
+                        noise_gate_thresh: float = 0.02) -> np.ndarray:
+        """
+        스펙트럴 게이팅을 이용한 노이즈 제거
+        """
+        # STFT
+        D = librosa.stft(audio)
+        magnitude = np.abs(D)
+        phase = np.angle(D)
+        
+        # 노이즈 프로파일 추정 (첫 0.5초)
+        noise_frames = int(0.5 * sr / 512)
+        noise_profile = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
+        
+        # 스펙트럴 게이팅
+        mask = magnitude > (noise_profile * noise_gate_thresh)
+        magnitude_clean = magnitude * mask
+        
+        # 역변환
+        D_clean = magnitude_clean * np.exp(1j * phase)
+        audio_clean = librosa.istft(D_clean)
+        
+        return audio_clean
+    
+    def adaptive_filtering(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        """
+        적응형 필터링
+        """
+        from scipy import signal
+        
+        # 고역 통과 필터 (음성 보존)
+        sos = signal.butter(4, 80, 'hp', fs=sr, output='sos')
+        filtered = signal.sosfilt(sos, audio)
+        
+        # 적응형 노치 필터 (특정 노이즈 제거)
+        # 전력선 노이즈 (50/60 Hz)
+        for freq in [50, 60]:
+            Q = 30
+            w0 = freq / (sr / 2)
+            sos_notch = signal.iirnotch(w0, Q, output='sos')
+            filtered = signal.sosfilt(sos_notch, filtered)
+        
+        return filtered
+    
+    def wiener_filtering(self, audio: np.ndarray, sr: int) -> np.ndarray:
+        """
+        Wiener 필터링
+        """
+        # STFT
+        D = librosa.stft(audio)
+        magnitude = np.abs(D)
+        phase = np.angle(D)
+        
+        # 노이즈 파워 추정
+        noise_power = np.mean(magnitude[:, :20] ** 2, axis=1, keepdims=True)
+        
+        # Wiener 필터
+        signal_power = magnitude ** 2
+        wiener_gain = signal_power / (signal_power + noise_power)
+        
+        # 적용
+        magnitude_clean = magnitude * wiener_gain
+        D_clean = magnitude_clean * np.exp(1j * phase)
+        
+        return librosa.istft(D_clean)
+
+5. 고급 분절 및 정렬 시스템
+5.1 강제 정렬 시스템
+pythonimport subprocess
+import tempfile
+from pathlib import Path
+
+class ForcedAligner:
+    """
+    강제 정렬 시스템 (Montreal Forced Aligner 연동)
+    """
+    
+    def __init__(self, acoustic_model: str = 'korean', 
+                 dictionary: str = 'korean'):
+        self.acoustic_model = acoustic_model
+        self.dictionary = dictionary
+        
+    def align(self, audio_file: str, transcript: str, 
+             output_dir: str) -> TextGridManager:
+        """
+        강제 정렬 실행
+        """
+        # 임시 디렉토리 생성
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # 트랜스크립트 파일 생성
+            transcript_file = f"{temp_dir}/transcript.txt"
+            with open(transcript_file, 'w', encoding='utf-8') as f:
+                f.write(transcript)
+            
+            # MFA 실행
+            cmd = [
+                'mfa', 'align',
+                audio_file,
+                self.dictionary,
+                self.acoustic_model,
+                output_dir,
+                '--clean'
+            ]
+            
+            try:
+                subprocess.run(cmd, check=True, capture_output=True)
+            except subprocess.CalledProcessError as e:
+                print(f"MFA alignment failed: {e}")
+                return None
+            
+            # TextGrid 로드
+            textgrid_file = Path(output_dir) / Path(audio_file).stem / '.TextGrid'
+            
+            if textgrid_file.exists():
+                manager = TextGridManager()
+                manager.load_textgrid(str(textgrid_file))
+                return manager
+            
+        return None
+    
+    def train_acoustic_model(self, corpus_dir: str, output_model: str):
+        """
+        음향 모델 학습
+        """
+        cmd = [
+            'mfa', 'train',
+            corpus_dir,
+            self.dictionary,
+            output_model,
+            '--clean'
+        ]
+        
+        subprocess.run(cmd, check=True)
+
+class PhonemeAligner:
+    """
+    음소 단위 정렬
+    """
+    
+    def __init__(self):
+        self.g2p = None  # Grapheme-to-Phoneme 모델
+        
+    def align_phonemes(self, audio_file: str, syllables: List[Syllable],
+                       language: str = 'ko') -> List[Dict]:
+        """
+        음소 단위 정렬
+        """
+        aligned_phonemes = []
+        
+        for syllable in syllables:
+            # 음절 구간 추출
+            y, sr = librosa.load(
+                audio_file,
+                offset=syllable.start_time,
+                duration=syllable.end_time - syllable.start_time
+            )
+            
+            # 음소 분할 (휴리스틱)
+            phonemes = self._segment_phonemes(y, sr, syllable.text)
+            
+            # 시간 정렬
+            phoneme_duration = (syllable.end_time - syllable.start_time) / len(phonemes)
+            
+            for i, phoneme in enumerate(phonemes):
+                aligned_phonemes.append({
+                    'phoneme': phoneme,
+                    'start': syllable.start_time + i * phoneme_duration,
+                    'end': syllable.start_time + (i + 1) * phoneme_duration
+                })
+        
+        return aligned_phonemes
+    
+    def _segment_phonemes(self, audio: np.ndarray, sr: int, 
+                         text: str) -> List[str]:
+        """
+        음소 분할 (간단한 예시)
+        """
+        # 한국어 음소 분해 예시
+        if text and len(text) > 0:
+            # 초성, 중성, 종성 분리
+            phonemes = []
+            for char in text:
+                if '가' <= char <= '힣':
+                    # 한글 분해
+                    code = ord(char) - 0xAC00
+                    jong = code % 28
+                    jung = ((code - jong) // 28) % 21
+                    cho = ((code - jong) // 28 - jung) // 21
+                    
+                    # 음소 추가
+                    phonemes.append(f"cho_{cho}")
+                    phonemes.append(f"jung_{jung}")
+                    if jong > 0:
+                        phonemes.append(f"jong_{jong}")
+            
+            return phonemes
+        
+        return []
+5.2 시각화 및 편집 도구
+pythonimport matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.widgets import SpanSelector, Button
+
+class InteractiveSyllableEditor:
+    """
+    대화형 음절 편집기
+    """
+    
+    def __init__(self, audio_file: str, syllables: List[Syllable]):
+        self.audio_file = audio_file
+        self.syllables = syllables
+        self.sound = parselmouth.Sound(audio_file)
+        self.y, self.sr = librosa.load(audio_file, sr=None)
+        
+        self.fig = None
+        self.axes = None
+        self.current_selection = None
+        
+    def launch(self):
+        """
+        편집기 실행
+        """
+        # 그래프 설정
+        self.fig, self.axes = plt.subplots(3, 1, figsize=(14, 10))
+        
+        # 파형 표시
+        self._plot_waveform(self.axes[0])
+        
+        # 스펙트로그램 표시
+        self._plot_spectrogram(self.axes[1])
+        
+        # 음절 표시
+        self._plot_syllables(self.axes[2])
+        
+        # 대화형 요소 추가
+        self._add_interactivity()
+        
+        plt.tight_layout()
+        plt.show()
+    
+    def _plot_waveform(self, ax):
+        """
+        파형 플롯
+        """
+        time = np.linspace(0, len(self.y) / self.sr, len(self.y))
+        ax.plot(time, self.y, linewidth=0.5)
+        ax.set_ylabel('Amplitude')
+        ax.set_title('Waveform')
+        ax.grid(True, alpha=0.3)
+    
+    def _plot_spectrogram(self, ax):
+        """
+        스펙트로그램 플롯
+        """
+        D = librosa.stft(self.y)
+        D_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+        
+        img = ax.imshow(
+            D_db, 
+            aspect='auto', 
+            origin='lower',
+            extent=[0, self.sound.duration, 0, self.sr/2],
+            cmap='viridis'
+        )
+        
+        ax.set_ylabel('Frequency (Hz)')
+        ax.set_title('Spectrogram')
+        ax.set_ylim(0, 5000)
+        
+        plt.colorbar(img, ax=ax, format='%+2.0f dB')
+    
+    def _plot_syllables(self, ax):
+        """
+        음절 시각화
+        """
+        ax.set_xlim(0, self.sound.duration)
+        ax.set_ylim(0, 1)
+        ax.set_xlabel('Time (s)')
+        ax.set_title('Syllables (Click to edit)')
+        
+        # 음절 박스 그리기
+        for i, syllable in enumerate(self.syllables):
+            rect = patches.Rectangle(
+                (syllable.start재시도박계속편집python   def _plot_syllables(self, ax):
+       """
+       음절 시각화
+       """
+       ax.set_xlim(0, self.sound.duration)
+       ax.set_ylim(0, 1)
+       ax.set_xlabel('Time (s)')
+       ax.set_title('Syllables (Click to edit)')
+       
+       # 음절 박스 그리기
+       for i, syllable in enumerate(self.syllables):
+           rect = patches.Rectangle(
+               (syllable.start_time, 0.2),
+               syllable.end_time - syllable.start_time,
+               0.6,
+               linewidth=1,
+               edgecolor='blue',
+               facecolor='lightblue',
+               alpha=0.7,
+               picker=True
+           )
+           ax.add_patch(rect)
+           
+           # 텍스트 레이블
+           mid_time = (syllable.start_time + syllable.end_time) / 2
+           ax.text(mid_time, 0.5, syllable.text or f"S{i+1}", 
+                  ha='center', va='center', fontsize=10)
+   
+   def _add_interactivity(self):
+       """
+       대화형 기능 추가
+       """
+       # 스팬 선택기
+       self.span_selector = SpanSelector(
+           self.axes[0], 
+           self._on_span_select,
+           'horizontal',
+           useblit=True,
+           props=dict(alpha=0.5, facecolor='red'),
+           interactive=True,
+           drag_from_anywhere=True
+       )
+       
+       # 버튼 추가
+       self._add_buttons()
+       
+       # 클릭 이벤트
+       self.fig.canvas.mpl_connect('pick_event', self._on_pick)
+       self.fig.canvas.mpl_connect('key_press_event', self._on_key)
+   
+   def _add_buttons(self):
+       """
+       컨트롤 버튼 추가
+       """
+       # 버튼 위치
+       ax_merge = plt.axes([0.7, 0.02, 0.08, 0.04])
+       ax_split = plt.axes([0.8, 0.02, 0.08, 0.04])
+       ax_save = plt.axes([0.9, 0.02, 0.08, 0.04])
+       
+       # 버튼 생성
+       self.btn_merge = Button(ax_merge, 'Merge')
+       self.btn_split = Button(ax_split, 'Split')
+       self.btn_save = Button(ax_save, 'Save')
+       
+       # 이벤트 연결
+       self.btn_merge.on_clicked(self._merge_selected)
+       self.btn_split.on_clicked(self._split_selected)
+       self.btn_save.on_clicked(self._save_changes)
+   
+   def _on_span_select(self, xmin, xmax):
+       """
+       구간 선택 이벤트
+       """
+       print(f"Selected: {xmin:.3f}s - {xmax:.3f}s")
+       self.current_selection = (xmin, xmax)
+       
+       # 선택 구간 하이라이트
+       for ax in self.axes:
+           ax.axvspan(xmin, xmax, alpha=0.3, color='yellow')
+       
+       self.fig.canvas.draw()
+   
+   def _on_pick(self, event):
+       """
+       음절 클릭 이벤트
+       """
+       if event.artist in self.axes[2].patches:
+           # 클릭된 음절 찾기
+           for i, patch in enumerate(self.axes[2].patches):
+               if patch == event.artist:
+                   syllable = self.syllables[i]
+                   print(f"Selected syllable {i}: {syllable.start_time:.3f}s - {syllable.end_time:.3f}s")
+                   
+                   # 음절 정보 표시
+                   self._show_syllable_info(syllable)
+                   break
+   
+   def _on_key(self, event):
+       """
+       키보드 이벤트
+       """
+       if event.key == 'delete' and self.current_selection:
+           # 선택 구간 삭제
+           self._delete_selection()
+       elif event.key == 'n':
+           # 새 음절 추가
+           self._add_new_syllable()
+       elif event.key == 'p':
+           # 재생
+           self._play_selection()
+   
+   def _merge_selected(self, event):
+       """
+       선택된 음절 병합
+       """
+       if not self.current_selection:
+           return
+       
+       xmin, xmax = self.current_selection
+       
+       # 범위 내 음절 찾기
+       to_merge = []
+       for i, syllable in enumerate(self.syllables):
+           if syllable.start_time >= xmin and syllable.end_time <= xmax:
+               to_merge.append(i)
+       
+       if len(to_merge) > 1:
+           # 병합
+           first_idx = to_merge[0]
+           last_idx = to_merge[-1]
+           
+           merged = Syllable(
+               start_time=self.syllables[first_idx].start_time,
+               end_time=self.syllables[last_idx].end_time,
+               text=' '.join(s.text for s in self.syllables[first_idx:last_idx+1] if s.text),
+               pitch_mean=np.mean([s.pitch_mean for s in self.syllables[first_idx:last_idx+1]]),
+               intensity_mean=np.mean([s.intensity_mean for s in self.syllables[first_idx:last_idx+1]])
+           )
+           
+           # 업데이트
+           del self.syllables[first_idx:last_idx+1]
+           self.syllables.insert(first_idx, merged)
+           
+           # 재그리기
+           self._refresh_display()
+   
+   def _split_selected(self, event):
+       """
+       선택된 음절 분할
+       """
+       if not self.current_selection:
+           return
+       
+       xmin, xmax = self.current_selection
+       
+       # 범위 내 음절 찾기
+       for i, syllable in enumerate(self.syllables):
+           if syllable.start_time <= xmin < syllable.end_time:
+               # 분할 지점
+               split_point = (xmin + xmax) / 2
+               
+               # 두 개로 분할
+               first = Syllable(
+                   start_time=syllable.start_time,
+                   end_time=split_point,
+                   text=syllable.text[:len(syllable.text)//2] if syllable.text else "",
+                   pitch_mean=syllable.pitch_mean,
+                   intensity_mean=syllable.intensity_mean
+               )
+               
+               second = Syllable(
+                   start_time=split_point,
+                   end_time=syllable.end_time,
+                   text=syllable.text[len(syllable.text)//2:] if syllable.text else "",
+                   pitch_mean=syllable.pitch_mean,
+                   intensity_mean=syllable.intensity_mean
+               )
+               
+               # 업데이트
+               self.syllables[i] = first
+               self.syllables.insert(i + 1, second)
+               
+               # 재그리기
+               self._refresh_display()
+               break
+   
+   def _save_changes(self, event):
+       """
+       변경사항 저장
+       """
+       # TextGrid 생성
+       manager = TextGridManager()
+       manager.create_textgrid(self.sound.duration)
+       manager.add_syllables_to_tier(self.syllables)
+       
+       # 저장
+       output_file = self.audio_file.replace('.wav', '_edited.TextGrid')
+       manager.save_textgrid(output_file)
+       
+       print(f"Saved to {output_file}")
+       
+       # JSON으로도 저장
+       json_file = output_file.replace('.TextGrid', '.json')
+       manager.export_to_json(json_file)
+   
+   def _refresh_display(self):
+       """
+       디스플레이 갱신
+       """
+       # 음절 레이어 재그리기
+       self.axes[2].clear()
+       self._plot_syllables(self.axes[2])
+       self.fig.canvas.draw()
+   
+   def _show_syllable_info(self, syllable: Syllable):
+       """
+       음절 정보 표시
+       """
+       info = f"""
+       Syllable Information:
+       - Start: {syllable.start_time:.3f}s
+       - End: {syllable.end_time:.3f}s
+       - Duration: {syllable.end_time - syllable.start_time:.3f}s
+       - Text: {syllable.text or 'N/A'}
+       - Pitch: {syllable.pitch_mean:.1f} Hz
+       - Intensity: {syllable.intensity_mean:.1f} dB
+       - Confidence: {syllable.confidence:.2f}
+       """
+       
+       # 정보 창 표시 (matplotlib 텍스트 박스)
+       self.axes[0].text(0.02, 0.98, info, transform=self.axes[0].transAxes,
+                        fontsize=9, verticalalignment='top',
+                        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+       self.fig.canvas.draw()
+   
+   def _play_selection(self):
+       """
+       선택 구간 재생
+       """
+       if self.current_selection:
+           import sounddevice as sd
+           
+           xmin, xmax = self.current_selection
+           start_sample = int(xmin * self.sr)
+           end_sample = int(xmax * self.sr)
+           
+           segment = self.y[start_sample:end_sample]
+           sd.play(segment, self.sr)
+5.3 배치 처리 시스템
+pythonimport multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+
+class BatchProcessor:
+    """
+    대량 음성 파일 배치 처리
+    """
+    
+    def __init__(self, n_workers: int = None):
+        self.n_workers = n_workers or multiprocessing.cpu_count()
+        self.processor = IntegratedSpeechProcessor()
+        
+    def process_batch(self, input_files: List[str], output_dir: str,
+                     config: Dict = None) -> List[Dict]:
+        """
+        배치 처리 실행
+        """
+        config = config or {
+            'denoise': True,
+            'use_deep_learning': False,
+            'create_textgrid': True,
+            'segmentation_method': 'hybrid'
+        }
+        
+        results = []
+        
+        # 병렬 처리
+        with ProcessPoolExecutor(max_workers=self.n_workers) as executor:
+            futures = {
+                executor.submit(
+                    self._process_single_file,
+                    file,
+                    output_dir,
+                    config
+                ): file 
+                for file in input_files
+            }
+            
+            # 진행 상황 표시
+            for future in tqdm(as_completed(futures), total=len(futures)):
+                file = futures[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    print(f"Error processing {file}: {e}")
+                    results.append({
+                        'file': file,
+                        'error': str(e)
+                    })
+        
+        # 요약 리포트 생성
+        summary = self._generate_batch_summary(results)
+        
+        return {
+            'individual_results': results,
+            'summary': summary
+        }
+    
+    def _process_single_file(self, input_file: str, output_dir: str,
+                           config: Dict) -> Dict:
+        """
+        단일 파일 처리
+        """
+        # 출력 디렉토리 생성
+        file_output_dir = Path(output_dir) / Path(input_file).stem
+        file_output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 처리
+        result = self.processor.process_audio(
+            input_file,
+            str(file_output_dir),
+            use_deep_learning=config['use_deep_learning'],
+            denoise=config['denoise'],
+            create_textgrid=config['create_textgrid']
+        )
+        
+        return result
+    
+    def _generate_batch_summary(self, results: List[Dict]) -> Dict:
+        """
+        배치 처리 요약
+        """
+        successful = [r for r in results if 'error' not in r]
+        failed = [r for r in results if 'error' in r]
+        
+        # 통계 계산
+        total_syllables = sum(len(r.get('syllables', [])) for r in successful)
+        total_duration = sum(r.get('analysis', {}).get('total_duration', 0) for r in successful)
+        
+        avg_syllables_per_file = total_syllables / len(successful) if successful else 0
+        avg_syllables_per_second = total_syllables / total_duration if total_duration > 0 else 0
+        
+        return {
+            'total_files': len(results),
+            'successful': len(successful),
+            'failed': len(failed),
+            'total_syllables': total_syllables,
+            'total_duration': total_duration,
+            'avg_syllables_per_file': avg_syllables_per_file,
+            'avg_syllables_per_second': avg_syllables_per_second,
+            'failed_files': [f['file'] for f in failed]
+        }
+5.4 평가 메트릭
+pythonclass SegmentationEvaluator:
+    """
+    음절 분절 평가 시스템
+    """
+    
+    def __init__(self):
+        self.metrics = {}
+    
+    def evaluate(self, predicted: List[Syllable], 
+                ground_truth: List[Syllable],
+                tolerance: float = 0.02) -> Dict:
+        """
+        분절 결과 평가
+        
+        Parameters:
+        -----------
+        predicted : List[Syllable]
+            예측된 음절
+        ground_truth : List[Syllable]
+            정답 음절
+        tolerance : float
+            허용 오차 (초)
+        """
+        # 경계 정확도
+        boundary_metrics = self._evaluate_boundaries(
+            predicted, ground_truth, tolerance
+        )
+        
+        # 시간 정확도
+        temporal_metrics = self._evaluate_temporal(
+            predicted, ground_truth
+        )
+        
+        # F1 스코어
+        f1_score = self._calculate_f1_score(
+            predicted, ground_truth, tolerance
+        )
+        
+        # 세분화 메트릭
+        segmentation_metrics = self._evaluate_segmentation_quality(
+            predicted, ground_truth
+        )
+        
+        return {
+            'boundary': boundary_metrics,
+            'temporal': temporal_metrics,
+            'f1_score': f1_score,
+            'segmentation': segmentation_metrics
+        }
+    
+    def _evaluate_boundaries(self, predicted: List[Syllable],
+                           ground_truth: List[Syllable],
+                           tolerance: float) -> Dict:
+        """
+        경계 정확도 평가
+        """
+        # 시작점 경계
+        pred_starts = [s.start_time for s in predicted]
+        true_starts = [s.start_time for s in ground_truth]
+        
+        # 끝점 경계
+        pred_ends = [s.end_time for s in predicted]
+        true_ends = [s.end_time for s in ground_truth]
+        
+        # 매칭
+        start_matches = 0
+        for pred_start in pred_starts:
+            for true_start in true_starts:
+                if abs(pred_start - true_start) <= tolerance:
+                    start_matches += 1
+                    break
+        
+        end_matches = 0
+        for pred_end in pred_ends:
+            for true_end in true_ends:
+                if abs(pred_end - true_end) <= tolerance:
+                    end_matches += 1
+                    break
+        
+        # 정확도 계산
+        start_precision = start_matches / len(pred_starts) if pred_starts else 0
+        start_recall = start_matches / len(true_starts) if true_starts else 0
+        
+        end_precision = end_matches / len(pred_ends) if pred_ends else 0
+        end_recall = end_matches / len(true_ends) if true_ends else 0
+        
+        return {
+            'start_precision': start_precision,
+            'start_recall': start_recall,
+            'end_precision': end_precision,
+            'end_recall': end_recall,
+            'avg_precision': (start_precision + end_precision) / 2,
+            'avg_recall': (start_recall + end_recall) / 2
+        }
+    
+    def _evaluate_temporal(self, predicted: List[Syllable],
+                         ground_truth: List[Syllable]) -> Dict:
+        """
+        시간 정확도 평가
+        """
+        # 지속 시간 비교
+        pred_durations = [s.end_time - s.start_time for s in predicted]
+        true_durations = [s.end_time - s.start_time for s in ground_truth]
+        
+        # 평균 지속 시간
+        avg_pred_duration = np.mean(pred_durations) if pred_durations else 0
+        avg_true_duration = np.mean(true_durations) if true_durations else 0
+        
+        # 지속 시간 오차
+        duration_error = abs(avg_pred_duration - avg_true_duration)
+        
+        # 시간 커버리지
+        pred_coverage = sum(pred_durations)
+        true_coverage = sum(true_durations)
+        coverage_ratio = pred_coverage / true_coverage if true_coverage > 0 else 0
+        
+        return {
+            'avg_pred_duration': avg_pred_duration,
+            'avg_true_duration': avg_true_duration,
+            'duration_error': duration_error,
+            'coverage_ratio': coverage_ratio
+        }
+    
+    def _calculate_f1_score(self, predicted: List[Syllable],
+                          ground_truth: List[Syllable],
+                          tolerance: float) -> float:
+        """
+        F1 스코어 계산
+        """
+        # True Positives
+        tp = 0
+        matched_true = set()
+        
+        for pred in predicted:
+            for i, true in enumerate(ground_truth):
+                if i in matched_true:
+                    continue
+                    
+                # 오버랩 체크
+                overlap_start = max(pred.start_time, true.start_time)
+                overlap_end = min(pred.end_time, true.end_time)
+                
+                if overlap_end - overlap_start > 0:
+                    # 오버랩 비율
+                    pred_duration = pred.end_time - pred.start_time
+                    true_duration = true.end_time - true.start_time
+                    overlap_duration = overlap_end - overlap_start
+                    
+                    overlap_ratio = overlap_duration / min(pred_duration, true_duration)
+                    
+                    if overlap_ratio > 0.5:  # 50% 이상 오버랩
+                        tp += 1
+                        matched_true.add(i)
+                        break
+        
+        # False Positives & False Negatives
+        fp = len(predicted) - tp
+        fn = len(ground_truth) - tp
+        
+        # F1 계산
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+        
+        return f1
+    
+    def _evaluate_segmentation_quality(self, predicted: List[Syllable],
+                                     ground_truth: List[Syllable]) -> Dict:
+        """
+        세분화 품질 평가
+        """
+        # Over-segmentation: 예측이 정답보다 많음
+        over_segmentation = len(predicted) / len(ground_truth) if ground_truth else 0
+        
+        # Under-segmentation: 예측이 정답보다 적음
+        under_segmentation = len(ground_truth) / len(predicted) if predicted else 0
+        
+        # 세분화 에러
+        segmentation_error = abs(len(predicted) - len(ground_truth))
+        
+        # 경계 변동성
+        pred_boundaries = sorted([s.start_time for s in predicted] + 
+                                [s.end_time for s in predicted])
+        true_boundaries = sorted([s.start_time for s in ground_truth] + 
+                                [s.end_time for s in ground_truth])
+        
+        if len(pred_boundaries) > 1:
+            pred_intervals = np.diff(pred_boundaries)
+            pred_variability = np.std(pred_intervals)
+        else:
+            pred_variability = 0
+        
+        if len(true_boundaries) > 1:
+            true_intervals = np.diff(true_boundaries)
+            true_variability = np.std(true_intervals)
+        else:
+            true_variability = 0
+        
+        return {
+            'over_segmentation': over_segmentation,
+            'under_segmentation': under_segmentation,
+            'segmentation_error': segmentation_error,
+            'pred_variability': pred_variability,
+            'true_variability': true_variability,
+            'variability_diff': abs(pred_variability - true_variability)
+        }
+5.5 최종 통합 CLI
+pythonimport click
+import yaml
+
+@click.group()
+def cli():
+    """음성 분절 및 TextGrid 처리 도구"""
+    pass
+
+@cli.command()
+@click.argument('audio_file')
+@click.option('--output-dir', '-o', default='./output', help='출력 디렉토리')
+@click.option('--denoise/--no-denoise', default=True, help='노이즈 제거 여부')
+@click.option('--method', '-m', 
+              type=click.Choice(['energy', 'spectral', 'hybrid', 'deep']),
+              default='hybrid', help='분절 방법')
+@click.option('--textgrid/--no-textgrid', default=True, help='TextGrid 생성 여부')
+def segment(audio_file, output_dir, denoise, method, textgrid):
+    """음성 파일 음절 분절"""
+    
+    processor = IntegratedSpeechProcessor()
+    
+    use_deep_learning = (method == 'deep')
+    
+    results = processor.process_audio(
+        audio_file,
+        output_dir,
+        use_deep_learning=use_deep_learning,
+        denoise=denoise,
+        create_textgrid=textgrid
+    )
+    
+    # 결과 출력
+    click.echo(f"✓ 처리 완료: {audio_file}")
+    click.echo(f"  - 음절 수: {len(results['syllables'])}")
+    click.echo(f"  - 평균 음절 길이: {results['analysis']['duration_stats']['mean']:.3f}초")
+    
+    if textgrid:
+        click.echo(f"  - TextGrid 저장: {results['processed_files']['textgrid']}")
+
+@cli.command()
+@click.argument('input_dir')
+@click.option('--output-dir', '-o', default='./batch_output', help='출력 디렉토리')
+@click.option('--config', '-c', help='설정 파일 (YAML)')
+@click.option('--workers', '-w', default=4, help='병렬 처리 워커 수')
+def batch(input_dir, output_dir, config, workers):
+    """디렉토리 내 모든 음성 파일 배치 처리"""
+    
+    # 설정 로드
+    if config:
+        with open(config, 'r') as f:
+            config_dict = yaml.safe_load(f)
+    else:
+        config_dict = {
+            'denoise': True,
+            'use_deep_learning': False,
+            'create_textgrid': True
+        }
+    
+    # 파일 목록
+    audio_files = list(Path(input_dir).glob('*.wav'))
+    
+    click.echo(f"발견된 파일: {len(audio_files)}개")
+    
+    # 배치 처리
+    processor = BatchProcessor(n_workers=workers)
+    results = processor.process_batch(
+        [str(f) for f in audio_files],
+        output_dir,
+        config_dict
+    )
+    
+    # 요약 출력
+    summary = results['summary']
+    click.echo("\n=== 처리 요약 ===")
+    click.echo(f"✓ 성공: {summary['successful']}개")
+    click.echo(f"✗ 실패: {summary['failed']}개")
+    click.echo(f"총 음절: {summary['total_syllables']}개")
+    click.echo(f"평균 음절/파일: {summary['avg_syllables_per_file']:.1f}개")
+    
+    if summary['failed_files']:
+        click.echo("\n실패한 파일:")
+        for f in summary['failed_files']:
+            click.echo(f"  - {f}")
+
+@cli.command()
+@click.argument('audio_file')
+@click.argument('textgrid_file')
+def edit(audio_file, textgrid_file):
+    """대화형 음절 편집기 실행"""
+    
+    # TextGrid 로드
+    manager = TextGridManager()
+    manager.load_textgrid(textgrid_file)
+    
+    # 음절 추출
+    syllables = []
+    syllable_tier = manager.tiers.get('syllables')
+    
+    if syllable_tier:
+        for interval in syllable_tier.intervals:
+            syllables.append(
+                Syllable(
+                    start_time=interval.start_time,
+                    end_time=interval.end_time,
+                    text=interval.text
+                )
+            )
+    
+    # 편집기 실행
+    editor = InteractiveSyllableEditor(audio_file, syllables)
+    editor.launch()
+
+@cli.command()
+@click.argument('predicted_textgrid')
+@click.argument('ground_truth_textgrid')
+@click.option('--tolerance', '-t', default=0.02, help='허용 오차 (초)')
+def evaluate(predicted_textgrid, ground_truth_textgrid, tolerance):
+    """분절 결과 평가"""
+    
+    # TextGrid 로드
+    pred_manager = TextGridManager()
+    pred_manager.load_textgrid(predicted_textgrid)
+    
+    true_manager = TextGridManager()
+    true_manager.load_textgrid(ground_truth_textgrid)
+    
+    # 음절 추출
+    pred_syllables = []
+    for interval in pred_manager.tiers['syllables'].intervals:
+        pred_syllables.append(
+            Syllable(
+                start_time=interval.start_time,
+                end_time=interval.end_time,
+                text=interval.text
+            )
+        )
+    
+    true_syllables = []
+    for interval in true_manager.tiers['syllables'].intervals:
+        true_syllables.append(
+            Syllable(
+                start_time=interval.start_time,
+                end_time=interval.end_time,
+                text=interval.text
+            )
+        )
+    
+    # 평가
+    evaluator = SegmentationEvaluator()
+    results = evaluator.evaluate(pred_syllables, true_syllables, tolerance)
+    
+    # 결과 출력
+    click.echo("\n=== 평가 결과 ===")
+    click.echo(f"F1 Score: {results['f1_score']:.3f}")
+    click.echo(f"경계 정확도: {results['boundary']['avg_precision']:.3f}")
+    click.echo(f"경계 재현율: {results['boundary']['avg_recall']:.3f}")
+    click.echo(f"세분화 오류: {results['segmentation']['segmentation_error']}")
+
+if __name__ == "__main__":
+    cli()
+결론
+이 통합 시스템은 다음과 같은 기능을 제공합니다:
+핵심 기능
+
+자동 음절 분절: 에너지, 스펙트럴, 딥러닝 기반 방법
+노이즈 제거: 스펙트럴 게이팅, 적응형 필터링
+TextGrid 생성/편집: 자동 생성 및 대화형 편집
+강제 정렬: 텍스트와 음성 정렬
+배치 처리: 대량 파일 병렬 처리
+
+장점
+
+정확도: 다중 방법론 결합으로 높은 정확도
+유연성: 다양한 언어와 음성 타입 지원
+확장성: 모듈식 구조로 쉬운 확장
+사용성: CLI와 GUI 모두 제공
+평가: 체계적인 평가 메트릭
+
+활용 분야
+
+음성 인식 데이터 준비
+음성학 연구
+언어 학습 애플리케이션
+음성 합성 데이터셋 구축
+자막 생성 시스템
+
+이 시스템을 통해 음성 데이터의 자동 분석과 annotation이 크게 효율화될 수 있습니다.
