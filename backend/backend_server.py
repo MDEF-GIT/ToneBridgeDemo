@@ -2392,13 +2392,25 @@ else:
     print("🆕 새 STT 인스턴스 생성")
 
 @app.post("/api/auto-process")
-async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = Form(""), save_permanent: bool = Form(False)):
+async def auto_process_audio(
+    file: UploadFile = File(...), 
+    sentence_hint: str = Form(""), 
+    save_permanent: bool = Form(False),
+    learner_name: str = Form(""),
+    learner_gender: str = Form(""),
+    learner_age_group: str = Form(""),
+    reference_sentence: str = Form("")
+):
     """
     완전 자동화된 오디오 처리 API
     STT + 자동 분절 + TextGrid 생성
     
     Parameters:
     - save_permanent: True시 WAV + TextGrid를 uploads/ 폴더에 영구 저장
+    - learner_name: 학습자 이름
+    - learner_gender: 학습자 성별 (male/female)
+    - learner_age_group: 학습자 연령대
+    - reference_sentence: 참조 문장 이름
     """
     if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
@@ -2428,7 +2440,20 @@ async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = 
             # 영구 저장이 요청된 경우
             if save_permanent:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"recording_{timestamp}"
+                
+                # 의미있는 파일명 생성
+                filename_parts = []
+                if learner_name:
+                    filename_parts.append(learner_name)
+                if learner_gender:
+                    filename_parts.append(learner_gender)
+                if learner_age_group:
+                    filename_parts.append(learner_age_group)
+                if reference_sentence:
+                    filename_parts.append(reference_sentence)
+                filename_parts.append(timestamp)
+                
+                filename = "_".join(filename_parts) if filename_parts else f"recording_{timestamp}"
                 
                 # WAV 파일 저장
                 wav_path = UPLOAD_DIR / f"{filename}.wav"
@@ -2443,10 +2468,13 @@ async def auto_process_audio(file: UploadFile = File(...), sentence_hint: str = 
                         "wav": str(wav_path),
                         "textgrid": str(textgrid_path)
                     },
+                    "filename": filename,
                     "message": f"✅ 자동 처리 및 영구 저장 완료 - {len(result['syllables'])}개 음절 분절"
                 })
                 
                 print(f"💾 영구 저장 완료: {filename}.wav + {filename}.TextGrid")
+                print(f"📋 학습자: {learner_name} ({learner_gender}, {learner_age_group})")
+                print(f"📄 연습문장: {reference_sentence}")
             
             return JSONResponse(response_data)
         else:

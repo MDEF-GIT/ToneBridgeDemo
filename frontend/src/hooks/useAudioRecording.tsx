@@ -17,7 +17,7 @@ interface AudioRecordingState {
   autoProcessResult: any | null;
 }
 
-export const useAudioRecording = () => {
+export const useAudioRecording = (learnerInfo?: {name: string, gender: string, ageGroup: string}, selectedFile?: string) => {
   const [state, setState] = useState<AudioRecordingState>({
     isRecording: false,
     audioStream: null,
@@ -187,10 +187,25 @@ export const useAudioRecording = () => {
   const uploadRecordedAudio = async (audioBlob: Blob) => {
     try {
       console.log("🎤 녹음 완료 - 자동 처리 시작...");
+      console.log("📋 학습자 정보:", learnerInfo);
+      console.log("📄 선택된 문장:", selectedFile);
       
       const formData = new FormData();
       formData.append("file", audioBlob, "recording.webm");
       formData.append("sentence_hint", ""); // 힌트 없이 순수 STT
+      formData.append("save_permanent", "true"); // 영구 저장 활성화
+      
+      // 학습자 정보 추가
+      if (learnerInfo) {
+        formData.append("learner_name", learnerInfo.name || "");
+        formData.append("learner_gender", learnerInfo.gender || "");
+        formData.append("learner_age_group", learnerInfo.ageGroup || "");
+      }
+      
+      // 선택된 연습문장 정보 추가
+      if (selectedFile) {
+        formData.append("reference_sentence", selectedFile);
+      }
 
       const response = await fetch("/api/auto-process", {
         method: "POST",

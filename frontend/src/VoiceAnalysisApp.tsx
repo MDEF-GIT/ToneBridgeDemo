@@ -49,7 +49,7 @@ const VoiceAnalysisApp: React.FC = () => {
   const dualAxisCanvasRef = useRef<HTMLCanvasElement>(null);
   
   // 🎯 Hooks  
-  const audioRecording = useAudioRecording();
+  const audioRecording = useAudioRecording(learnerInfo, selectedFile);
   const pitchChart = usePitchChart(chartRef, API_BASE);
   const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE);
   
