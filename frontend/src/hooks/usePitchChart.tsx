@@ -104,7 +104,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
       maintainAspectRatio: false,
       layout: {
         padding: {
-          top: 60,  // 🎯 음절 라벨용 상단 고정 영역 확보
+          top: 100,  // 🎯 음절 라벨용 상단 고정 영역 대폭 확대
           right: 20,
           bottom: 20,
           left: 20
@@ -616,31 +616,38 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         borderDash: [6, 3]
       };
       
-      // 🔥 보라색 음절 라벨 박스 (차트 최상단 고정 영역에 배치)
+      // 🔥 보라색 음절 라벨 박스 (Y축 최상단보다 훨씬 높은 고정 블록)
       const midTime = (sylStart + sylEnd) / 2;
       chart.options.plugins.annotation.annotations[`label_${index}`] = {
         type: 'label',
         xValue: midTime,
-        yValue: null,  // 🎯 yValue 제거로 상단 영역에 배치
+        yValue: null,  // 🎯 yValue 완전 제거로 데이터 영역과 분리
         position: {
           x: 'center',
-          y: 'start'  // 🎯 차트 캔버스 최상단에 고정
+          y: 'start'  // 🎯 캔버스 최상단 기준
         },
-        yAdjust: -50,  // 🎯 차트 영역 밖 상단으로 이동 (padding 영역 활용)
+        yAdjust: -90,  // 🎯 차트 데이터 영역으로부터 완전히 분리 (-90px 상단 블록)
         content: sylLabel,
-        backgroundColor: 'rgba(138, 43, 226, 0.9)',  // 보라색 배경
+        backgroundColor: 'rgba(138, 43, 226, 0.95)',  // 보라색 배경 (불투명도 증가)
         borderColor: 'rgba(138, 43, 226, 1)',
-        borderWidth: 2,
-        borderRadius: 6,
+        borderWidth: 3,  // 테두리 굵게
+        borderRadius: 8,  // 둥근 모서리 증가
         font: {
-          size: 14,
+          size: 16,  // 폰트 크기 증가
           family: 'Noto Sans KR, -apple-system, sans-serif',
           weight: 'bold'
         },
         color: 'white',
         padding: {
-          x: 8,
-          y: 4
+          x: 12,  // 패딩 증가
+          y: 6
+        },
+        // 🎯 추가 스타일로 완전 분리 강조
+        shadow: {
+          color: 'rgba(0, 0, 0, 0.3)',
+          blur: 4,
+          offsetX: 0,
+          offsetY: 2
         }
       };
     });
