@@ -104,7 +104,7 @@ def adjust_textgrid_timing(syllables: List[dict]) -> List[dict]:
     first_start = syllables[0]['start']
     
     if first_start > 0.1:  # 0.1초 이상의 지연이 있으면 보정
-        print(f"🔧 TextGrid 시간 보정: {first_start:.3f}초만큼 앞당김")
+        print(f"🔧🔧🔧 TextGrid 시간 보정: {first_start:.3f}초만큼 앞당김")
         
         # 모든 음절의 시간을 앞당김
         for syllable in syllables:
@@ -223,7 +223,9 @@ def praat_script_textgrid_parser(tg: pm.TextGrid) -> List[dict]:
             print(f"    - '{syl['label']}': {syl['start']:.3f}s-{syl['end']:.3f}s")
         
         # 🔧 시간 보정 적용
+        print(f"🔧 보정 전 첫 음절: {syllables[0]['start']:.3f}초")
         syllables = adjust_textgrid_timing(syllables)
+        print(f"🔧 보정 후 첫 음절: {syllables[0]['start']:.3f}초")
         
         return syllables
         
