@@ -208,7 +208,7 @@ class TextGridSynchronizer:
             # TextGrid 전체 지속시간 조정
             tg.maxTime = new_duration
             
-            # 저장
+            # 저장 (UTF-16 인코딩 유지)
             tg.write(output_path)
             
             logger.info(f"TextGrid 동기화 완료: {textgrid_path} → {output_path}")
