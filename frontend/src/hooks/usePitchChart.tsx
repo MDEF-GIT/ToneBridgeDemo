@@ -174,15 +174,20 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
 
   // 🎯 Y축 단위 변경 시 차트 업데이트 (강제 업데이트)
   const updateYAxisUnit = useCallback(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current) {
+      console.log('⚠️ 차트가 아직 초기화되지 않았습니다.');
+      return;
+    }
     
     const chart = chartRef.current;
     const yAxisTitle = yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone (세미톤)';
+    console.log(`🔄 Y축 단위 변경됨: ${yAxisUnit}, 기존 데이터 ${pitchDataRef.current.length}개 재변환 중...`);
     
     // Y축 제목 강제 업데이트
     if (chart.options.scales && chart.options.scales.y) {
       const yScale = chart.options.scales.y as any;
       if (yScale.title) {
+        console.log(`🔄 Y축 라벨 변경: "${yScale.title.text}" → "${yAxisTitle}"`);
         yScale.title.text = yAxisTitle;
       }
     }
@@ -207,12 +212,14 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     
     // 차트 강제 업데이트
     chart.update('active');
+    console.log(`✅ 차트 데이터 재변환 완료: ${yAxisUnit} 단위, Y축 라벨: ${yAxisTitle}`);
   }, [yAxisUnit, convertFrequency]);
 
   // Y축 단위 변경 시 업데이트
   useEffect(() => {
+    console.log(`🎯 useEffect 트리거됨 - yAxisUnit: ${yAxisUnit}, 차트존재: ${!!chartRef.current}, 데이터개수: ${pitchDataRef.current.length}`);
     updateYAxisUnit();
-  }, [updateYAxisUnit]);
+  }, [updateYAxisUnit, yAxisUnit]);
 
   const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
     if (!chartRef.current) return;
