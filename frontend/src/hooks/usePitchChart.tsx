@@ -40,7 +40,7 @@ interface SyllableData {
   semitone?: number;
 }
 
-export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '') => {
+export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '', yAxisUnit: string = 'semitone') => {
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);
@@ -121,7 +121,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           intersect: false,
           callbacks: {
             label: function(context) {
-              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} semitone`;
+              const unit = yAxisUnit === 'qtone' ? 'Q-tone' : 'semitone';
+              return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} ${unit}`;
             }
           }
         },
@@ -146,11 +147,21 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     });
   }, [canvasRef]);
 
-  // 🎯 주파수를 semitone으로 변환하는 함수 (기존 완성본과 동일한 공식)
+  // 🎯 주파수를 semitone 또는 Q-tone으로 변환하는 함수
   const frequencyToSemitone = (frequency: number, baseFrequency: number = 200): number => {
     if (frequency <= 0 || baseFrequency <= 0) return 0;
     return 12 * Math.log2(frequency / baseFrequency);
   };
+
+  const frequencyToQtone = (frequency: number): number => {
+    if (frequency <= 0) return 0;
+    const baseFreq = 130; // Q-tone 기준 주파수
+    return 5 * Math.log2(frequency / baseFreq);
+  };
+
+  const convertFrequency = useCallback((frequency: number): number => {
+    return yAxisUnit === 'qtone' ? frequencyToQtone(frequency) : frequencyToSemitone(frequency);
+  }, [yAxisUnit]);
 
   const addPitchData = useCallback((frequency: number, timestamp: number, type: 'reference' | 'live' = 'live') => {
     if (!chartRef.current) return;
@@ -180,12 +191,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     const chart = chartRef.current;
     const datasetIndex = type === 'reference' ? 0 : 1;
     
-    // 🎯 주파수를 semitone으로 변환해서 차트에 표시
-    const semitoneValue = frequencyToSemitone(frequency);
+    // 🎯 주파수를 semitone 또는 Q-tone으로 변환해서 차트에 표시
+    const convertedValue = convertFrequency(frequency);
     
     chart.data.datasets[datasetIndex].data.push({
       x: relativeTime,
-      y: semitoneValue  // 🎯 semitone 값으로 변경
+      y: convertedValue  // 🎯 선택된 단위로 변환된 값
     });
 
     // 🎯 녹음 중에는 x축 범위를 고정 (참조 데이터 범위 유지)
@@ -510,7 +521,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     if (!chartRef.current) return;
     
     const chart = chartRef.current;
-    const semitoneValue = frequencyToSemitone(frequency);
+    const convertedValue = convertFrequency(frequency);
     
     // annotation plugin 확인
     if (!chart.options.plugins?.annotation) {
@@ -520,8 +531,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     // 실시간 가로바 annotation 업데이트
     chart.options.plugins.annotation.annotations['realtimePitchLine'] = {
       type: 'line',
-      yMin: semitoneValue,
-      yMax: semitoneValue,
+      yMin: convertedValue,
+      yMax: convertedValue,
       borderColor: 'rgb(40, 167, 69)',  // 🟢 초록색
       borderWidth: 3,
       borderDash: [],  // 실선

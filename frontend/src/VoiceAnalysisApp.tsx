@@ -50,7 +50,7 @@ const VoiceAnalysisApp: React.FC = () => {
   
   // 🎯 Hooks  
   const audioRecording = useAudioRecording();
-  const pitchChart = usePitchChart(chartRef, API_BASE);
+  const pitchChart = usePitchChart(chartRef, API_BASE, yAxisUnit);
   
   // 🎯 애니메이션 스타일 주입
   useEffect(() => {
