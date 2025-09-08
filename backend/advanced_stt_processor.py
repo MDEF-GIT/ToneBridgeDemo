@@ -1,0 +1,730 @@
+"""
+ToneBridge 고급 STT 처리 시스템
+다중 STT 엔진 지원 및 한국어 특화 음절 정렬
+"""
+
+import numpy as np
+import parselmouth as pm
+from pathlib import Path
+from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass, field
+import json
+import os
+import sys
+import requests
+
+@dataclass
+class TranscriptionResult:
+    """전사 결과 클래스"""
+    text: str
+    language: str
+    confidence: float
+    words: List[Dict] = field(default_factory=list)  # [{'word': str, 'start': float, 'end': float, 'confidence': float}]
+    segments: List[Dict] = field(default_factory=list)  # 문장/구 단위 세그먼트
+    engine: str = "whisper"
+
+@dataclass
+class SyllableAlignment:
+    """음절 정렬 결과"""
+    syllable: str
+    start_time: float
+    end_time: float
+    confidence: float
+    word_context: str = ""
+    phonetic_features: Dict = field(default_factory=dict)
+
+class UniversalSTT:
+    """
+    다중 STT 엔진 통합 클래스
+    """
+    
+    def __init__(self, engine: str = 'whisper', **kwargs):
+        """
+        Parameters:
+        -----------
+        engine : str
+            STT 엔진 선택 ('whisper', 'google', 'azure', 'naver_clova', 'local_fallback')
+        """
+        self.engine = engine
+        self.model = None
+        self.config = kwargs
+        
+        # 각 엔진의 사용 가능 여부 확인
+        self.available_engines = self._check_available_engines()
+        
+        # 선택된 엔진 초기화
+        if engine in self.available_engines:
+            self._initialize_engine(engine, **kwargs)
+        else:
+            print(f"⚠️ {engine} 사용 불가, fallback 모드로 전환")
+            self.engine = 'local_fallback'
+    
+    def _check_available_engines(self) -> List[str]:
+        """사용 가능한 STT 엔진 확인"""
+        available = ['local_fallback']  # 항상 사용 가능
+        
+        # Whisper 확인
+        try:
+            import whisper
+            available.append('whisper')
+            print("✅ Whisper 사용 가능")
+        except ImportError:
+            print("❌ Whisper 미설치")
+        
+        # Google Cloud STT 확인
+        try:
+            from google.cloud import speech_v1
+            available.append('google')
+            print("✅ Google Cloud STT 사용 가능")
+        except ImportError:
+            print("❌ Google Cloud STT 미설치")
+        
+        # Azure 확인
+        try:
+            import azure.cognitiveservices.speech as speechsdk
+            available.append('azure')
+            print("✅ Azure Speech Services 사용 가능")
+        except ImportError:
+            print("❌ Azure Speech Services 미설치")
+        
+        # Naver CLOVA는 API 키가 있으면 사용 가능
+        if self.config.get('naver_client_id') and self.config.get('naver_client_secret'):
+            available.append('naver_clova')
+            print("✅ Naver CLOVA STT 사용 가능")
+        
+        return available
+    
+    def _initialize_engine(self, engine: str, **kwargs):
+        """엔진 초기화"""
+        if engine == 'whisper':
+            self._init_whisper(**kwargs)
+        elif engine == 'google':
+            self._init_google(**kwargs)
+        elif engine == 'azure':
+            self._init_azure(**kwargs)
+        elif engine == 'naver_clova':
+            self._init_naver_clova(**kwargs)
+        elif engine == 'local_fallback':
+            self._init_local_fallback()
+    
+    def _init_whisper(self, model_size: str = 'base', **kwargs):
+        """OpenAI Whisper 초기화"""
+        try:
+            import whisper
+            self.model = whisper.load_model(model_size)
+            print(f"🎤 Whisper {model_size} 모델 로드 완료")
+        except Exception as e:
+            print(f"❌ Whisper 초기화 실패: {e}")
+            self.engine = 'local_fallback'
+    
+    def _init_google(self, credentials_path: str = None, **kwargs):
+        """Google Cloud Speech-to-Text 초기화"""
+        try:
+            from google.cloud import speech_v1
+            
+            if credentials_path and os.path.exists(credentials_path):
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+            
+            self.client = speech_v1.SpeechClient()
+            print("🎤 Google Cloud STT 초기화 완료")
+        except Exception as e:
+            print(f"❌ Google STT 초기화 실패: {e}")
+            self.engine = 'local_fallback'
+    
+    def _init_azure(self, subscription_key: str = None, region: str = None, **kwargs):
+        """Azure Speech Services 초기화"""
+        try:
+            import azure.cognitiveservices.speech as speechsdk
+            
+            if not subscription_key or not region:
+                raise ValueError("Azure 설정 정보 부족")
+            
+            speech_config = speechsdk.SpeechConfig(
+                subscription=subscription_key,
+                region=region
+            )
+            self.speech_config = speech_config
+            print("🎤 Azure Speech Services 초기화 완료")
+        except Exception as e:
+            print(f"❌ Azure STT 초기화 실패: {e}")
+            self.engine = 'local_fallback'
+    
+    def _init_naver_clova(self, naver_client_id: str = None, naver_client_secret: str = None, **kwargs):
+        """Naver CLOVA Speech 초기화"""
+        try:
+            if not naver_client_id or not naver_client_secret:
+                raise ValueError("Naver CLOVA 설정 정보 부족")
+            
+            self.clova_config = {
+                'client_id': naver_client_id,
+                'client_secret': naver_client_secret,
+                'url': 'https://naveropenapi.apigw.ntruss.com/recog/v1/stt'
+            }
+            print("🎤 Naver CLOVA STT 초기화 완료")
+        except Exception as e:
+            print(f"❌ Naver CLOVA STT 초기화 실패: {e}")
+            self.engine = 'local_fallback'
+    
+    def _init_local_fallback(self):
+        """로컬 fallback 모드 초기화"""
+        print("🎤 로컬 fallback 모드 활성화")
+    
+    def transcribe(self, audio_file: str, language: str = 'ko', 
+                  return_timestamps: bool = True) -> TranscriptionResult:
+        """
+        음성 파일 전사
+        
+        Parameters:
+        -----------
+        audio_file : str
+            입력 오디오 파일 경로
+        language : str
+            언어 코드 (예: 'ko', 'en')
+        return_timestamps : bool
+            타임스탬프 반환 여부
+        
+        Returns:
+        --------
+        TranscriptionResult : 전사 결과
+        """
+        print(f"🎤 {self.engine} 엔진으로 음성 인식 시작...")
+        
+        if self.engine == 'whisper':
+            return self._transcribe_whisper(audio_file, language, return_timestamps)
+        elif self.engine == 'google':
+            return self._transcribe_google(audio_file, language, return_timestamps)
+        elif self.engine == 'azure':
+            return self._transcribe_azure(audio_file, language, return_timestamps)
+        elif self.engine == 'naver_clova':
+            return self._transcribe_naver_clova(audio_file, language)
+        else:
+            return self._transcribe_local_fallback(audio_file)
+    
+    def _transcribe_whisper(self, audio_file: str, language: str = 'ko',
+                           return_timestamps: bool = True) -> TranscriptionResult:
+        """Whisper로 전사"""
+        try:
+            # 전사 옵션 설정
+            options = {
+                'word_timestamps': return_timestamps,
+                'verbose': False,
+                'language': language
+            }
+            
+            # 전사 실행
+            result = self.model.transcribe(audio_file, **options)
+            
+            # 단어 타임스탬프 추출
+            words = []
+            if return_timestamps and 'segments' in result:
+                for segment in result['segments']:
+                    if 'words' in segment:
+                        for word_info in segment['words']:
+                            words.append({
+                                'word': word_info['word'].strip(),
+                                'start': word_info['start'],
+                                'end': word_info['end'],
+                                'confidence': word_info.get('probability', 0.0)
+                            })
+            
+            # 세그먼트 정보
+            segments = []
+            if 'segments' in result:
+                for segment in result['segments']:
+                    segments.append({
+                        'id': segment['id'],
+                        'text': segment['text'].strip(),
+                        'start': segment['start'],
+                        'end': segment['end'],
+                        'confidence': segment.get('avg_logprob', 0.0)
+                    })
+            
+            # 한국어 텍스트 필터링
+            text = result['text'].strip()
+            if language == 'ko':
+                text = self._filter_korean_text(text)
+            
+            confidence = np.mean([s['confidence'] for s in segments]) if segments else 0.0
+            
+            return TranscriptionResult(
+                text=text,
+                language=result.get('language', language),
+                confidence=confidence,
+                words=words,
+                segments=segments,
+                engine='whisper'
+            )
+            
+        except Exception as e:
+            print(f"❌ Whisper 전사 실패: {e}")
+            return self._transcribe_local_fallback(audio_file)
+    
+    def _transcribe_google(self, audio_file: str, language: str = 'ko-KR',
+                         return_timestamps: bool = True) -> TranscriptionResult:
+        """Google Cloud Speech-to-Text로 전사"""
+        try:
+            # 오디오 파일 읽기
+            with open(audio_file, 'rb') as f:
+                content = f.read()
+            
+            from google.cloud import speech_v1
+            
+            # 오디오 설정
+            audio = speech_v1.RecognitionAudio(content=content)
+            
+            # 설정
+            config = speech_v1.RecognitionConfig(
+                encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16,
+                sample_rate_hertz=16000,
+                language_code=language if '-' in language else f"{language}-KR",
+                enable_word_time_offsets=return_timestamps,
+                enable_automatic_punctuation=True,
+                model='latest_long'
+            )
+            
+            # 전사 실행
+            response = self.client.recognize(config=config, audio=audio)
+            
+            # 결과 파싱
+            text = ""
+            words = []
+            segments = []
+            
+            for result in response.results:
+                text += result.alternatives[0].transcript + " "
+                
+                segments.append({
+                    'text': result.alternatives[0].transcript,
+                    'confidence': result.alternatives[0].confidence,
+                    'start': 0,  # Google API는 세그먼트 타임스탬프 제공 안함
+                    'end': 0
+                })
+                
+                if return_timestamps and hasattr(result.alternatives[0], 'words'):
+                    for word_info in result.alternatives[0].words:
+                        words.append({
+                            'word': word_info.word,
+                            'start': word_info.start_time.total_seconds(),
+                            'end': word_info.end_time.total_seconds(),
+                            'confidence': result.alternatives[0].confidence
+                        })
+            
+            confidence = np.mean([s['confidence'] for s in segments]) if segments else 0.0
+            
+            return TranscriptionResult(
+                text=text.strip(),
+                language=language,
+                confidence=confidence,
+                words=words,
+                segments=segments,
+                engine='google'
+            )
+            
+        except Exception as e:
+            print(f"❌ Google STT 전사 실패: {e}")
+            return self._transcribe_local_fallback(audio_file)
+    
+    def _transcribe_azure(self, audio_file: str, language: str = 'ko-KR',
+                         return_timestamps: bool = True) -> TranscriptionResult:
+        """Azure Speech Services로 전사"""
+        try:
+            import azure.cognitiveservices.speech as speechsdk
+            
+            # 오디오 설정
+            audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
+            
+            # 음성 인식기 생성
+            speech_recognizer = speechsdk.SpeechRecognizer(
+                speech_config=self.speech_config,
+                audio_config=audio_config,
+                language=language if '-' in language else f"{language}-KR"
+            )
+            
+            # 전사 실행
+            result = speech_recognizer.recognize_once()
+            
+            if result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                return TranscriptionResult(
+                    text=result.text,
+                    language=language,
+                    confidence=1.0,  # Azure는 confidence 점수 제공 안함
+                    words=[],  # 단어 타임스탬프는 더 복잡한 설정 필요
+                    segments=[{'text': result.text, 'confidence': 1.0}],
+                    engine='azure'
+                )
+            else:
+                raise Exception(f"Azure 인식 실패: {result.reason}")
+                
+        except Exception as e:
+            print(f"❌ Azure STT 전사 실패: {e}")
+            return self._transcribe_local_fallback(audio_file)
+    
+    def _transcribe_naver_clova(self, audio_file: str, language: str = 'ko') -> TranscriptionResult:
+        """Naver CLOVA Speech로 전사"""
+        try:
+            # 오디오 파일 읽기
+            with open(audio_file, 'rb') as f:
+                data = f.read()
+            
+            # 헤더 설정
+            headers = {
+                'X-NCP-APIGW-API-KEY-ID': self.clova_config['client_id'],
+                'X-NCP-APIGW-API-KEY': self.clova_config['client_secret'],
+                'Content-Type': 'application/octet-stream'
+            }
+            
+            # 파라미터
+            params = {
+                'lang': language.split('-')[0] if '-' in language else language
+            }
+            
+            # API 호출
+            response = requests.post(
+                self.clova_config['url'],
+                headers=headers,
+                params=params,
+                data=data,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                text = result.get('text', '')
+                
+                return TranscriptionResult(
+                    text=text,
+                    language=language,
+                    confidence=1.0,  # CLOVA는 confidence 제공 안함
+                    words=[],  # CLOVA는 단어 타임스탬프 제공 안함
+                    segments=[{'text': text, 'confidence': 1.0}],
+                    engine='naver_clova'
+                )
+            else:
+                raise Exception(f"CLOVA API Error: {response.status_code}")
+                
+        except Exception as e:
+            print(f"❌ Naver CLOVA STT 전사 실패: {e}")
+            return self._transcribe_local_fallback(audio_file)
+    
+    def _transcribe_local_fallback(self, audio_file: str) -> TranscriptionResult:
+        """로컬 fallback 전사 (파일명 기반)"""
+        filename = Path(audio_file).stem
+        
+        # 파일명에서 한국어 추출
+        korean_text = self._filter_korean_text(filename)
+        
+        if korean_text:
+            print(f"📁 파일명 기반 추정: {korean_text}")
+        else:
+            korean_text = "텍스트 인식 실패"
+            print("⚠️ 텍스트 추출 실패")
+        
+        return TranscriptionResult(
+            text=korean_text,
+            language='ko',
+            confidence=0.5,  # 낮은 신뢰도
+            words=[],
+            segments=[{'text': korean_text, 'confidence': 0.5}],
+            engine='local_fallback'
+        )
+    
+    def _filter_korean_text(self, text: str) -> str:
+        """한국어 텍스트만 필터링"""
+        korean_chars = ''.join(c for c in text if self._is_korean(c) or c.isspace() or c in '.,!?')
+        return korean_chars.strip()
+    
+    def _is_korean(self, char: str) -> bool:
+        """한국어 문자인지 확인"""
+        return 0xAC00 <= ord(char) <= 0xD7A3 if len(char) == 1 else False
+
+
+class KoreanSyllableAligner:
+    """
+    한국어 특화 음절 정렬 시스템
+    """
+    
+    def __init__(self):
+        self.jamo_dict = self._build_jamo_dictionary()
+    
+    def _build_jamo_dictionary(self) -> Dict:
+        """한국어 자모 사전 구축"""
+        # 초성, 중성, 종성 정의
+        initial = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 
+                  'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+        medial = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ',
+                 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
+        final = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ',
+                'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 
+                'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+        
+        return {
+            'initial': initial,
+            'medial': medial,
+            'final': final
+        }
+    
+    def decompose_syllable(self, syllable: str) -> Tuple[str, str, str]:
+        """음절을 자모로 분해"""
+        if not syllable or len(syllable) != 1:
+            return ('', '', '')
+        
+        code = ord(syllable) - 0xAC00
+        if code < 0:
+            return ('', '', '')
+        
+        initial_idx = code // (21 * 28)
+        medial_idx = (code % (21 * 28)) // 28
+        final_idx = code % 28
+        
+        initial = self.jamo_dict['initial'][initial_idx] if initial_idx < len(self.jamo_dict['initial']) else ''
+        medial = self.jamo_dict['medial'][medial_idx] if medial_idx < len(self.jamo_dict['medial']) else ''
+        final = self.jamo_dict['final'][final_idx] if final_idx < len(self.jamo_dict['final']) else ''
+        
+        return (initial, medial, final)
+    
+    def align_syllables_with_timestamps(self, transcription: TranscriptionResult, 
+                                      audio_file: str) -> List[SyllableAlignment]:
+        """
+        전사 결과를 음절 단위로 타임스탬프와 함께 정렬
+        """
+        print(f"🎯 음절 정렬 시작: {transcription.text}")
+        
+        # 텍스트를 음절 단위로 분리
+        syllables = list(transcription.text.replace(' ', ''))
+        korean_syllables = [s for s in syllables if self._is_korean(s)]
+        
+        print(f"🔤 한국어 음절: {korean_syllables} ({len(korean_syllables)}개)")
+        
+        # 단어 타임스탬프가 있으면 활용
+        if transcription.words:
+            return self._align_with_word_timestamps(korean_syllables, transcription.words)
+        
+        # 타임스탬프가 없으면 오디오 길이 기반 균등 분할
+        return self._align_with_uniform_distribution(korean_syllables, audio_file)
+    
+    def _align_with_word_timestamps(self, syllables: List[str], 
+                                  words: List[Dict]) -> List[SyllableAlignment]:
+        """단어 타임스탬프를 활용한 음절 정렬"""
+        alignments = []
+        syllable_idx = 0
+        
+        for word_info in words:
+            word = word_info['word'].strip()
+            word_syllables = [s for s in word if self._is_korean(s)]
+            
+            if not word_syllables:
+                continue
+            
+            # 단어 내 음절들의 시간 간격 계산
+            word_duration = word_info['end'] - word_info['start']
+            syllable_duration = word_duration / len(word_syllables)
+            
+            for i, syllable in enumerate(word_syllables):
+                if syllable_idx < len(syllables):
+                    start_time = word_info['start'] + i * syllable_duration
+                    end_time = start_time + syllable_duration
+                    
+                    # 자모 분해로 음성학적 특징 추출
+                    initial, medial, final = self.decompose_syllable(syllable)
+                    
+                    alignments.append(SyllableAlignment(
+                        syllable=syllable,
+                        start_time=start_time,
+                        end_time=end_time,
+                        confidence=word_info.get('confidence', 0.8),
+                        word_context=word,
+                        phonetic_features={
+                            'initial': initial,
+                            'medial': medial,
+                            'final': final
+                        }
+                    ))
+                    
+                    syllable_idx += 1
+        
+        return alignments
+    
+    def _align_with_uniform_distribution(self, syllables: List[str], 
+                                       audio_file: str) -> List[SyllableAlignment]:
+        """균등 분포 기반 음절 정렬"""
+        # 오디오 길이 구하기
+        try:
+            sound = pm.Sound(audio_file)
+            duration = sound.duration
+        except:
+            duration = 3.0  # 기본값
+        
+        alignments = []
+        syllable_duration = duration / len(syllables) if syllables else 1.0
+        
+        for i, syllable in enumerate(syllables):
+            start_time = i * syllable_duration
+            end_time = (i + 1) * syllable_duration
+            
+            # 자모 분해
+            initial, medial, final = self.decompose_syllable(syllable)
+            
+            alignments.append(SyllableAlignment(
+                syllable=syllable,
+                start_time=start_time,
+                end_time=end_time,
+                confidence=0.6,  # 낮은 신뢰도 (타임스탬프 없음)
+                word_context="",
+                phonetic_features={
+                    'initial': initial,
+                    'medial': medial,
+                    'final': final
+                }
+            ))
+        
+        return alignments
+    
+    def _is_korean(self, char: str) -> bool:
+        """한국어 문자인지 확인"""
+        return 0xAC00 <= ord(char) <= 0xD7A3 if len(char) == 1 else False
+
+
+class AdvancedSTTProcessor:
+    """
+    고급 STT 처리 시스템 (기존 STTProcessor 확장)
+    """
+    
+    def __init__(self, preferred_engine: str = 'whisper', **engine_configs):
+        """
+        Parameters:
+        -----------
+        preferred_engine : str
+            우선 사용할 STT 엔진
+        engine_configs : dict
+            각 엔진별 설정 정보
+        """
+        self.stt = UniversalSTT(preferred_engine, **engine_configs)
+        self.syllable_aligner = KoreanSyllableAligner()
+        
+        # 신뢰도 임계값
+        self.confidence_threshold = 0.7
+        
+        print(f"🎯 고급 STT 시스템 초기화 완료 (엔진: {self.stt.engine})")
+    
+    def process_audio_with_confidence(self, audio_file: str, 
+                                    target_text: str = "") -> Dict:
+        """
+        신뢰도 평가와 함께 오디오 처리
+        """
+        print(f"🎤 고급 STT 처리 시작: {Path(audio_file).name}")
+        
+        # STT 전사
+        transcription = self.stt.transcribe(audio_file, language='ko', return_timestamps=True)
+        
+        # 목표 텍스트가 있으면 일치도 검사
+        if target_text:
+            similarity = self._calculate_text_similarity(transcription.text, target_text)
+            print(f"📊 텍스트 일치도: {similarity:.2%}")
+            
+            # 일치도가 낮으면 목표 텍스트 사용
+            if similarity < 0.7:
+                print(f"⚠️ 일치도 낮음, 목표 텍스트 사용: {target_text}")
+                transcription.text = target_text
+                transcription.confidence = 0.8  # 수동 입력 신뢰도
+        
+        # 음절 정렬
+        syllable_alignments = self.syllable_aligner.align_syllables_with_timestamps(
+            transcription, audio_file
+        )
+        
+        # 신뢰도 평가
+        overall_confidence = self._evaluate_overall_confidence(transcription, syllable_alignments)
+        
+        return {
+            'transcription': transcription.text,
+            'syllables': [
+                {
+                    'label': sa.syllable,
+                    'start': sa.start_time,
+                    'end': sa.end_time,
+                    'confidence': sa.confidence,
+                    'phonetic_features': sa.phonetic_features
+                }
+                for sa in syllable_alignments
+            ],
+            'confidence': overall_confidence,
+            'engine': transcription.engine,
+            'word_timestamps': transcription.words,
+            'quality_metrics': {
+                'syllable_count': len(syllable_alignments),
+                'avg_syllable_confidence': np.mean([sa.confidence for sa in syllable_alignments]),
+                'has_word_timestamps': len(transcription.words) > 0
+            }
+        }
+    
+    def _calculate_text_similarity(self, text1: str, text2: str) -> float:
+        """텍스트 유사도 계산 (간단한 구현)"""
+        # 공백 제거 후 비교
+        clean1 = text1.replace(' ', '').replace('.', '').replace(',', '')
+        clean2 = text2.replace(' ', '').replace('.', '').replace(',', '')
+        
+        if not clean1 or not clean2:
+            return 0.0
+        
+        # 문자 단위 일치도
+        matching_chars = sum(1 for c1, c2 in zip(clean1, clean2) if c1 == c2)
+        max_length = max(len(clean1), len(clean2))
+        
+        return matching_chars / max_length if max_length > 0 else 0.0
+    
+    def _evaluate_overall_confidence(self, transcription: TranscriptionResult, 
+                                   syllables: List[SyllableAlignment]) -> float:
+        """전체 신뢰도 평가"""
+        factors = []
+        
+        # STT 엔진별 기본 신뢰도
+        engine_confidence = {
+            'whisper': 0.85,
+            'google': 0.90,
+            'azure': 0.88,
+            'naver_clova': 0.80,
+            'local_fallback': 0.50
+        }
+        factors.append(engine_confidence.get(transcription.engine, 0.60))
+        
+        # 전사 신뢰도
+        factors.append(transcription.confidence)
+        
+        # 음절 정렬 신뢰도
+        if syllables:
+            syllable_confidence = np.mean([s.confidence for s in syllables])
+            factors.append(syllable_confidence)
+        
+        # 타임스탬프 존재 여부
+        if transcription.words:
+            factors.append(0.9)  # 타임스탬프 있으면 보너스
+        else:
+            factors.append(0.6)
+        
+        return np.mean(factors)
+    
+    def get_engine_status(self) -> Dict:
+        """STT 엔진 상태 정보"""
+        return {
+            'current_engine': self.stt.engine,
+            'available_engines': self.stt.available_engines,
+            'confidence_threshold': self.confidence_threshold
+        }
+
+
+# 사용 예시
+if __name__ == "__main__":
+    # 고급 STT 프로세서 초기화
+    processor = AdvancedSTTProcessor(
+        preferred_engine='whisper',
+        model_size='base'
+    )
+    
+    # 테스트 파일 처리
+    test_file = "static/reference_files/낭독문장.wav"
+    if Path(test_file).exists():
+        result = processor.process_audio_with_confidence(
+            test_file, 
+            target_text="하나도 놓치지 않고 열심히 보고 있습니다"
+        )
+        print(f"🎯 처리 결과: {result}")
