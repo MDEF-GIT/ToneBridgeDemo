@@ -182,13 +182,22 @@ const VoiceAnalysisApp: React.FC = () => {
     try {
       console.log(`🎯 연습 문장 선택됨: ${fileId}`);
       
+      // 🎯 디버깅: pitchChart 객체 상태 확인
+      console.log('🎯 pitchChart object:', pitchChart);
+      console.log('🎯 pitchChart.loadReferenceData:', pitchChart?.loadReferenceData);
+      
       // 🎯 오리지널처럼 pitchChart.loadReferenceData 호출
       if (pitchChart && pitchChart.loadReferenceData) {
+        console.log('🎯 Calling pitchChart.loadReferenceData...');
         await pitchChart.loadReferenceData(fileId);
         setStatus(`✅ "${fileId}" 문장이 로드되었습니다. 참조음성 재생 또는 녹음 연습을 시작하세요.`);
         console.log('🎯 차트 업데이트 완료!');
       } else {
         console.warn('⚠️ pitchChart.loadReferenceData가 없습니다');
+        console.warn('pitchChart 전체 객체:', pitchChart);
+        if (pitchChart) {
+          console.warn('pitchChart 키들:', Object.keys(pitchChart));
+        }
         setStatus('차트 로딩 중 오류가 발생했습니다.');
       }
       
