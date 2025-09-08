@@ -232,19 +232,21 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     const chart = chartRef.current;
     const datasetIndex = type === 'reference' ? 0 : 1;
     
-    // 🎯 주파수를 semitone 또는 Q-tone으로 변환해서 차트에 표시
+    // 🎯 주파수를 선택된 단위(semitone/Q-tone)로 변환해서 차트에 표시
     const convertedValue = convertFrequency(frequency);
+    
+    console.log(`🎤 실시간 데이터: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(1)} ${yAxisUnit} (t=${relativeTime.toFixed(2)}s)`);
     
     chart.data.datasets[datasetIndex].data.push({
       x: relativeTime,
-      y: convertedValue  // 🎯 선택된 단위로 변환된 값
+      y: convertedValue  // 🎯 실시간으로 선택된 단위로 변환된 값
     });
 
     // 🎯 녹음 중에는 x축 범위를 고정 (참조 데이터 범위 유지)
     // 실시간 녹음 데이터가 참조 데이터의 x축 범위 내에서만 표시되도록 함
 
     chart.update('none'); // Update without animation for real-time performance
-  }, []);
+  }, [convertFrequency, startTimeRef]);
 
   const clearChart = useCallback(() => {
     if (!chartRef.current) return;
