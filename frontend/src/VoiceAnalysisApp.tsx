@@ -206,6 +206,12 @@ const VoiceAnalysisApp: React.FC = () => {
               const normalizedTime = point.time - firstTime;
               dualAxisChart.addDualAxisData(point.frequency, normalizedTime, 'reference');
             });
+            
+            // 🎯 데이터 로딩 완료 후 Y축 범위 자동 조정
+            if (dualAxisChart.updateYAxisRanges) {
+              dualAxisChart.updateYAxisRanges();
+            }
+            
             console.log(`📊 듀얼축 차트에 참조 데이터 로딩 완료: ${fileId} (${pitchData.length}개 포인트)`);
           }
         } catch (error) {
