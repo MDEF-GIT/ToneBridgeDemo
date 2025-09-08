@@ -145,6 +145,14 @@ React App Target: Configurable API_BASE for both development and production
 
 ## Recent Changes
 
+### 2025-09-08: 연습문제 선택 리스트 및 차트 자동 반영 기능 수정
+- **오리지널 백업 분석**: vanilla-js 버전의 loadSentenceForLearner() 로직 분석
+- **handleSentenceSelection 수정**: 잘못된 `/api/analyze/${fileId}` API 호출 제거
+- **올바른 차트 로딩**: `pitchChart.loadReferenceData(fileId)` 함수 호출로 변경
+- **성별 검증 추가**: 오리지널과 동일한 학습자 성별 필수 선택 로직 구현
+- **API 응답 구조 개선**: data.files 또는 직접 배열 모두 처리하도록 유연성 추가
+- **useEffect 무한 루프 문제 해결**: 의존성 배열 분리로 API 중복 호출 방지
+
 ### 2025-09-08: Chart.js Annotation 및 음절 시각화 기능 구현
 - **Chart.js annotation 플러그인 설치**: React 프론트엔드에 chartjs-plugin-annotation@3.0.1 패키지 추가
 - **음절 구간 표시 기능 구현**: 

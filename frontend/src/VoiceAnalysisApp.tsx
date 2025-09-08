@@ -73,10 +73,14 @@ const VoiceAnalysisApp: React.FC = () => {
     };
   }, []);
 
-  // 🎯 초기화
+  // 🎯 초기화 (한 번만 실행)
   useEffect(() => {
     loadReferenceFiles();
-    
+    console.log('🎯 ToneBridge Voice Analysis App initialized');
+  }, []); // 빈 의존성 배열로 한 번만 실행
+  
+  // 🎯 피치 콜백 설정 (별도 useEffect)
+  useEffect(() => {
     if (audioRecording && audioRecording.setPitchCallback) {
       console.log('🎯 피치 콜백 설정 중...');
       audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
@@ -88,8 +92,6 @@ const VoiceAnalysisApp: React.FC = () => {
     } else {
       console.warn('⚠️ audioRecording 또는 setPitchCallback이 없습니다');
     }
-    
-    console.log('🎯 ToneBridge Voice Analysis App initialized');
   }, [audioRecording, pitchChart]);
 
   // 🎯 참조 파일 로딩 (오리지널과 동일한 로직)
@@ -564,12 +566,15 @@ const VoiceAnalysisApp: React.FC = () => {
                       <select 
                         className="form-control form-control-sm"
                         value={selectedFile}
-                        onChange={(e) => handleSentenceSelection(e.target.value)}
+                        onChange={(e) => {
+          console.log('🎯 드롭다운 변경됨:', e.target.value);
+          handleSentenceSelection(e.target.value);
+        }}
                       >
                         <option value="">연습할 문장을 선택하세요...</option>
                         {referenceFiles.map((file) => (
                           <option key={file.id} value={file.id}>
-                            {file.title} ({file.duration.toFixed(1)}초)
+                            {file.title || file.filename} ({file.duration?.toFixed(1) || '0.0'}초)
                           </option>
                         ))}
                       </select>
