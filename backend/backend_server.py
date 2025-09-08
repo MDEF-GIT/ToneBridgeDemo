@@ -279,7 +279,8 @@ def apply_gender_normalization(analysis_result: dict, target_gender: str, learne
                         if field == 'f0' and normalized_f0 > 0 and target_base > 0:
                             normalized_semitone = 12 * np.log2(normalized_f0 / target_base)
                             normalized_syl['semitone'] = normalized_semitone
-                            normalized_syl['qtone'] = normalized_semitone * 2  # quarter-tone
+                            # 🎯 올바른 Q-tone 공식: 5 * log2(f0/130)
+                            normalized_syl['qtone'] = 5 * np.log2(normalized_f0 / 130) if normalized_f0 > 0 else 0.0
                             normalized_syl['semitone_median'] = normalized_semitone  # 호환성
                             
                             print(f"🎯 음절 '{normalized_syl.get('label', '?')}': {original_f0:.1f}Hz → {normalized_f0:.1f}Hz ({normalized_semitone:.2f}st)")
@@ -291,7 +292,8 @@ def apply_gender_normalization(analysis_result: dict, target_gender: str, learne
                                         syl_analysis['f0'] = normalized_f0
                                         syl_analysis['semitone'] = normalized_semitone
                                         syl_analysis['semitone_median'] = normalized_semitone
-                                        syl_analysis['qtone'] = normalized_semitone * 2
+                                        # 🎯 올바른 Q-tone 공식: 5 * log2(f0/130)  
+                                        syl_analysis['qtone'] = 5 * np.log2(normalized_f0 / 130) if normalized_f0 > 0 else 0.0
                                         print(f"🎯 syllable_analysis 업데이트: {syl_analysis['label']} = {normalized_semitone:.2f}st")
                 normalized_syl['show_syllable_pitch'] = True
                     
@@ -628,7 +630,7 @@ def simple_pitch_analysis_implementation(sound: pm.Sound, syllables: List[dict])
                 "representative_f0": float(f0_val),  # 대표 f0 추가
                 "semitone": float(semitone),
                 "semitone_median": float(semitone),  # 호환성
-                "qtone": float(semitone * 2),
+                "qtone": float(5 * np.log2(f0_val / 130)) if f0_val > 0 else 0.0,
                 "intensity": -30.0,
                 # 🎯 음절 중심점 데이터 추가 (차트 표시용)
                 "center_time": float(center_t),
@@ -857,7 +859,7 @@ def praat_pitch_analysis(
             "representative_f0": float(f0_val),
             "semitone": float(semi_tone),  # 🎯 중요! semitone 추가
             "semitone_median": float(semi_tone),
-            "qtone": float(quarter_tone),
+            "qtone": float(5 * np.log2(f0_val / 130)) if f0_val > 0 else 0.0,
             "intensity": float(db_val),
             "center_time": float(time_val),  # 🎯 중심 시간 추가
             "start_time": float(start_t),
