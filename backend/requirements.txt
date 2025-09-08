@@ -9,3 +9,7 @@ praat-parselmouth==0.4.3
 flask-login
 pydantic
 werkzeug
+pydub==0.25.1
+librosa==0.11.0
+textgrid==1.6.1
+soundfile==0.13.1
