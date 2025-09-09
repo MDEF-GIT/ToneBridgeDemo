@@ -51,9 +51,9 @@ const VoiceAnalysisApp: React.FC = () => {
   const dualAxisCanvasRef = useRef<HTMLCanvasElement>(null);
   
   // 🎯 Hooks  
-  const audioRecording = useAudioRecording(learnerInfo, selectedFile);
   const pitchChart = usePitchChart(chartRef, API_BASE);
   const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE);
+  const audioRecording = useAudioRecording(learnerInfo, selectedFile, pitchChart);
   
   // 🎯 통합 재생 동기화 훅
   const referencePlaybackSync = useAudioPlaybackSync({
@@ -720,8 +720,8 @@ const VoiceAnalysisApp: React.FC = () => {
                             style={{ height: '35px' }}
                             src={`${API_BASE}/static/reference_files/${selectedFile}.wav`}
                             onError={() => console.error('참조 파일 로드 실패:', selectedFile)}
-                            onLoadedData={() => console.log('참조 파일 로드 완료:', selectedFile)}
                             onLoadedData={(e) => {
+                              console.log('참조 파일 로드 완료:', selectedFile);
                               // 🎯 공통 재생 동기화 훅 자동 연결
                               const audio = e.target as HTMLAudioElement;
                               referencePlaybackSync.setupAudioElement(audio);

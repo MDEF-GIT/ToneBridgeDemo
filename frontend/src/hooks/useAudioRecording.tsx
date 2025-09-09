@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { YINPitchDetector, PitchResult } from '../utils/pitchAnalysis';
 import { AudioPlaybackController } from '../utils/audioUtils';
+import { useAudioPlaybackSync } from './useAudioPlaybackSync';
 
 interface AudioRecordingState {
   isRecording: boolean;
@@ -17,7 +18,11 @@ interface AudioRecordingState {
   autoProcessResult: any | null;
 }
 
-export const useAudioRecording = (learnerInfo?: {name: string, gender: string, ageGroup: string}, selectedFile?: string) => {
+export const useAudioRecording = (
+  learnerInfo?: {name: string, gender: string, ageGroup: string}, 
+  selectedFile?: string,
+  chartInstance?: { updatePlaybackProgress?: (time: number) => void; clearPlaybackProgress?: () => void }
+) => {
   const [state, setState] = useState<AudioRecordingState>({
     isRecording: false,
     audioStream: null,
@@ -48,6 +53,13 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
   // 🎯 새로운 고급 피치 분석 엔진
   const yinDetectorRef = useRef<YINPitchDetector | null>(null);
   const audioPlaybackRef = useRef<AudioPlaybackController>(new AudioPlaybackController());
+  
+  // 🎯 녹음된 오디오 재생 동기화 훅
+  const recordedPlaybackSync = useAudioPlaybackSync({
+    chartInstance,
+    updateInterval: 'frame',
+    enableLogging: true
+  });
   
   // 🎯 ref 값 업데이트
   useEffect(() => {
@@ -266,7 +278,7 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
     }
   };
 
-  const playRecordedAudio = useCallback(() => {
+  const playRecordedAudio = useCallback(async () => {
     console.log('🎯🎯🎯 [STEP 2] playRecordedAudio 함수 진입!');
     
     // 현재 상태 상세 로깅
@@ -301,41 +313,43 @@ export const useAudioRecording = (learnerInfo?: {name: string, gender: string, a
     }
     console.log("✅ [STEP 2.3] 현재 재생 중이 아님 - 재생 시작 프로세스로 진행");
 
-    // 새로운 AudioPlaybackController로 재생 시작
-    console.log("▶️ [STEP 2.4] 새로운 오디오 컨트롤러로 재생 시작");
+    // 🎯 공통 재생 동기화 훅을 사용한 재생 시작
+    console.log("▶️ [STEP 2.4] 통합 재생 동기화로 오디오 재생 시작");
     try {
-      audioPlaybackRef.current.play(state.recordedBlob, () => {
-        console.log("🔚 [EVENT] 새로운 컨트롤러 - 재생 완료 이벤트");
-        setState(prev => {
-          console.log("🔚 [EVENT] setState로 isPlayingRecorded: false 설정");
-          return { ...prev, isPlayingRecorded: false };
-        });
-      }).then(() => {
-        console.log("✅ [STEP 2.4.9] 새로운 컨트롤러 재생 성공");
-        setState(prev => {
-          console.log("✅ [STEP 2.4.10] setState로 isPlayingRecorded: true 설정");
-          return { ...prev, isPlayingRecorded: true };
-        });
-        console.log("✅ [STEP 2.4.11] 재생 시작 프로세스 완료");
-      }).catch((error) => {
-        console.error("❌ [STEP 2.4.9] 새로운 컨트롤러 재생 실패:", error);
-        setState(prev => {
-          console.log("❌ [STEP 2.4.10] setState로 isPlayingRecorded: false 설정");
-          return { ...prev, isPlayingRecorded: false };
-        });
-        console.log("❌ [STEP 2.4.11] 재생 실패 정리 작업 완료");
+      // Blob을 Audio 요소로 변환
+      const audioUrl = URL.createObjectURL(state.recordedBlob);
+      const audio = new Audio(audioUrl);
+      
+      // 🎯 공통 재생 동기화 훅 연결
+      const cleanup = recordedPlaybackSync.setupAudioElement(audio);
+      
+      // 재생 완료 이벤트 추가
+      audio.addEventListener('ended', () => {
+        console.log("🔚 [EVENT] 녹음된 오디오 재생 완료");
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        cleanup(); // 정리
+        URL.revokeObjectURL(audioUrl); // 메모리 정리
       });
+      
+      audio.addEventListener('error', (error) => {
+        console.error("❌ [EVENT] 녹음된 오디오 재생 실패:", error);
+        setState(prev => ({ ...prev, isPlayingRecorded: false }));
+        cleanup(); // 정리
+        URL.revokeObjectURL(audioUrl); // 메모리 정리
+      });
+      
+      // 재생 시작
+      await audio.play();
+      setState(prev => ({ ...prev, isPlayingRecorded: true }));
+      console.log("✅ [STEP 2.4] 통합 재생 동기화로 재생 시작 완료");
 
     } catch (error) {
-      console.error("❌ [STEP 2.4] try-catch 블록에서 예외 발생:", error);
-      setState(prev => {
-        console.log("❌ [STEP 2.4.ERROR] setState로 isPlayingRecorded: false 설정");
-        return { ...prev, isPlayingRecorded: false };
-      });
+      console.error("❌ [STEP 2.4] 통합 재생 동기화 재생 실패:", error);
+      setState(prev => ({ ...prev, isPlayingRecorded: false }));
     }
     
     console.log('🎯🎯🎯 [STEP 2] playRecordedAudio 함수 종료');
-  }, [state.recordedBlob, state.isPlayingRecorded]);
+  }, [state.recordedBlob, state.isPlayingRecorded, recordedPlaybackSync]);
 
   const setPitchCallback = useCallback(
     (callback: (frequency: number, timestamp: number) => void) => {
