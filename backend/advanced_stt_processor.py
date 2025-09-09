@@ -761,9 +761,9 @@ class KoreanSyllableAligner:
             sound = pm.Sound(audio_file)
             total_duration = sound.get_total_duration()
             
-            # 실제 음성 구간만 추출 (50ms 여유 추가)
-            trim_start = max(0, voice_start - 0.05)
-            trim_end = min(total_duration, voice_end + 0.05)
+            # 실제 음성 구간만 추출 (0.25초 마진 추가로 자연스러운 재생)
+            trim_start = max(0, voice_start - 0.25)
+            trim_end = min(total_duration, voice_end + 0.25)
             
             print(f"✂️ 자르기 구간: {trim_start:.3f}s ~ {trim_end:.3f}s")
             
@@ -1093,9 +1093,9 @@ class AdvancedSTTProcessor:
             sound = pm.Sound(audio_file)
             total_duration = sound.get_total_duration()
             
-            # 실제 음성 구간만 추출 (50ms 여유 추가)
-            trim_start = max(0, voice_start - 0.05)
-            trim_end = min(total_duration, voice_end + 0.05)
+            # 실제 음성 구간만 추출 (0.25초 마진 추가로 자연스러운 재생)
+            trim_start = max(0, voice_start - 0.25)
+            trim_end = min(total_duration, voice_end + 0.25)
             
             print(f"✂️ 자르기 구간: {trim_start:.3f}s ~ {trim_end:.3f}s")
             
