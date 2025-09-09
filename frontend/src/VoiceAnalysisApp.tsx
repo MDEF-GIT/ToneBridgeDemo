@@ -88,12 +88,11 @@ const VoiceAnalysisApp: React.FC = () => {
     console.log('🎯 ToneBridge Voice Analysis App initialized');
   }, []); // 빈 의존성 배열로 한 번만 실행
   
-  // 🎯 피치 콜백 설정 (별도 useEffect)
+  // 🎯 피치 콜백 설정 (한 번만 실행)
   useEffect(() => {
     if (audioRecording && audioRecording.setPitchCallback) {
       console.log('🎯 피치 콜백 설정 중...');
       audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
-        console.log(`🎤 실시간 피치 데이터: ${frequency.toFixed(2)}Hz, 시간: ${timestamp}`);
         if (pitchChart && pitchChart.addPitchData) {
           pitchChart.addPitchData(frequency, timestamp, 'live');
         }
@@ -102,10 +101,8 @@ const VoiceAnalysisApp: React.FC = () => {
           dualAxisChart.addDualAxisData(frequency, timestamp, 'live');
         }
       });
-    } else {
-      console.warn('⚠️ audioRecording 또는 setPitchCallback이 없습니다');
     }
-  }, [audioRecording, pitchChart, dualAxisChart]);
+  }, []); // 빈 배열로 한 번만 실행
 
   // 🎯 참조 파일 로딩 (오리지널과 동일한 로직)
   const loadReferenceFiles = async () => {
