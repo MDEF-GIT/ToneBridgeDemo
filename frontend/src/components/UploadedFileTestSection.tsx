@@ -170,6 +170,7 @@ const UploadedFileTestSection: React.FC = () => {
       }).filter(point => point !== null) as SyllablePoint[];
 
       console.log(`✅ 음절 포인트 데이터 구성 완료: ${points.length}개`);
+      console.log(`🎯 설정된 음절 포인트:`, points);
       setSyllablePoints(points);
 
       // 5. 차트 클리어 후 데이터 추가
