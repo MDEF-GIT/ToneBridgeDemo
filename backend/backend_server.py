@@ -2420,26 +2420,14 @@ async def optimize_uploaded_file(file_id: str = Form(...)):
         # 🚀 NEW: 통합 음성 프로세서 사용 (모든 차트에서 동일한 품질)
         from tonebridge_core.pipeline.voice_processor import UnifiedVoiceProcessor
         
-        print("🔧 통합 프로세서로 변경: 모든 차트에서 동일한 품질 보장")
-        print(f"📁 처리할 파일: {wav_path}")
-        print(f"📝 참조 문장: {reference_sentence}")
+        # 🚀 NEW: 통합 음성 프로세서 사용 (모든 차트에서 동일한 품질)
+        print("🔧 통합 프로세서 사용: 모든 차트에서 동일한 품질 보장")
         
-        try:
-            unified_processor = UnifiedVoiceProcessor()
-            print("✅ 통합 프로세서 초기화 완료")
-            
-            process_result = unified_processor.process_uploaded_file(str(wav_path), reference_sentence)
-            print(f"✅ 통합 프로세서 처리 완료: {process_result.success}")
-            
-            # 기존 API 형식으로 변환 (하위 호환성)
-            result = process_result.to_legacy_dict()
-            print(f"✅ 레거시 형식 변환 완료: {len(result.get('syllables', []))}개 음절")
-            
-        except Exception as processor_error:
-            print(f"❌ 통합 프로세서 오류: {processor_error}")
-            import traceback
-            traceback.print_exc()
-            raise processor_error
+        unified_processor = UnifiedVoiceProcessor()
+        process_result = unified_processor.process_uploaded_file(str(wav_path), reference_sentence)
+        
+        # 기존 API 형식으로 변환 (하위 호환성)
+        result = process_result.to_legacy_dict()
         
         if result['success']:
             # 최적화된 TextGrid 생성
