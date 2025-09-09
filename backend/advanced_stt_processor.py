@@ -509,22 +509,30 @@ class KoreanSyllableAligner:
     def align_syllables_with_timestamps(self, transcription: TranscriptionResult, 
                                       audio_file: str) -> List[SyllableAlignment]:
         """
-        전사 결과를 음절 단위로 타임스탬프와 함께 정렬 (음성 시작점 자동 감지)
+        전사 결과를 음절 단위로 타임스탬프와 함께 정렬 (한국어 언어학적 보정 포함)
         """
         print(f"🎯 음절 정렬 시작: {transcription.text}")
         
-        # 텍스트를 음절 단위로 분리
+        # 🌟 1단계: 한국어 언어학적 목표 음절 수 계산
         syllables = list(transcription.text.replace(' ', ''))
         korean_syllables = [s for s in syllables if self._is_korean(s)]
+        target_syllable_count = len(korean_syllables)
         
-        print(f"🔤 한국어 음절: {korean_syllables} ({len(korean_syllables)}개)")
+        print(f"🔤 목표 한국어 음절: {korean_syllables} ({target_syllable_count}개)")
         
-        # 단어 타임스탬프가 있으면 활용
+        # 🌟 2단계: 음성학적 분석으로 초기 정렬
         if transcription.words:
-            return self._align_with_word_timestamps(korean_syllables, transcription.words, audio_file)
+            initial_alignments = self._align_with_word_timestamps(korean_syllables, transcription.words, audio_file)
+        else:
+            initial_alignments = self._align_with_uniform_distribution(korean_syllables, audio_file)
         
-        # 타임스탬프가 없으면 오디오 길이 기반 균등 분할
-        return self._align_with_uniform_distribution(korean_syllables, audio_file)
+        # 🌟 3단계: 한국어 언어학적 보정 (과분할 병합)
+        corrected_alignments = self._apply_korean_linguistic_correction(
+            initial_alignments, korean_syllables, target_syllable_count
+        )
+        
+        print(f"✅ 최종 음절 정렬 완료: {len(corrected_alignments)}개 음절")
+        return corrected_alignments
     
     def _align_with_word_timestamps(self, syllables: List[str], 
                                   words: List[Dict], audio_file: str = None) -> List[SyllableAlignment]:
@@ -825,6 +833,85 @@ class KoreanSyllableAligner:
             ))
         
         return alignments
+    
+    def _apply_korean_linguistic_correction(self, alignments: List[SyllableAlignment], 
+                                          target_syllables: List[str], 
+                                          target_count: int) -> List[SyllableAlignment]:
+        """
+        한국어 언어학적 규칙에 따라 과분할된 음절을 병합하여 목표 음절 수 보장
+        """
+        print(f"🔧 한국어 언어학적 보정 시작:")
+        print(f"   📊 현재: {len(alignments)}개 구간 → 목표: {target_count}개 음절")
+        
+        if len(alignments) == target_count:
+            print(f"✅ 음절 수 정확함, 보정 불필요")
+            return alignments
+        
+        if len(alignments) < target_count:
+            print(f"⚠️ 음절 수 부족 ({len(alignments)} < {target_count}), 원본 유지")
+            return alignments
+        
+        # 🎯 과분할된 경우: 동일 음절로 추정되는 구간들을 병합
+        print(f"🔄 과분할 감지: {len(alignments)}개 → {target_count}개로 병합 시작")
+        
+        # 목표 음절별로 그룹화
+        corrected = []
+        
+        # 각 목표 음절에 할당할 구간 수 계산
+        excess_segments = len(alignments) - target_count
+        segments_per_syllable = len(alignments) // target_count
+        remainder = len(alignments) % target_count
+        
+        alignment_idx = 0
+        for syllable_idx, target_syllable in enumerate(target_syllables):
+            # 이 음절에 할당할 구간 수
+            current_syllable_segments = segments_per_syllable
+            if syllable_idx < remainder:
+                current_syllable_segments += 1
+            
+            # 해당 구간들을 병합
+            segments_to_merge = alignments[alignment_idx:alignment_idx + current_syllable_segments]
+            
+            if segments_to_merge:
+                merged_segment = self._merge_syllable_segments(segments_to_merge, target_syllable)
+                corrected.append(merged_segment)
+                
+                print(f"   🎯 '{target_syllable}': {len(segments_to_merge)}개 구간 병합 → "
+                      f"[{merged_segment.start_time:.3f}s ~ {merged_segment.end_time:.3f}s]")
+                
+                alignment_idx += current_syllable_segments
+        
+        print(f"✅ 한국어 언어학적 보정 완료: {len(corrected)}개 음절")
+        return corrected
+    
+    def _merge_syllable_segments(self, segments: List[SyllableAlignment], 
+                               target_syllable: str) -> SyllableAlignment:
+        """
+        동일 음절의 여러 구간을 하나로 병합
+        """
+        if not segments:
+            return None
+        
+        if len(segments) == 1:
+            # 음절명만 목표 음절로 수정
+            segments[0].syllable = target_syllable
+            return segments[0]
+        
+        # 여러 구간 병합
+        start_time = min(seg.start_time for seg in segments)
+        end_time = max(seg.end_time for seg in segments)
+        
+        # 신뢰도는 평균 또는 최대값 사용
+        avg_confidence = sum(seg.confidence for seg in segments) / len(segments)
+        
+        return SyllableAlignment(
+            syllable=target_syllable,
+            start_time=start_time,
+            end_time=end_time,
+            confidence=avg_confidence,
+            word_context=segments[0].word_context if segments else "",
+            phonetic_features=segments[0].phonetic_features if segments else {}
+        )
     
     def _is_korean(self, char: str) -> bool:
         """한국어 문자인지 확인"""
