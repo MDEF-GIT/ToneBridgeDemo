@@ -902,9 +902,14 @@ class STTBasedSegmenter:
         segments = segmenter.segment_from_audio_file("audio.wav", "반가워요")
     """
     
-    def __init__(self):
+    def __init__(self, shared_stt_processor=None):
         print(f"🚀🚀🚀 STTBasedSegmenter 초기화 시작: STT_AVAILABLE={STT_AVAILABLE} 🚀🚀🚀")
-        if STT_AVAILABLE:
+        
+        # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
+        if shared_stt_processor:
+            print("🔄 기존 STT 프로세서 재사용")
+            self.stt_processor = shared_stt_processor
+        elif STT_AVAILABLE:
             try:
                 print("🔧 AdvancedSTTProcessor 생성 중...")
                 self.stt_processor = AdvancedSTTProcessor()
