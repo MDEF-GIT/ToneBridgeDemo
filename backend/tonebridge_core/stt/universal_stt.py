@@ -31,7 +31,6 @@ class UnifiedSTTEngine:
         
         # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
         if shared_processor:
-            print("🔄 기존 STT 인스턴스 재사용")
             self.advanced_stt = shared_processor
             self.universal_stt = shared_processor.stt if hasattr(shared_processor, 'stt') else shared_processor
         else:
@@ -42,14 +41,10 @@ class UnifiedSTTEngine:
         """기존 STT 엔진들 초기화"""
         try:
             if ADVANCED_STT_AVAILABLE:
-                print(f"🔧 통합 STT: AdvancedSTTProcessor 초기화 중...")
                 self.advanced_stt = AdvancedSTTProcessor(
                     preferred_engine=self.preferred_engine
                 )
                 self.universal_stt = self.advanced_stt.stt
-                print(f"✅ 통합 STT: {self.preferred_engine} 엔진 활성화")
-            else:
-                print("⚠️ 통합 STT: Advanced STT 비활성화")
         except Exception as e:
             print(f"❌ 통합 STT 초기화 실패: {e}")
             self.advanced_stt = None

@@ -38,7 +38,6 @@ class UnifiedVoiceProcessor:
         self.textgrid_generator = UnifiedTextGridGenerator()
         self.pitch_analyzer = UnifiedPitchAnalyzer()
         
-        print("✅ 통합 음성 프로세서 초기화 완료")
     
     def process_reference_file(self, file_id: str, audio_file: str = None) -> ProcessingResult:
         """

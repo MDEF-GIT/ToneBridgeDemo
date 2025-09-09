@@ -50,8 +50,6 @@ class KoreanSyllableSegmenter:
         """기존 분절기들 초기화"""
         try:
             if SEGMENTATION_AVAILABLE:
-                print("🔧 통합 분절기: STTBasedSegmenter 초기화 중...")
-                
                 # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
                 if self.shared_stt_processor:
                     self.stt_segmenter = STTBasedSegmenter(shared_stt_processor=self.shared_stt_processor)
@@ -63,10 +61,6 @@ class KoreanSyllableSegmenter:
                 # KoreanSyllableAligner 초기화
                 if self.stt_engine.advanced_stt:
                     self.korean_aligner = self.stt_engine.advanced_stt.syllable_aligner
-                
-                print("✅ 통합 분절기: 모든 분절기 활성화")
-            else:
-                print("⚠️ 통합 분절기: 분절 모듈 비활성화")
         except Exception as e:
             print(f"❌ 통합 분절기 초기화 실패: {e}")
     
