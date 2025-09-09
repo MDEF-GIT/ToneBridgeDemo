@@ -368,12 +368,74 @@ export const useDualAxisChart = (
     updateAxisUnit();
   }, [updateAxisUnit, yAxisUnit]);
 
+  // 🎯 음절 annotation 추가 (더미 구현)
+  const addSyllableAnnotations = useCallback((syllableData: any[]) => {
+    console.log('🎯 듀얼축 차트: 음절 annotation 추가됨', syllableData.length);
+    // TODO: 실제 annotation 구현이 필요하면 여기에 추가
+  }, []);
+
+  // 🎯 재생 진행 상황 업데이트 (더미 구현)
+  const updatePlaybackProgress = useCallback((currentTime: number) => {
+    console.log('🎵 듀얼축 차트: 재생 진행', currentTime);
+    // TODO: 실제 재생 진행 표시가 필요하면 여기에 추가
+  }, []);
+
+  // 🎯 재생 진행 상황 클리어 (더미 구현)
+  const clearPlaybackProgress = useCallback(() => {
+    console.log('🎵 듀얼축 차트: 재생 진행 클리어');
+    // TODO: 실제 재생 진행 클리어가 필요하면 여기에 추가
+  }, []);
+
+  // 🎯 피치 조정 (더미 구현)
+  const adjustPitch = useCallback((direction: 'up' | 'down') => {
+    console.log('🎵 듀얼축 차트: 피치 조정', direction);
+    // TODO: 실제 피치 조정이 필요하면 여기에 추가
+  }, []);
+
+  // 🎯 확대/축소 (더미 구현)
+  const zoomIn = useCallback(() => {
+    console.log('🔍 듀얼축 차트: 확대');
+    // TODO: 실제 확대 기능이 필요하면 여기에 추가
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    console.log('🔍 듀얼축 차트: 축소');
+    // TODO: 실제 축소 기능이 필요하면 여기에 추가
+  }, []);
+
+  // 🎯 스크롤 (더미 구현)
+  const scrollLeft = useCallback(() => {
+    console.log('⬅️ 듀얼축 차트: 왼쪽 스크롤');
+    // TODO: 실제 스크롤 기능이 필요하면 여기에 추가
+  }, []);
+
+  const scrollRight = useCallback(() => {
+    console.log('➡️ 듀얼축 차트: 오른쪽 스크롤');
+    // TODO: 실제 스크롤 기능이 필요하면 여기에 추가
+  }, []);
+
+  // 🎯 전체 보기 (더미 구현)
+  const resetView = useCallback(() => {
+    console.log('🏠 듀얼축 차트: 전체 보기');
+    // TODO: 실제 전체 보기 기능이 필요하면 여기에 추가
+  }, []);
+
   return {
     addDualAxisData,
     clearChart,
     updateYAxisRanges,
     chartData: chartDataRef.current,
     setYAxisUnit,
-    yAxisUnit
+    yAxisUnit,
+    // 새로 추가된 함수들
+    addSyllableAnnotations,
+    updatePlaybackProgress,
+    clearPlaybackProgress,
+    adjustPitch,
+    zoomIn,
+    zoomOut,
+    scrollLeft,
+    scrollRight,
+    resetView
   };
 };
