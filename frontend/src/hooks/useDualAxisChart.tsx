@@ -504,27 +504,6 @@ export const useDualAxisChart = (
     // TODO: 실제 피치 조정이 필요하면 여기에 추가
   }, []);
 
-  // 🎯 확대/축소 (더미 구현)
-  const zoomIn = useCallback(() => {
-    console.log('🔍 듀얼축 차트: 확대');
-    // TODO: 실제 확대 기능이 필요하면 여기에 추가
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    console.log('🔍 듀얼축 차트: 축소');
-    // TODO: 실제 축소 기능이 필요하면 여기에 추가
-  }, []);
-
-  // 🎯 스크롤 (더미 구현)
-  const scrollLeft = useCallback(() => {
-    console.log('⬅️ 듀얼축 차트: 왼쪽 스크롤');
-    // TODO: 실제 스크롤 기능이 필요하면 여기에 추가
-  }, []);
-
-  const scrollRight = useCallback(() => {
-    console.log('➡️ 듀얼축 차트: 오른쪽 스크롤');
-    // TODO: 실제 스크롤 기능이 필요하면 여기에 추가
-  }, []);
 
   // 🎯 전체 보기 (더미 구현)
   const resetView = useCallback(() => {
@@ -544,10 +523,6 @@ export const useDualAxisChart = (
     updatePlaybackProgress,
     clearPlaybackProgress,
     adjustPitch,
-    zoomIn,
-    zoomOut,
-    scrollLeft,
-    scrollRight,
     resetView
   };
 };

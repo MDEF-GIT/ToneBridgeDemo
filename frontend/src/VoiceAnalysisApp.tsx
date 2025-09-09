@@ -11,7 +11,6 @@ import { useDualAxisChart } from './hooks/useDualAxisChart';
 import { useAudioPlaybackSync } from './hooks/useAudioPlaybackSync';
 import UploadedFileTestSection from './components/UploadedFileTestSection';
 // import { PitchTestMode } from './components/PitchTestMode';
-// import { ChartControls } from './components/ChartControls';
 import './custom.css';
 
 const VoiceAnalysisApp: React.FC = () => {
@@ -965,48 +964,6 @@ const VoiceAnalysisApp: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 확대/스크롤 컨트롤 - 우측 상단 (차트 로드 후에만 표시) */}
-                {selectedFile && (
-                  <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
-                    <div className="d-flex gap-1 align-items-center">
-                      <button 
-                        className="btn btn-sm btn-outline-primary" 
-                        title="확대 (마우스 휠로도 가능)"
-                        onClick={() => pitchChart.zoomIn()}
-                      >
-                        <i className="fas fa-search-plus"></i>
-                      </button>
-                      <button 
-                        className="btn btn-sm btn-outline-primary" 
-                        title="축소 (마우스 휠로도 가능)"
-                        onClick={() => pitchChart.zoomOut()}
-                      >
-                        <i className="fas fa-search-minus"></i>
-                      </button>
-                    <button 
-                      className="btn btn-sm btn-outline-info" 
-                      title="왼쪽으로 스크롤"
-                      onClick={() => pitchChart.scrollLeft()}
-                    >
-                      <i className="fas fa-chevron-left"></i>
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-outline-info" 
-                      title="오른쪽으로 스크롤"
-                      onClick={() => pitchChart.scrollRight()}
-                    >
-                      <i className="fas fa-chevron-right"></i>
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-outline-secondary" 
-                      title="전체 보기로 리셋"
-                      onClick={() => pitchChart.resetView()}
-                    >
-                      <i className="fas fa-expand-arrows-alt"></i>
-                    </button>
-                  </div>
-                  </div>
-                )}
 
                 {/* 초기화 버튼 - 차트 로드 후에만 표시 */}
                 {selectedFile && (

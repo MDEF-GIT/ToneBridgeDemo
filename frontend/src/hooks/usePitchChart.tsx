@@ -736,76 +736,6 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     chartRef.current.update('none');
   }, [yAxisUnit, frequencyToQtone, frequencyToSemitone]);
 
-  // 🎯 차트 확대/축소
-  const zoomIn = useCallback(() => {
-    if (!chartRef.current) return;
-
-    const xScale = chartRef.current.options.scales?.x;
-    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
-
-    const center = (xScale.max + xScale.min) / 2;
-    const range = xScale.max - xScale.min;
-    const newRange = range * 0.8; // 20% 확대
-
-    xScale.min = center - newRange / 2;
-    xScale.max = center + newRange / 2;
-
-    chartRef.current.update('none');
-    console.log('🔍 확대:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    if (!chartRef.current) return;
-
-    const xScale = chartRef.current.options.scales?.x;
-    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
-
-    const center = (xScale.max + xScale.min) / 2;
-    const range = xScale.max - xScale.min;
-    const newRange = range * 1.25; // 25% 축소
-
-    xScale.min = Math.max(0, center - newRange / 2);
-    xScale.max = center + newRange / 2;
-
-    chartRef.current.update('none');
-    console.log('🔍 축소:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
-  }, []);
-
-  // 🎯 좌우 스크롤
-  const scrollLeft = useCallback(() => {
-    if (!chartRef.current) return;
-
-    const xScale = chartRef.current.options.scales?.x;
-    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
-
-    const range = xScale.max - xScale.min;
-    const step = range * 0.1; // 10% 이동
-
-    if (xScale.min > step) {
-      xScale.min -= step;
-      xScale.max -= step;
-      
-      chartRef.current.update('none');
-      console.log('⬅️ 왼쪽 스크롤:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
-    }
-  }, []);
-
-  const scrollRight = useCallback(() => {
-    if (!chartRef.current) return;
-
-    const xScale = chartRef.current.options.scales?.x;
-    if (!xScale || typeof xScale.min !== 'number' || typeof xScale.max !== 'number') return;
-
-    const range = xScale.max - xScale.min;
-    const step = range * 0.1; // 10% 이동
-
-    xScale.min += step;
-    xScale.max += step;
-
-    chartRef.current.update('none');
-    console.log('➡️ 오른쪽 스크롤:', { min: xScale.min.toFixed(2), max: xScale.max.toFixed(2) });
-  }, []);
-
   // 🎯 전체 보기 리셋
   const resetView = useCallback(() => {
     if (!chartRef.current) return;
@@ -964,10 +894,6 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     loadReferenceData,
     addSyllableAnnotations,
     adjustPitch,
-    zoomIn,
-    zoomOut,
-    scrollLeft,
-    scrollRight,
     resetView,
     setYAxisRange,
     setXAxisRange,
