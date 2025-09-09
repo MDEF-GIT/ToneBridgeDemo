@@ -91,10 +91,12 @@ const UploadedFileTestSection: React.FC = () => {
 
       // 🎯 첫 번째: 자동 최적화 실행 (reference 파일과 동일한 품질 보장)
       console.log(`🚀 파일 최적화 시작: ${fileId}`);
+      const formData = new FormData();
+      formData.append('file_id', fileId);
+      
       const optimizeResponse = await fetch(`/api/optimize-uploaded-file`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_id: fileId })
+        body: formData
       });
 
       if (optimizeResponse.ok) {

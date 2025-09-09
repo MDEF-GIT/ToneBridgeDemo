@@ -2402,7 +2402,7 @@ else:
     print("🆕 새 STT 인스턴스 생성")
 
 @app.post("/api/optimize-uploaded-file")
-async def optimize_uploaded_file(file_id: str):
+async def optimize_uploaded_file(file_id: str = Form(...)):
     """
     업로드된 파일을 reference 파일과 동일한 품질로 최적화
     wav최적화 -> STT -> 음성분석 -> 음절 분절 -> 타임스탬프 -> TextGrid 재생성
