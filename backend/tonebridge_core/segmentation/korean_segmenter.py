@@ -11,7 +11,7 @@ from typing import List, Optional
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 try:
-    from audio_analysis import STTBasedSegmenter, FallbackSyllableSegmenter
+    from audio_analysis import STTBasedSegmenter
     from advanced_stt_processor import KoreanSyllableAligner
     SEGMENTATION_AVAILABLE = True
 except ImportError:
@@ -40,7 +40,6 @@ class KoreanSyllableSegmenter:
             self.stt_engine = UnifiedSTTEngine()
             
         self.stt_segmenter = None
-        self.fallback_segmenter = None
         self.korean_aligner = None
         self.shared_stt_processor = shared_stt_processor
         
@@ -56,7 +55,6 @@ class KoreanSyllableSegmenter:
                 else:
                     self.stt_segmenter = STTBasedSegmenter()
                     
-                self.fallback_segmenter = FallbackSyllableSegmenter()
                 
                 # KoreanSyllableAligner 초기화
                 if self.stt_engine.advanced_stt:
@@ -92,10 +90,9 @@ class KoreanSyllableSegmenter:
         # 2. 고급 분절 시도 (STT 기반)
         segments = self._try_advanced_segmentation(audio_file, transcription_text)
         
-        # 3. 결과 검증 및 폴백
+        # 3. 결과 검증 - 실패시 에러 발생
         if not segments or len(segments) == 0:
-            print("🔄 폴백 분절 사용")
-            segments = self._fallback_segmentation(audio_file, transcription_text)
+            raise Exception("고급 STT 분절 실패 - 기본 분절은 사용하지 않음")
         
         print(f"✅ 통합 분절 완료: {len(segments)}개 음절")
         return segments
@@ -135,55 +132,7 @@ class KoreanSyllableSegmenter:
             print(f"❌ 고급 분절 실패: {e}")
             return []
     
-    def _fallback_segmentation(self, audio_file: str, text: str) -> List[SyllableSegment]:
-        """안전한 폴백 분절 (균등 분배 개선)"""
-        try:
-            print("🔧 안전한 폴백 분절 시작")
-            
-            if PARSELMOUTH_AVAILABLE:
-                sound = pm.Sound(audio_file)
-                duration = sound.get_total_duration()
-            else:
-                # Parselmouth 없을 경우 기본값
-                duration = 2.0
-            
-            # 한국어 음절 분리
-            syllables = list(text.replace(' ', ''))
-            num_syllables = len(syllables)
-            
-            if num_syllables == 0:
-                return []
-            
-            # 무음 구간을 고려한 실제 음성 구간 추정 (간단한 방식)
-            voice_start = 0.1  # 시작 여백
-            voice_end = duration - 0.1  # 끝 여백
-            voice_duration = max(0.5, voice_end - voice_start)  # 최소 0.5초 보장
-            
-            print(f"📊 폴백 분절: {num_syllables}개 음절, 음성 구간 {voice_start:.2f}s~{voice_end:.2f}s")
-            
-            segments = []
-            for i, syllable in enumerate(syllables):
-                # 균등 분배 (개선된 방식)
-                start_time = voice_start + (i / num_syllables) * voice_duration
-                end_time = voice_start + ((i + 1) / num_syllables) * voice_duration
-                
-                segments.append(SyllableSegment(
-                    label=syllable,
-                    start=start_time,
-                    end=end_time,
-                    confidence=0.6  # 폴백은 낮은 신뢰도
-                ))
-                
-                print(f"   🎯 '{syllable}': {start_time:.3f}s ~ {end_time:.3f}s")
-            
-            return segments
-            
-        except Exception as e:
-            print(f"❌ 폴백 분절 실패: {e}")
-            return []
     
     def is_available(self) -> bool:
-        """분절기 사용 가능 여부"""
-        return (self.stt_segmenter is not None or 
-                self.fallback_segmenter is not None or
-                PARSELMOUTH_AVAILABLE)
+        """분절기 사용 가능 여부 - STT 분절기만 확인"""
+        return self.stt_segmenter is not None

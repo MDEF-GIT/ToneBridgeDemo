@@ -921,8 +921,6 @@ class STTBasedSegmenter:
             print("❌ STT 시스템 비활성화 - 폴백 사용")
             self.stt_processor = None
         
-        # 폴백을 위한 기존 분절기
-        self.fallback_segmenter = FallbackSyllableSegmenter()
     
     def segment_from_audio_file(self, audio_file: str, sentence: str) -> List[SyllableSegment]:
         """
@@ -936,10 +934,7 @@ class STTBasedSegmenter:
             List[SyllableSegment]: 정확한 타임스탬프가 포함된 음절 분절
         """
         if not self.stt_processor:
-            print("⚠️⚠️⚠️ STT 비활성 - 폴백 분절 사용 ⚠️⚠️⚠️")
-            sound = pm.Sound(audio_file)
-            syllables_text = list(sentence.replace(' ', ''))
-            return self.fallback_segmenter.segment(sound, syllables_text)
+            raise Exception("STT 프로세서가 초기화되지 않음 - 기본 분절은 사용하지 않음")
         
         try:
             print(f"🎤 STT 기반 정밀 분절 시작: {sentence}")
@@ -974,10 +969,8 @@ class STTBasedSegmenter:
             return segments
             
         except Exception as e:
-            print(f"❌ STT 분절 실패, 폴백 사용: {e}")
-            sound = pm.Sound(audio_file)
-            syllables_text = list(sentence.replace(' ', ''))
-            return self.fallback_segmenter.segment(sound, syllables_text)
+            print(f"❌ STT 분절 실패: {e}")
+            raise Exception(f"STT 기반 분절 실패: {e} - 기본 분절은 사용하지 않음")
 
 class FallbackSyllableSegmenter:
     """
