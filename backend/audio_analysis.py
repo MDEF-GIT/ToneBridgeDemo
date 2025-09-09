@@ -1105,20 +1105,43 @@ def analyze_audio_file(audio_path: str, syllable_text: str, **kwargs) -> List[Sy
         음절 구간 리스트
     """
     try:
-        print(f"🎯 고정밀 오디오 분석 시작: {syllable_text}")
+        print(f"🎯 STT 기반 순수 음성 분석 시작: {os.path.basename(audio_path)}")
         
-        # 1. 최우선: STT 기반 분절 시도
+        # 1. STT로 실제 음성 내용 인식 (목표 텍스트 무시)
         try:
-            stt_segmenter = STTBasedSegmenter()
-            segments = stt_segmenter.segment_from_audio_file(audio_path, syllable_text)
-            print("✅ STT 기반 분절 성공")
+            from advanced_stt_processor import AdvancedSTTProcessor
+            stt_processor = AdvancedSTTProcessor()
+            
+            # STT로 실제 음성 내용 인식
+            transcription = stt_processor.stt.transcribe(audio_path, language='ko', return_timestamps=True)
+            actual_text = transcription.text
+            print(f"🎯 STT 인식 결과: '{actual_text}'")
+            
+            # STT 타임스탬프 기반 음절 정렬
+            syllable_alignments = stt_processor.syllable_aligner.align_syllables_with_timestamps(
+                transcription, audio_path
+            )
+            
+            # SyllableSegment 형식으로 변환
+            segments = []
+            for alignment in syllable_alignments:
+                segments.append(SyllableSegment(
+                    label=alignment.syllable,
+                    start=alignment.start_time,
+                    end=alignment.end_time,
+                    duration=alignment.end_time - alignment.start_time,
+                    confidence=alignment.confidence
+                ))
+            
+            print(f"✅ STT 기반 순수 분절 성공: {len(segments)}개 음절")
             return segments
+            
         except Exception as stt_error:
             print(f"⚠️ STT 분절 실패: {stt_error}, 고정밀 분석으로 전환")
         
         # 2. 폴백: 고정밀 음성학적 분석
         analyzer = HighPrecisionAudioAnalyzer(**kwargs)
-        segments = analyzer.analyze_and_segment(audio_path, syllable_text)
+        segments = analyzer.analyze_and_segment(audio_path, "알수없음")  # 임시 텍스트
         
         print("✅ 고정밀 음성학적 분절 완료")
         return segments
@@ -1126,14 +1149,14 @@ def analyze_audio_file(audio_path: str, syllable_text: str, **kwargs) -> List[Sy
     except Exception as e:
         raise Exception(f"오디오 분석 실패: {e}")
 
-def create_textgrid_from_audio(audio_path: str, syllable_text: str, 
+def create_textgrid_from_audio(audio_path: str, syllable_text: str = None, 
                               output_path: Optional[str] = None, **kwargs) -> str:
     """
-    오디오 파일에서 TextGrid 생성
+    오디오 파일에서 STT 기반 TextGrid 생성
     
     Args:
         audio_path: 오디오 파일 경로
-        syllable_text: 목표 문장
+        syllable_text: 목표 문장 (선택사항, STT 결과 우선 사용)
         output_path: TextGrid 저장 경로 (None이면 자동 생성)
         **kwargs: 분석 파라메터
     
@@ -1141,7 +1164,7 @@ def create_textgrid_from_audio(audio_path: str, syllable_text: str,
         생성된 TextGrid 파일 경로
     """
     try:
-        # 음절 분절 수행
+        # STT 기반 음절 분절 수행 (파일명 무시)
         segments = analyze_audio_file(audio_path, syllable_text, **kwargs)
         
         # 출력 경로 생성
@@ -1157,6 +1180,7 @@ def create_textgrid_from_audio(audio_path: str, syllable_text: str,
         generator = TextGridGenerator()
         generator.save(segments, output_path, total_duration)
         
+        print(f"💾 TextGrid 저장: {output_path}")
         return output_path
         
     except Exception as e:

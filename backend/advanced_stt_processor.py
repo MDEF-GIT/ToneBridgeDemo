@@ -107,10 +107,11 @@ class UniversalSTT:
         elif engine == 'local_fallback':
             self._init_local_fallback()
     
-    def _init_whisper(self, model_size: str = 'base', **kwargs):
-        """OpenAI Whisper 초기화"""
+    def _init_whisper(self, model_size: str = 'small', **kwargs):
+        """OpenAI Whisper 초기화 (정밀도 개선을 위해 small 모델 사용)"""
         try:
             import whisper
+            # 한국어 성능 향상을 위해 더 큰 모델 사용
             self.model = whisper.load_model(model_size)
             print(f"🎤 Whisper {model_size} 모델 로드 완료")
         except Exception as e:
@@ -658,19 +659,114 @@ class AdvancedSTTProcessor:
         }
     
     def _calculate_text_similarity(self, text1: str, text2: str) -> float:
-        """텍스트 유사도 계산 (간단한 구현)"""
-        # 공백 제거 후 비교
-        clean1 = text1.replace(' ', '').replace('.', '').replace(',', '')
-        clean2 = text2.replace(' ', '').replace('.', '').replace(',', '')
+        """한국어 특화 텍스트 유사도 계산 (개선된 구현)"""
+        # 한국어 특화 전처리
+        clean1 = self._preprocess_korean_text(text1)
+        clean2 = self._preprocess_korean_text(text2)
         
         if not clean1 or not clean2:
             return 0.0
         
-        # 문자 단위 일치도
-        matching_chars = sum(1 for c1, c2 in zip(clean1, clean2) if c1 == c2)
-        max_length = max(len(clean1), len(clean2))
+        # 1. 음절 단위 유사도 (가중치: 0.6)
+        syllable_similarity = self._calculate_syllable_similarity(clean1, clean2)
         
-        return matching_chars / max_length if max_length > 0 else 0.0
+        # 2. 자모 단위 유사도 (가중치: 0.3)
+        jamo_similarity = self._calculate_jamo_similarity(clean1, clean2)
+        
+        # 3. 길이 유사도 (가중치: 0.1)
+        len1, len2 = len(clean1), len(clean2)
+        length_similarity = 1.0 - abs(len1 - len2) / max(len1, len2)
+        
+        # 가중 평균
+        overall_similarity = (
+            0.6 * syllable_similarity +
+            0.3 * jamo_similarity +
+            0.1 * length_similarity
+        )
+        
+        return min(1.0, overall_similarity)
+    
+    def _preprocess_korean_text(self, text: str) -> str:
+        """한국어 텍스트 전처리"""
+        import re
+        
+        # 특수문자, 공백, 구두점 제거
+        cleaned = re.sub(r'[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]', '', text)
+        
+        # 자음, 모음 단독 제거 (완성형 한글만 유지)
+        korean_syllables = re.findall(r'[\uAC00-\uD7A3]', cleaned)
+        
+        return ''.join(korean_syllables)
+    
+    def _calculate_syllable_similarity(self, text1: str, text2: str) -> float:
+        """음절 단위 유사도 계산"""
+        if not text1 or not text2:
+            return 0.0
+        
+        # 동적 프로그래밍으로 최장 공통 부분 시퀀스 계산
+        len1, len2 = len(text1), len(text2)
+        dp = [[0] * (len2 + 1) for _ in range(len1 + 1)]
+        
+        for i in range(1, len1 + 1):
+            for j in range(1, len2 + 1):
+                if text1[i-1] == text2[j-1]:
+                    dp[i][j] = dp[i-1][j-1] + 1
+                else:
+                    dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+        
+        lcs_length = dp[len1][len2]
+        return lcs_length / max(len1, len2)
+    
+    def _calculate_jamo_similarity(self, text1: str, text2: str) -> float:
+        """자모 단위 유사도 계산"""
+        try:
+            # 각 음절을 자모로 분해
+            jamo1 = []
+            jamo2 = []
+            
+            for char in text1:
+                if 0xAC00 <= ord(char) <= 0xD7A3:  # 완성형 한글
+                    initial, medial, final = self._decompose_hangul(char)
+                    jamo1.extend([initial, medial, final] if final else [initial, medial])
+            
+            for char in text2:
+                if 0xAC00 <= ord(char) <= 0xD7A3:
+                    initial, medial, final = self._decompose_hangul(char)
+                    jamo2.extend([initial, medial, final] if final else [initial, medial])
+            
+            if not jamo1 or not jamo2:
+                return 0.0
+            
+            # 자모 매칭 계산
+            matching = sum(1 for j1, j2 in zip(jamo1, jamo2) if j1 == j2)
+            return matching / max(len(jamo1), len(jamo2))
+            
+        except Exception:
+            return 0.0
+    
+    def _decompose_hangul(self, char: str) -> tuple:
+        """한글 음절을 자모로 분해"""
+        if len(char) != 1 or not (0xAC00 <= ord(char) <= 0xD7A3):
+            return ('', '', '')
+        
+        # 한글 유니코드 분해
+        code = ord(char) - 0xAC00
+        
+        # 초성, 중성, 종성 인덱스
+        initial_idx = code // (21 * 28)
+        medial_idx = (code % (21 * 28)) // 28
+        final_idx = code % 28
+        
+        # 자모 테이블
+        initials = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+        medials = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
+        finals = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+        
+        initial = initials[initial_idx]
+        medial = medials[medial_idx]
+        final = finals[final_idx]
+        
+        return (initial, medial, final)
     
     def _evaluate_overall_confidence(self, transcription: TranscriptionResult, 
                                    syllables: List[SyllableAlignment]) -> float:
