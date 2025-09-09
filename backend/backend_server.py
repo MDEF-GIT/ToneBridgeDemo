@@ -2983,6 +2983,90 @@ def calculate_syllable_pitch_from_textgrid(textgrid_path: str, pitch_data: list)
         print(f"❌ TextGrid 기반 음절 피치 계산 오류: {e}")
         return []
 
+@app.post("/api/update-all-textgrids")
+async def update_all_textgrids():
+    """모든 파일의 TextGrid를 새로운 정밀 알고리즘으로 업데이트"""
+    try:
+        print("🔄 모든 TextGrid 파일 업데이트 시작")
+        
+        updated_files = []
+        errors = []
+        
+        # 1. Reference Files 업데이트
+        reference_dir = Path("static/reference_files")
+        if reference_dir.exists():
+            for wav_file in reference_dir.glob("*.wav"):
+                try:
+                    # 파일명에서 문장 추출 (확장자 제거)
+                    sentence = wav_file.stem
+                    
+                    # 새로운 알고리즘으로 TextGrid 생성
+                    textgrid_path = create_textgrid_from_audio(
+                        str(wav_file), 
+                        sentence,
+                        output_path=str(wav_file.with_suffix('.TextGrid'))
+                    )
+                    
+                    updated_files.append({
+                        "type": "reference",
+                        "file": wav_file.name,
+                        "textgrid": textgrid_path,
+                        "sentence": sentence
+                    })
+                    print(f"✅ Reference 업데이트: {wav_file.name}")
+                    
+                except Exception as e:
+                    error_msg = f"Reference {wav_file.name}: {str(e)}"
+                    errors.append(error_msg)
+                    print(f"❌ {error_msg}")
+        
+        # 2. Uploaded Files 업데이트 
+        uploads_dir = Path("static/uploads")
+        if uploads_dir.exists():
+            for wav_file in uploads_dir.glob("*.wav"):
+                try:
+                    # 파일명에서 정보 추출 (예: 박우용_male_30대_반가워요_20250908_184908.wav)
+                    filename_parts = wav_file.stem.split('_')
+                    if len(filename_parts) >= 4:
+                        sentence = filename_parts[3]  # 연습문장 부분
+                        
+                        # 새로운 알고리즘으로 TextGrid 생성
+                        textgrid_path = create_textgrid_from_audio(
+                            str(wav_file),
+                            sentence, 
+                            output_path=str(wav_file.with_suffix('.TextGrid'))
+                        )
+                        
+                        updated_files.append({
+                            "type": "uploaded",
+                            "file": wav_file.name,
+                            "textgrid": textgrid_path,
+                            "sentence": sentence
+                        })
+                        print(f"✅ Upload 업데이트: {wav_file.name}")
+                    else:
+                        print(f"⚠️ 파일명 형식 불일치: {wav_file.name}")
+                        
+                except Exception as e:
+                    error_msg = f"Upload {wav_file.name}: {str(e)}"
+                    errors.append(error_msg)
+                    print(f"❌ {error_msg}")
+        
+        print(f"🎉 TextGrid 업데이트 완료: {len(updated_files)}개 성공, {len(errors)}개 실패")
+        
+        return {
+            "success": True,
+            "updated_count": len(updated_files),
+            "error_count": len(errors),
+            "updated_files": updated_files,
+            "errors": errors,
+            "message": f"새로운 정밀 분절 알고리즘으로 {len(updated_files)}개 파일 업데이트 완료"
+        }
+        
+    except Exception as e:
+        print(f"❌ TextGrid 일괄 업데이트 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"TextGrid 업데이트 실패: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)
