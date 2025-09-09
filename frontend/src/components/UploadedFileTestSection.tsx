@@ -72,7 +72,7 @@ const UploadedFileTestSection: React.FC = () => {
     }
   };
 
-  // 파일 선택 시 차트 업데이트
+  // 파일 선택 시 차트 업데이트 (자동 최적화 포함)
   const handleFileSelect = async (fileId: string) => {
     if (!fileId) {
       setSelectedFileId('');
@@ -89,6 +89,22 @@ const UploadedFileTestSection: React.FC = () => {
 
       console.log(`🎯 업로드 파일 분석 시작: ${fileId}`);
 
+      // 🎯 첫 번째: 자동 최적화 실행 (reference 파일과 동일한 품질 보장)
+      console.log(`🚀 파일 최적화 시작: ${fileId}`);
+      const optimizeResponse = await fetch(`/api/optimize-uploaded-file`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_id: fileId })
+      });
+
+      if (optimizeResponse.ok) {
+        const optimizeResult = await optimizeResponse.json();
+        console.log(`✅ 최적화 완료: ${optimizeResult.syllables?.length || 0}개 음절`);
+      } else {
+        console.warn(`⚠️ 최적화 실패, 기존 데이터로 진행`);
+      }
+
+      // 🎯 이제 최적화된 데이터로 분석 진행
       // 1. 전체 피치 데이터 로드
       const pitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch`);
       if (!pitchResponse.ok) throw new Error('피치 데이터 조회 실패');

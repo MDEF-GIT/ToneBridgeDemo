@@ -2401,6 +2401,138 @@ else:
     advanced_stt_processor = AdvancedSTTProcessor(preferred_engine='whisper')
     print("🆕 새 STT 인스턴스 생성")
 
+@app.post("/api/optimize-uploaded-file")
+async def optimize_uploaded_file(file_id: str):
+    """
+    업로드된 파일을 reference 파일과 동일한 품질로 최적화
+    wav최적화 -> STT -> 음성분석 -> 음절 분절 -> 타임스탬프 -> TextGrid 재생성
+    """
+    try:
+        wav_file = f"{file_id}.wav"
+        wav_path = UPLOAD_DIR / wav_file
+        textgrid_path = UPLOAD_DIR / f"{file_id}.TextGrid"
+        
+        if not wav_path.exists():
+            raise HTTPException(status_code=404, detail="WAV 파일을 찾을 수 없습니다")
+        
+        print(f"🎯 업로드 파일 최적화 시작: {file_id}")
+        
+        # 파일명에서 정보 추출
+        parts = file_id.split('_')
+        reference_sentence = "반가워요"  # 기본값
+        if len(parts) >= 4:
+            reference_sentence = parts[3]
+        
+        # 자동 처리 실행 (reference 파일과 동일한 플로우)
+        result = automated_processor.process_audio_completely(str(wav_path), reference_sentence)
+        
+        if result['success']:
+            # 최적화된 TextGrid 생성
+            syllables = result.get('syllables', [])
+            
+            if syllables:
+                # TextGrid 파일 생성
+                textgrid_content = create_textgrid_from_syllables(syllables, result.get('duration', 1.0))
+                
+                with open(textgrid_path, 'w', encoding='utf-16') as f:
+                    f.write(textgrid_content)
+                
+                print(f"✅ TextGrid 재생성 완료: {len(syllables)}개 음절")
+            
+            # 최적화된 오디오 저장 (0.25초 마진 적용)
+            optimized_audio_path = create_optimized_audio(str(wav_path), syllables)
+            if optimized_audio_path:
+                # 원본 파일을 최적화된 버전으로 교체
+                shutil.move(optimized_audio_path, str(wav_path))
+                print(f"✅ 오디오 최적화 완료")
+        
+        return {
+            "success": result['success'],
+            "file_id": file_id,
+            "transcription": result.get('transcription', ''),
+            "syllables": result.get('syllables', []),
+            "duration": result.get('duration', 0),
+            "optimized": True
+        }
+        
+    except Exception as e:
+        print(f"❌ 업로드 파일 최적화 오류: {e}")
+        raise HTTPException(status_code=500, detail=f"최적화 중 오류: {e}")
+
+def create_textgrid_from_syllables(syllables, duration):
+    """음절 데이터로부터 TextGrid 생성"""
+    content = '''File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0.0
+xmax = {duration}
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "syllables"
+        xmin = 0.0
+        xmax = {duration}
+        intervals: size = {count}
+'''.format(duration=duration, count=len(syllables))
+    
+    for i, syllable in enumerate(syllables, 1):
+        content += f'''        intervals [{i}]:
+            xmin = {syllable.get('start', 0)}
+            xmax = {syllable.get('end', 0)}
+            text = "{syllable.get('label', '')}"
+'''
+    
+    return content
+
+def create_optimized_audio(wav_path, syllables):
+    """0.25초 마진을 적용한 최적화된 오디오 생성"""
+    try:
+        import tempfile
+        
+        if not syllables:
+            return None
+            
+        sound = pm.Sound(wav_path)
+        
+        # 음절 구간에서 최소/최대 시간 찾기
+        start_times = [s.get('start', 0) for s in syllables if s.get('start') is not None]
+        end_times = [s.get('end', 0) for s in syllables if s.get('end') is not None]
+        
+        if not start_times or not end_times:
+            return None
+            
+        voice_start = max(0, min(start_times) - 0.25)  # 0.25초 마진
+        voice_end = min(sound.duration, max(end_times) + 0.25)  # 0.25초 마진
+        
+        # 구간 추출
+        trimmed_sound = sound.extract_part(from_time=voice_start, to_time=voice_end, preserve_times=False)
+        
+        # 볼륨 정규화 (RMS 0.02)
+        values = trimmed_sound.values[0] if trimmed_sound.n_channels > 0 else trimmed_sound.values
+        rms = np.sqrt(np.mean(values**2))
+        if rms > 0:
+            target_rms = 0.02
+            amplification_factor = target_rms / rms
+            amplification_factor = min(amplification_factor, 10.0)  # 최대 10배
+            
+            normalized_values = values * amplification_factor
+            normalized_values = np.clip(normalized_values, -0.9, 0.9)
+            
+            optimized_sound = pm.Sound(normalized_values, sampling_frequency=trimmed_sound.sampling_frequency)
+        else:
+            optimized_sound = trimmed_sound
+        
+        # 임시 파일에 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            optimized_sound.save(tmp_file.name, "WAV")
+            return tmp_file.name
+            
+    except Exception as e:
+        print(f"❌ 오디오 최적화 실패: {e}")
+        return None
+
 @app.post("/api/auto-process")
 async def auto_process_audio(
     file: UploadFile = File(...), 
