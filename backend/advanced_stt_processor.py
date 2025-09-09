@@ -610,11 +610,31 @@ class KoreanSyllableAligner:
         else:
             stt_start = 0.0
         
-        # 2차: 실제 오디오 파일에서 음성 시작점 감지 (더 정확함)
+        # 2차: STT word 길이 분석으로 무음 구간 감지 (더 정확함)
+        first_word = words[0]
+        if hasattr(first_word, 'end'):
+            first_duration = first_word.end - first_word.start
+        elif isinstance(first_word, dict):
+            first_duration = first_word.get('end', 0) - first_word.get('start', 0)
+        else:
+            first_duration = 0
+            
+        # 첫 번째 단어가 1.5초 이상 지속되면 무음 구간 포함으로 간주
+        if first_duration > 1.5:
+            estimated_silence = first_duration * 0.7  # 70%는 무음으로 추정
+            print(f"🎤 STT 첫 단어 과도하게 길음 ({first_duration:.3f}s), 무음 구간 추정: {estimated_silence:.3f}s")
+            return estimated_silence
+        
+        # 기존 로직: 첫 단어가 0.5초 이후 시작
+        if stt_start > 0.5:
+            print(f"🎤 STT 기반 무음 구간 감지: {stt_start:.3f}s")
+            return stt_start
+        
+        # 3차: 실제 오디오 파일에서 음성 시작점 감지 (보조)
         if audio_file:
             try:
                 audio_start = self._detect_audio_voice_start(audio_file)
-                if audio_start > 0:
+                if audio_start > 0.1:  # 100ms 이상 차이날 때만 사용
                     print(f"🎤 오디오 분석 기반 음성 시작: {audio_start:.3f}s (STT: {stt_start:.3f}s)")
                     return audio_start
             except Exception as e:
@@ -623,8 +643,8 @@ class KoreanSyllableAligner:
         return stt_start
     
     def _detect_audio_voice_start(self, audio_file: str, 
-                                energy_threshold: float = 0.01,
-                                silence_duration: float = 0.1) -> float:
+                                energy_threshold: float = 0.001,
+                                silence_duration: float = 0.05) -> float:
         """오디오 파일에서 실제 음성 시작점 감지"""
         import parselmouth as pm
         
