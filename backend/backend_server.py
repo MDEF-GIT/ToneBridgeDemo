@@ -2465,6 +2465,10 @@ async def optimize_uploaded_file(file_id: str = Form(...), use_ultimate_stt: boo
     업로드된 파일을 99% 정확도 Ultimate STT 시스템으로 최적화
     🎯 한국어 특화 오디오 전처리 → 다중 STT 엔진 앙상블 → 실시간 품질 검증 → 적응형 재처리
     """
+    # 빈 파일ID 검증
+    if not file_id or file_id.strip() == '' or file_id == '()':
+        raise HTTPException(status_code=400, detail="파일 ID가 필요합니다")
+        
     async with ai_processing_lock:  # 뮤텍스로 순서 보장
         try:
             wav_file = f"{file_id}.wav"
@@ -2681,6 +2685,10 @@ async def test_ultimate_stt_on_uploaded_file(file_id: str = Form(...), expected_
     업로드된 파일에서 Ultimate STT 99% 정확도 시스템 테스트
     🎯 실시간 정확도 측정 및 상세 분석 보고서 제공
     """
+    # 빈 파일ID 검증
+    if not file_id or file_id.strip() == '' or file_id == '()':
+        raise HTTPException(status_code=400, detail="파일 ID가 필요합니다")
+        
     async with ai_processing_lock:  # 뮤텍스로 순서 보장
         try:
             wav_file = f"{file_id}.wav"
@@ -3255,6 +3263,9 @@ async def get_uploaded_files():
 
 @app.get("/api/uploaded_files/{file_id}/pitch")
 async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
+    # 빈 파일ID 검증
+    if not file_id or file_id.strip() == '' or file_id == '()':
+        raise HTTPException(status_code=400, detail="파일 ID가 필요합니다")
     """업로드된 파일의 피치 데이터 추출"""
     try:
         wav_file = f"{file_id}.wav"
