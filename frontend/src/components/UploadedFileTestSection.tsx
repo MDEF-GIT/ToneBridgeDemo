@@ -172,6 +172,7 @@ const UploadedFileTestSection: React.FC = () => {
       console.log(`✅ 음절 포인트 데이터 구성 완료: ${points.length}개`);
       console.log(`🎯 설정된 음절 포인트:`, points);
       setSyllablePoints(points);
+      console.log(`🔄 syllablePoints 상태 업데이트 완료: ${points.length}개`);
 
       // 5. 차트 클리어 후 데이터 추가
       try {
@@ -408,6 +409,10 @@ const UploadedFileTestSection: React.FC = () => {
       )}
 
       {/* 음절별 분석 결과 표 */}
+      {(() => {
+        console.log(`🎯 렌더링 조건 확인: selectedFileId=${selectedFileId}, syllablePoints.length=${syllablePoints.length}`);
+        return null;
+      })()}
       {selectedFileId && syllablePoints.length > 0 && (
         <div className="mt-3">
           <h6 className="mb-3">
