@@ -2460,7 +2460,7 @@ else:
     print("🆕 새 STT 인스턴스 생성")
 
 @app.post("/api/optimize-uploaded-file")
-async def optimize_uploaded_file(file_id: str = Form(...), use_ultimate_stt: bool = Form(True)):
+async def optimize_uploaded_file(file_id: str = Form(...), use_ultimate_stt: bool = Form(False)):
     """
     업로드된 파일을 99% 정확도 Ultimate STT 시스템으로 최적화
     🎯 한국어 특화 오디오 전처리 → 다중 STT 엔진 앙상블 → 실시간 품질 검증 → 적응형 재처리

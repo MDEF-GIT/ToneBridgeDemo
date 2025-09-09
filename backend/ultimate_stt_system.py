@@ -147,7 +147,7 @@ class UltimateSTTSystem:
         # 2. 다중 STT 엔진 앙상블
         if MULTI_STT_AVAILABLE:
             components['multi_stt'] = MultiEngineSTTProcessor(
-                engines=['whisper_large', 'whisper_base'],  # 사용 가능한 엔진만
+                engines=['whisper_base'],  # 빠른 모델만 사용 (large 제거)
                 confidence_threshold=0.85,
                 consensus_threshold=2
             )
