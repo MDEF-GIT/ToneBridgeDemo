@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import requests
+from korean_audio_optimizer import KoreanAudioOptimizer
 
 @dataclass
 class TranscriptionResult:
@@ -943,6 +944,20 @@ class AdvancedSTTProcessor:
         # 신뢰도 임계값
         self.confidence_threshold = 0.7
         
+        # 🚀 한국어 특화 오디오 최적화기 초기화
+        try:
+            self.korean_optimizer = KoreanAudioOptimizer(
+                target_sr=16000,      # Whisper 최적 샘플레이트
+                target_db=-16.0,      # STT 최적 볼륨
+                korean_boost=True     # 한국어 특화 강화 활성화
+            )
+            self.use_korean_optimization = True
+            print("🇰🇷 한국어 특화 오디오 최적화기 활성화")
+        except Exception as e:
+            print(f"⚠️ 한국어 최적화기 초기화 실패: {e}")
+            self.korean_optimizer = None
+            self.use_korean_optimization = False
+        
         print(f"🎯 고급 STT 시스템 초기화 완료 (엔진: {self.stt.engine})")
     
     def process_audio_with_confidence(self, audio_file: str, 
@@ -952,8 +967,38 @@ class AdvancedSTTProcessor:
         """
         print(f"🎤 고급 STT 처리 시작: {Path(audio_file).name}")
         
-        # STT 전사
-        transcription = self.stt.transcribe(audio_file, language='ko', return_timestamps=True)
+        # 🇰🇷 한국어 특화 전처리 적용
+        processed_audio_file = audio_file
+        if self.use_korean_optimization and self.korean_optimizer:
+            try:
+                print("🎯 한국어 특화 오디오 최적화 실행 중...")
+                # 임시 파일로 최적화된 오디오 생성
+                import tempfile
+                import os
+                
+                temp_dir = tempfile.gettempdir()
+                input_path = Path(audio_file)
+                optimized_file = os.path.join(temp_dir, f"korean_optimized_{input_path.name}")
+                
+                processed_audio_file = self.korean_optimizer.optimize_for_korean_stt(
+                    audio_file, optimized_file, stt_engine=self.stt.engine
+                )
+                print(f"✅ 한국어 최적화 완료: {processed_audio_file}")
+                
+            except Exception as e:
+                print(f"⚠️ 한국어 최적화 실패, 원본 사용: {e}")
+                processed_audio_file = audio_file
+        
+        # STT 전사 (최적화된 오디오 사용)
+        transcription = self.stt.transcribe(processed_audio_file, language='ko', return_timestamps=True)
+        
+        # 임시 파일 정리
+        if processed_audio_file != audio_file and os.path.exists(processed_audio_file):
+            try:
+                os.unlink(processed_audio_file)
+                print(f"🗑️ 임시 최적화 파일 삭제: {processed_audio_file}")
+            except Exception as e:
+                print(f"⚠️ 임시 파일 삭제 실패: {e}")
         
         # 목표 텍스트가 있으면 일치도 검사
         if target_text:
