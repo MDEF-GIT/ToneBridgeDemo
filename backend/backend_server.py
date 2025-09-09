@@ -36,6 +36,13 @@ except ImportError as e:
 # Import our enhanced automation systems
 from audio_enhancement import AutomatedProcessor
 from advanced_stt_processor import AdvancedSTTProcessor
+from audio_analysis import (
+    PreciseSyllableSegmenter, 
+    split_korean_sentence,
+    analyze_audio_file,
+    create_textgrid_from_audio,
+    SyllableSegment
+)
 
 app = FastAPI(title="ToneBridge Praat Analysis API")
 
@@ -99,293 +106,7 @@ def split_korean_sentence(sentence: str) -> List[str]:
     """Split Korean sentence into individual syllables"""
     return [char for char in sentence.strip() if char.strip()]
 
-def precise_syllable_segmentation(sound: pm.Sound, syllables_text: List[str]) -> List[dict]:
-    """
-    정밀한 음성학적 특징 기반 음절 분절
-    - 에너지 변화 분석
-    - 피치 변화 분석  
-    - 스펙트럼 변화 분석
-    - 무음 구간 탐지
-    """
-    try:
-        print("🔬 정밀 음성학적 분절 시작")
-        
-        # 1. 기본 파라메터
-        duration = sound.get_total_duration()
-        start_time = sound.xmin
-        end_time = sound.xmax
-        num_syllables = len(syllables_text)
-        
-        # 2. 강도(에너지) 분석
-        intensity = sound.to_intensity(minimum_pitch=75.0)
-        times = intensity.xs()
-        values = intensity.values.T.flatten()
-        
-        # 3. 피치 분석  
-        pitch = sound.to_pitch(pitch_floor=75.0, pitch_ceiling=600.0)
-        pitch_times = pitch.xs()
-        pitch_values = pitch.selected_array['frequency']
-        
-        # 무음 제거 (유효한 음성 구간만 추출)
-        mean_intensity = np.mean(values[values > 0])
-        silence_threshold = mean_intensity * 0.25  # 25% 이하를 무음으로 판정
-        
-        # 유효한 음성 구간 찾기
-        valid_regions = []
-        in_speech = False
-        speech_start = None
-        
-        for i, (t, intensity_val) in enumerate(zip(times, values)):
-            if intensity_val > silence_threshold and not in_speech:
-                speech_start = t
-                in_speech = True
-            elif intensity_val <= silence_threshold and in_speech:
-                if speech_start is not None:
-                    valid_regions.append((speech_start, t))
-                in_speech = False
-                speech_start = None
-        
-        # 마지막 구간 처리
-        if in_speech and speech_start is not None:
-            valid_regions.append((speech_start, end_time))
-        
-        if not valid_regions:
-            print("⚠️ 유효한 음성 구간을 찾을 수 없음 - 전체 구간 사용")
-            speech_start_time = start_time
-            speech_end_time = end_time
-        else:
-            # 가장 긴 연속 음성 구간 선택 또는 전체 병합
-            speech_start_time = min(r[0] for r in valid_regions)
-            speech_end_time = max(r[1] for r in valid_regions)
-        
-        print(f"🔇 무음 제거: {speech_start_time:.3f}s ~ {speech_end_time:.3f}s")
-        
-        # 4. 에너지 변화 기반 경계점 탐지
-        boundaries = detect_syllable_boundaries(
-            times, values, pitch_times, pitch_values,
-            speech_start_time, speech_end_time, num_syllables
-        )
-        
-        # 5. 음절별 구간 할당
-        syllables = []
-        for i, syllable_text in enumerate(syllables_text):
-            syl_start = boundaries[i]
-            syl_end = boundaries[i + 1]
-            
-            syllables.append({
-                'label': syllable_text,
-                'start': syl_start,
-                'end': syl_end
-            })
-        
-        print(f"✅ 정밀 분절 완료: {len(syllables)}개 음절")
-        return syllables
-        
-    except Exception as e:
-        print(f"❌ 정밀 분절 실패, 기본 분절로 폴백: {e}")
-        # 폴백: 기본 균등 분할
-        return fallback_equal_segmentation(sound, syllables_text)
-
-def detect_syllable_boundaries(intensity_times, intensity_values, 
-                              pitch_times, pitch_values,
-                              start_time, end_time, num_syllables) -> List[float]:
-    """
-    음성학적 특징을 종합한 음절 경계 탐지
-    """
-    try:
-        # 1. 에너지 변화 탐지
-        energy_boundaries = find_energy_boundaries(
-            intensity_times, intensity_values, start_time, end_time
-        )
-        
-        # 2. 피치 변화 탐지 
-        pitch_boundaries = find_pitch_boundaries(
-            pitch_times, pitch_values, start_time, end_time
-        )
-        
-        # 3. 경계점 통합 및 최적화
-        all_boundaries = sorted(set(energy_boundaries + pitch_boundaries))
-        
-        # 시작/끝 보장
-        boundaries = [start_time]
-        for b in all_boundaries:
-            if start_time < b < end_time:
-                boundaries.append(b)
-        boundaries.append(end_time)
-        
-        # 4. 목표 음절 수에 맞춤
-        optimized_boundaries = optimize_boundaries(boundaries, num_syllables)
-        
-        print(f"🎯 경계점 탐지: {len(optimized_boundaries)-1}개 구간")
-        return optimized_boundaries
-        
-    except Exception as e:
-        print(f"❌ 경계 탐지 실패: {e}")
-        # 폴백: 균등 분할
-        boundaries = []
-        for i in range(num_syllables + 1):
-            boundaries.append(start_time + (end_time - start_time) * i / num_syllables)
-        return boundaries
-
-def find_energy_boundaries(times, values, start_time, end_time) -> List[float]:
-    """에너지 변화 기반 경계 탐지"""
-    try:
-        # 관심 구간만 추출
-        mask = (times >= start_time) & (times <= end_time)
-        region_times = times[mask]
-        region_values = values[mask]
-        
-        if len(region_values) < 10:
-            return []
-        
-        # 1차 미분으로 변화율 계산
-        energy_diff = np.abs(np.diff(region_values))
-        
-        # 변화가 큰 지점 탐지 (상위 30%)
-        threshold = np.percentile(energy_diff, 70)
-        peak_indices = []
-        
-        for i in range(1, len(energy_diff) - 1):
-            if (energy_diff[i] > threshold and 
-                energy_diff[i] > energy_diff[i-1] and 
-                energy_diff[i] > energy_diff[i+1]):
-                peak_indices.append(i)
-        
-        # 시간으로 변환
-        boundaries = [region_times[idx] for idx in peak_indices 
-                     if idx < len(region_times)]
-        
-        return boundaries
-        
-    except Exception as e:
-        print(f"❌ 에너지 경계 탐지 실패: {e}")
-        return []
-
-def find_pitch_boundaries(times, values, start_time, end_time) -> List[float]:
-    """피치 변화 기반 경계 탐지"""
-    try:
-        # 관심 구간만 추출 (유효한 피치만)
-        mask = (times >= start_time) & (times <= end_time) & (values > 0)
-        region_times = times[mask]
-        region_values = values[mask]
-        
-        if len(region_values) < 5:
-            return []
-        
-        # 피치 변화율 계산 (세미톤 단위)
-        pitch_semitones = 12 * np.log2(region_values / 440) + 69
-        pitch_diff = np.abs(np.diff(pitch_semitones))
-        
-        # 큰 피치 변화 지점 탐지 (1세미톤 이상)
-        threshold = 1.0  # 1 semitone
-        boundary_indices = []
-        
-        for i in range(len(pitch_diff)):
-            if pitch_diff[i] > threshold:
-                boundary_indices.append(i)
-        
-        # 시간으로 변환
-        boundaries = [region_times[idx] for idx in boundary_indices 
-                     if idx < len(region_times)]
-        
-        return boundaries
-        
-    except Exception as e:
-        print(f"❌ 피치 경계 탐지 실패: {e}")
-        return []
-
-def optimize_boundaries(boundaries: List[float], target_count: int) -> List[float]:
-    """경계점을 목표 음절 수에 맞게 최적화"""
-    try:
-        if len(boundaries) <= 2:
-            # 경계가 거의 없으면 균등 분할
-            start, end = boundaries[0], boundaries[-1]
-            result = []
-            for i in range(target_count + 1):
-                result.append(start + (end - start) * i / target_count)
-            return result
-        
-        current_segments = len(boundaries) - 1
-        
-        if current_segments == target_count:
-            return boundaries
-        elif current_segments > target_count:
-            # 너무 많은 경계 - 가장 강한 것들만 선택
-            return select_strongest_boundaries(boundaries, target_count)
-        else:
-            # 부족한 경계 - 긴 구간을 분할
-            return add_missing_boundaries(boundaries, target_count)
-            
-    except Exception as e:
-        print(f"❌ 경계 최적화 실패: {e}")
-        # 폴백: 균등 분할
-        start, end = boundaries[0], boundaries[-1]
-        result = []
-        for i in range(target_count + 1):
-            result.append(start + (end - start) * i / target_count)
-        return result
-
-def select_strongest_boundaries(boundaries: List[float], target_count: int) -> List[float]:
-    """가장 강한 경계점들만 선택"""
-    if len(boundaries) <= target_count + 1:
-        return boundaries
-        
-    # 첫 번째와 마지막은 항상 유지
-    result = [boundaries[0]]
-    
-    # 중간 경계들 중에서 균등하게 선택
-    middle = boundaries[1:-1]
-    if middle and target_count > 1:
-        step = len(middle) / (target_count - 1)
-        for i in range(target_count - 1):
-            idx = int(i * step)
-            if idx < len(middle):
-                result.append(middle[idx])
-    
-    result.append(boundaries[-1])
-    return sorted(result)
-
-def add_missing_boundaries(boundaries: List[float], target_count: int) -> List[float]:
-    """부족한 경계점 추가"""
-    result = boundaries[:]
-    
-    while len(result) - 1 < target_count:
-        # 가장 긴 구간 찾기
-        max_length = 0
-        max_idx = 0
-        
-        for i in range(len(result) - 1):
-            length = result[i + 1] - result[i]
-            if length > max_length:
-                max_length = length
-                max_idx = i
-        
-        # 중간점 추가
-        mid_point = (result[max_idx] + result[max_idx + 1]) / 2
-        result.insert(max_idx + 1, mid_point)
-    
-    return sorted(result)
-
-def fallback_equal_segmentation(sound: pm.Sound, syllables_text: List[str]) -> List[dict]:
-    """폴백: 기본 균등 분할"""
-    duration = sound.get_total_duration()
-    syllable_duration = duration / len(syllables_text)
-    
-    syllables = []
-    for i, syllable_text in enumerate(syllables_text):
-        start_time = i * syllable_duration
-        end_time = (i + 1) * syllable_duration
-        
-        if i == len(syllables_text) - 1:
-            end_time = duration
-        
-        syllables.append({
-            'label': syllable_text,
-            'start': start_time,
-            'end': end_time
-        })
-    
-    return syllables
+# 정밀 음절 분절 기능은 audio_analysis.py 모듈로 이동됨
 
 def auto_segment_syllables(sound: pm.Sound, sentence: str) -> List[dict]:
     """
@@ -419,8 +140,18 @@ def auto_segment_syllables(sound: pm.Sound, sentence: str) -> List[dict]:
         print(f"🎯 음성 길이: {duration:.3f}초")
         print(f"🎯 목표: {len(syllables_text)}개 음절 - {syllables_text}")
         
-        # Step 4: 음성학적 특징 기반 정밀 분절
-        syllables = precise_syllable_segmentation(sound, syllables_text)
+        # Step 4: 음성학적 특징 기반 정밀 분절 (새 모듈 사용)
+        segmenter = PreciseSyllableSegmenter()
+        segment_results = segmenter.segment(sound, syllables_text)
+        
+        # 기존 형식으로 변환
+        syllables = []
+        for segment in segment_results:
+            syllables.append({
+                'label': segment.label,
+                'start': segment.start,
+                'end': segment.end
+            })
         
         for i, syl in enumerate(syllables):
             print(f"   🎯 '{syl['label']}': {syl['start']:.3f}s ~ {syl['end']:.3f}s")

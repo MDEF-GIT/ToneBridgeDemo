@@ -211,7 +211,7 @@ class SyllableBoundaryDetector:
                     peak_indices.append(i)
             
             # 시간으로 변환
-            boundaries = [region_times[idx] for idx in peak_indices 
+            boundaries = [float(region_times[idx]) for idx in peak_indices 
                          if idx < len(region_times)]
             
             return boundaries
@@ -243,7 +243,7 @@ class SyllableBoundaryDetector:
                     boundary_indices.append(i)
             
             # 시간으로 변환
-            boundaries = [region_times[idx] for idx in boundary_indices 
+            boundaries = [float(region_times[idx]) for idx in boundary_indices 
                          if idx < len(region_times)]
             
             return boundaries
