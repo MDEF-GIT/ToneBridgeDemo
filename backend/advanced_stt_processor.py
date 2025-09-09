@@ -191,15 +191,26 @@ class UniversalSTT:
         print(f"🎤 {self.engine} 엔진으로 음성 인식 시작...")
         
         if self.engine == 'whisper':
-            return self._transcribe_whisper(audio_file, language, return_timestamps)
+            result = self._transcribe_whisper(audio_file, language, return_timestamps)
         elif self.engine == 'google':
-            return self._transcribe_google(audio_file, language, return_timestamps)
+            result = self._transcribe_google(audio_file, language, return_timestamps)
         elif self.engine == 'azure':
-            return self._transcribe_azure(audio_file, language, return_timestamps)
+            result = self._transcribe_azure(audio_file, language, return_timestamps)
         elif self.engine == 'naver_clova':
-            return self._transcribe_naver_clova(audio_file, language)
+            result = self._transcribe_naver_clova(audio_file, language)
         else:
-            return self._transcribe_local_fallback(audio_file)
+            result = self._transcribe_local_fallback(audio_file)
+        
+        # 🔍 STT 결과 디버깅 정보 출력
+        print(f"📝 STT 텍스트 결과: '{result.text}'")
+        if result.words:
+            print(f"🕐 Word-level 타임스탬프 ({len(result.words)}개):")
+            for i, word in enumerate(result.words):
+                print(f"  {i+1:2d}. '{word.word}' [{word.start:.3f}s ~ {word.end:.3f}s] (지속: {word.end-word.start:.3f}s)")
+        else:
+            print("❌ Word-level 타임스탬프 없음")
+        
+        return result
     
     def _transcribe_whisper(self, audio_file: str, language: str = 'ko',
                            return_timestamps: bool = True) -> TranscriptionResult:
@@ -506,24 +517,32 @@ class KoreanSyllableAligner:
     def _align_with_word_timestamps(self, syllables: List[str], 
                                   words: List[Dict]) -> List[SyllableAlignment]:
         """단어 타임스탬프를 활용한 음절 정렬"""
+        print(f"🔧 Word-level 타임스탬프 기반 음절 정렬 시작")
         alignments = []
         syllable_idx = 0
         
-        for word_info in words:
+        for word_idx, word_info in enumerate(words):
             word = word_info['word'].strip()
             word_syllables = [s for s in word if self._is_korean(s)]
             
             if not word_syllables:
+                print(f"  ⏩ 단어 {word_idx+1}: '{word}' - 한국어 음절 없음, 건너뜀")
                 continue
             
             # 단어 내 음절들의 시간 간격 계산
             word_duration = word_info['end'] - word_info['start']
             syllable_duration = word_duration / len(word_syllables)
             
+            print(f"  📍 단어 {word_idx+1}: '{word}' [{word_info['start']:.3f}s ~ {word_info['end']:.3f}s]")
+            print(f"    📊 음절: {word_syllables} ({len(word_syllables)}개)")
+            print(f"    ⏱️ 단어 지속시간: {word_duration:.3f}s → 음절당 {syllable_duration:.3f}s")
+            
             for i, syllable in enumerate(word_syllables):
                 if syllable_idx < len(syllables):
                     start_time = word_info['start'] + i * syllable_duration
                     end_time = start_time + syllable_duration
+                    
+                    print(f"      🎯 음절 {syllable_idx+1}: '{syllable}' [{start_time:.3f}s ~ {end_time:.3f}s] (지속: {end_time-start_time:.3f}s)")
                     
                     # 자모 분해로 음성학적 특징 추출
                     initial, medial, final = self.decompose_syllable(syllable)
