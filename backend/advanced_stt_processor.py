@@ -509,7 +509,7 @@ class KoreanSyllableAligner:
     def align_syllables_with_timestamps(self, transcription: TranscriptionResult, 
                                       audio_file: str) -> List[SyllableAlignment]:
         """
-        전사 결과를 음절 단위로 타임스탬프와 함께 정렬
+        전사 결과를 음절 단위로 타임스탬프와 함께 정렬 (음성 시작점 자동 감지)
         """
         print(f"🎯 음절 정렬 시작: {transcription.text}")
         
@@ -521,15 +521,23 @@ class KoreanSyllableAligner:
         
         # 단어 타임스탬프가 있으면 활용
         if transcription.words:
-            return self._align_with_word_timestamps(korean_syllables, transcription.words)
+            return self._align_with_word_timestamps(korean_syllables, transcription.words, audio_file)
         
         # 타임스탬프가 없으면 오디오 길이 기반 균등 분할
         return self._align_with_uniform_distribution(korean_syllables, audio_file)
     
     def _align_with_word_timestamps(self, syllables: List[str], 
-                                  words: List[Dict]) -> List[SyllableAlignment]:
-        """단어 타임스탬프를 활용한 음절 정렬"""
+                                  words: List[Dict], audio_file: str = None) -> List[SyllableAlignment]:
+        """단어 타임스탬프를 활용한 음절 정렬 (실제 음성 시작점 보정)"""
         print(f"🔧 Word-level 타임스탬프 기반 음절 정렬 시작")
+        
+        # 🎯 실제 음성 시작점 감지 (Voice Activity Detection)
+        actual_start = self._detect_voice_start_time(words, audio_file)
+        if actual_start > 0:
+            print(f"🎤 실제 음성 시작점 감지: {actual_start:.3f}s (무음 구간 제거)")
+            # 모든 word 타임스탬프를 실제 시작점만큼 보정
+            words = self._adjust_word_timestamps(words, actual_start)
+        
         alignments = []
         syllable_idx = 0
         
@@ -587,6 +595,109 @@ class KoreanSyllableAligner:
                     syllable_idx += 1
         
         return alignments
+    
+    def _detect_voice_start_time(self, words: List[Dict], audio_file: str = None) -> float:
+        """실제 음성 시작 시간 감지 (오디오 분석 기반)"""
+        if not words:
+            return 0.0
+        
+        # 1차: STT word 타임스탬프 기반 감지
+        first_word = words[0]
+        if hasattr(first_word, 'start'):
+            stt_start = first_word.start
+        elif isinstance(first_word, dict):
+            stt_start = first_word.get('start', 0.0)
+        else:
+            stt_start = 0.0
+        
+        # 2차: 실제 오디오 파일에서 음성 시작점 감지 (더 정확함)
+        if audio_file:
+            try:
+                audio_start = self._detect_audio_voice_start(audio_file)
+                if audio_start > 0:
+                    print(f"🎤 오디오 분석 기반 음성 시작: {audio_start:.3f}s (STT: {stt_start:.3f}s)")
+                    return audio_start
+            except Exception as e:
+                print(f"⚠️ 오디오 기반 감지 실패: {e}, STT 기준 사용")
+        
+        return stt_start
+    
+    def _detect_audio_voice_start(self, audio_file: str, 
+                                energy_threshold: float = 0.01,
+                                silence_duration: float = 0.1) -> float:
+        """오디오 파일에서 실제 음성 시작점 감지"""
+        import parselmouth as pm
+        
+        try:
+            # 오디오 로드
+            sound = pm.Sound(audio_file)
+            
+            # 에너지 분석 (RMS)
+            window_size = 0.05  # 50ms 윈도우
+            hop_size = 0.01     # 10ms 스텝
+            
+            duration = sound.get_total_duration()
+            time_points = []
+            energy_values = []
+            
+            current_time = 0
+            while current_time + window_size <= duration:
+                # 해당 구간의 에너지 계산
+                start_sample = int(current_time * sound.sampling_frequency)
+                end_sample = int((current_time + window_size) * sound.sampling_frequency)
+                
+                if end_sample <= len(sound.values):
+                    window_samples = sound.values[start_sample:end_sample]
+                    rms_energy = (sum(sample**2 for sample in window_samples) / len(window_samples))**0.5
+                    
+                    time_points.append(current_time)
+                    energy_values.append(rms_energy)
+                
+                current_time += hop_size
+            
+            # 음성 시작점 찾기: energy_threshold를 초과하는 첫 지점
+            for i, energy in enumerate(energy_values):
+                if energy > energy_threshold:
+                    voice_start = time_points[i]
+                    
+                    # 연속적인 음성 확인 (silence_duration만큼 지속되는지)
+                    consecutive_voice = 0
+                    for j in range(i, min(i + int(silence_duration / hop_size), len(energy_values))):
+                        if energy_values[j] > energy_threshold:
+                            consecutive_voice += hop_size
+                        else:
+                            break
+                    
+                    if consecutive_voice >= silence_duration:
+                        return max(0, voice_start - 0.05)  # 50ms 여유 추가
+            
+            return 0.0  # 음성을 찾지 못한 경우
+            
+        except Exception as e:
+            print(f"❌ 오디오 음성 감지 실패: {e}")
+            return 0.0
+    
+    def _adjust_word_timestamps(self, words: List[Dict], voice_start: float) -> List[Dict]:
+        """Word 타임스탬프를 실제 음성 시작점 기준으로 조정"""
+        adjusted_words = []
+        
+        for word in words:
+            if hasattr(word, 'start'):
+                # Word 객체인 경우
+                adjusted_word = type(word)(
+                    word=word.word,
+                    start=max(0, word.start - voice_start),
+                    end=max(0, word.end - voice_start)
+                )
+                adjusted_words.append(adjusted_word)
+            elif isinstance(word, dict):
+                # Dict인 경우
+                adjusted_word = word.copy()
+                adjusted_word['start'] = max(0, word.get('start', 0) - voice_start)
+                adjusted_word['end'] = max(0, word.get('end', 0) - voice_start)
+                adjusted_words.append(adjusted_word)
+        
+        return adjusted_words
     
     def _align_with_uniform_distribution(self, syllables: List[str], 
                                        audio_file: str) -> List[SyllableAlignment]:
