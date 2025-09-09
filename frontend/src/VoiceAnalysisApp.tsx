@@ -8,6 +8,7 @@ import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './type
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import { useDualAxisChart } from './hooks/useDualAxisChart';
+import { useAudioPlaybackSync } from './hooks/useAudioPlaybackSync';
 import UploadedFileTestSection from './components/UploadedFileTestSection';
 // import { PitchTestMode } from './components/PitchTestMode';
 // import { ChartControls } from './components/ChartControls';
@@ -53,6 +54,13 @@ const VoiceAnalysisApp: React.FC = () => {
   const audioRecording = useAudioRecording(learnerInfo, selectedFile);
   const pitchChart = usePitchChart(chartRef, API_BASE);
   const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE);
+  
+  // 🎯 통합 재생 동기화 훅
+  const referencePlaybackSync = useAudioPlaybackSync({
+    chartInstance: pitchChart,
+    updateInterval: 'frame',
+    enableLogging: true
+  });
   
   // 🎯 애니메이션 스타일 주입
   useEffect(() => {
@@ -260,61 +268,34 @@ const VoiceAnalysisApp: React.FC = () => {
   }, [audioRecording]);
   
   const handlePlayReference = useCallback(() => {
-    if (selectedFile && pitchChart) {
+    if (selectedFile) {
       const audio = new Audio(`${API_BASE}/static/reference_files/${selectedFile}.wav`);
       
-      // 🎯 재생 진행 추적을 위한 타이머
-      let progressTimer: NodeJS.Timeout | null = null;
+      // 🎯 공통 재생 동기화 훅 사용
+      const cleanup = referencePlaybackSync.setupAudioElement(audio);
       
-      // 🎯 재생 시작 시 진행 표시 시작
-      audio.addEventListener('play', () => {
-        console.log('🎵 참조음성 재생 시작');
-        
-        progressTimer = setInterval(() => {
-          if (audio.currentTime && pitchChart.updatePlaybackProgress) {
-            pitchChart.updatePlaybackProgress(audio.currentTime);
-          }
-        }, 50); // 50ms마다 진행 상황 업데이트
-      });
-      
-      // 🎯 재생 완료 또는 일시정지 시 진행 표시 제거
-      const clearProgress = () => {
-        if (progressTimer) {
-          clearInterval(progressTimer);
-          progressTimer = null;
-        }
-        if (pitchChart.clearPlaybackProgress) {
-          pitchChart.clearPlaybackProgress();
-        }
-      };
-      
+      // 🎯 추가 이벤트 리스너 (상태 메시지용)
       audio.addEventListener('ended', () => {
-        console.log('🎵 참조음성 재생 완료');
-        clearProgress();
         setStatus('✅ 참조 음성 재생이 완료되었습니다.');
-      });
-      
-      audio.addEventListener('pause', () => {
-        console.log('🎵 참조음성 재생 일시정지');
-        clearProgress();
+        cleanup(); // 정리
       });
       
       audio.addEventListener('error', (err) => {
         console.error('🎵 참조음성 재생 실패:', err);
-        clearProgress();
         setStatus('❌ 참조 음성 재생 중 오류가 발생했습니다.');
+        cleanup(); // 정리
       });
       
       // 재생 시작
       audio.play().catch(err => {
         console.error('참조 음성 재생 실패:', err);
-        clearProgress();
         setStatus('❌ 참조 음성 재생에 실패했습니다.');
+        cleanup(); // 정리
       });
       
       setStatus('🔊 참조 음성을 재생합니다.');
     }
-  }, [selectedFile, API_BASE, pitchChart]);
+  }, [selectedFile, API_BASE, referencePlaybackSync]);
 
 
   // 🎯 Y축 단위 변경을 두 차트에 전달
@@ -740,31 +721,10 @@ const VoiceAnalysisApp: React.FC = () => {
                             src={`${API_BASE}/static/reference_files/${selectedFile}.wav`}
                             onError={() => console.error('참조 파일 로드 실패:', selectedFile)}
                             onLoadedData={() => console.log('참조 파일 로드 완료:', selectedFile)}
-                            onPlay={(e) => {
-                              console.log('🎵 참조 파일 재생 시작');
-                              // 차트와 연동하여 재생 위치 표시
+                            onLoadedData={(e) => {
+                              // 🎯 공통 재생 동기화 훅 자동 연결
                               const audio = e.target as HTMLAudioElement;
-                              const updateProgress = () => {
-                                if (audio && pitchChart?.updatePlaybackProgress) {
-                                  pitchChart.updatePlaybackProgress(audio.currentTime);
-                                  if (!audio.paused) {
-                                    requestAnimationFrame(updateProgress);
-                                  }
-                                }
-                              };
-                              requestAnimationFrame(updateProgress);
-                            }}
-                            onPause={() => {
-                              console.log('🎵 참조 파일 재생 일시정지');
-                              if (pitchChart?.clearPlaybackProgress) {
-                                pitchChart.clearPlaybackProgress();
-                              }
-                            }}
-                            onEnded={() => {
-                              console.log('🎵 참조 파일 재생 완료');
-                              if (pitchChart?.clearPlaybackProgress) {
-                                pitchChart.clearPlaybackProgress();
-                              }
+                              referencePlaybackSync.setupAudioElement(audio);
                             }}
                           >
                             브라우저가 오디오 재생을 지원하지 않습니다.
