@@ -206,7 +206,19 @@ class UniversalSTT:
         if result.words:
             print(f"🕐 Word-level 타임스탬프 ({len(result.words)}개):")
             for i, word in enumerate(result.words):
-                print(f"  {i+1:2d}. '{word.word}' [{word.start:.3f}s ~ {word.end:.3f}s] (지속: {word.end-word.start:.3f}s)")
+                if hasattr(word, 'word'):
+                    word_text = word.word
+                    start_time = word.start
+                    end_time = word.end
+                elif isinstance(word, dict):
+                    word_text = word.get('word', '')
+                    start_time = word.get('start', 0.0)
+                    end_time = word.get('end', 0.0)
+                else:
+                    word_text = str(word)
+                    start_time = 0.0
+                    end_time = 0.0
+                print(f"  {i+1:2d}. '{word_text}' [{start_time:.3f}s ~ {end_time:.3f}s] (지속: {end_time-start_time:.3f}s)")
         else:
             print("❌ Word-level 타임스탬프 없음")
         
@@ -522,7 +534,19 @@ class KoreanSyllableAligner:
         syllable_idx = 0
         
         for word_idx, word_info in enumerate(words):
-            word = word_info['word'].strip()
+            # Word 구조 확인 및 적절한 접근
+            if hasattr(word_info, 'word'):
+                word = word_info.word.strip()
+                start_time = word_info.start
+                end_time = word_info.end
+            elif isinstance(word_info, dict):
+                word = word_info.get('word', '').strip()
+                start_time = word_info.get('start', 0.0)
+                end_time = word_info.get('end', 0.0)
+            else:
+                print(f"  ❌ 알 수 없는 word 구조: {type(word_info)}")
+                continue
+                
             word_syllables = [s for s in word if self._is_korean(s)]
             
             if not word_syllables:
@@ -530,19 +554,19 @@ class KoreanSyllableAligner:
                 continue
             
             # 단어 내 음절들의 시간 간격 계산
-            word_duration = word_info['end'] - word_info['start']
+            word_duration = end_time - start_time
             syllable_duration = word_duration / len(word_syllables)
             
-            print(f"  📍 단어 {word_idx+1}: '{word}' [{word_info['start']:.3f}s ~ {word_info['end']:.3f}s]")
+            print(f"  📍 단어 {word_idx+1}: '{word}' [{start_time:.3f}s ~ {end_time:.3f}s]")
             print(f"    📊 음절: {word_syllables} ({len(word_syllables)}개)")
             print(f"    ⏱️ 단어 지속시간: {word_duration:.3f}s → 음절당 {syllable_duration:.3f}s")
             
             for i, syllable in enumerate(word_syllables):
                 if syllable_idx < len(syllables):
-                    start_time = word_info['start'] + i * syllable_duration
-                    end_time = start_time + syllable_duration
+                    syl_start_time = start_time + i * syllable_duration
+                    syl_end_time = syl_start_time + syllable_duration
                     
-                    print(f"      🎯 음절 {syllable_idx+1}: '{syllable}' [{start_time:.3f}s ~ {end_time:.3f}s] (지속: {end_time-start_time:.3f}s)")
+                    print(f"      🎯 음절 {syllable_idx+1}: '{syllable}' [{syl_start_time:.3f}s ~ {syl_end_time:.3f}s] (지속: {syl_end_time-syl_start_time:.3f}s)")
                     
                     # 자모 분해로 음성학적 특징 추출
                     initial, medial, final = self.decompose_syllable(syllable)
