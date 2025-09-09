@@ -158,21 +158,52 @@ const UploadedFileTestSection: React.FC = () => {
 
       // 4. 음절 포인트 데이터 구성
       console.log(`🔄 음절 포인트 데이터 구성 시작`);
-      const points: SyllablePoint[] = syllablePitch.map((sp: any, index: number) => {
-        // 🛡️ 각 속성 검증
-        if (typeof sp.start !== 'number' || typeof sp.end !== 'number' || typeof sp.frequency !== 'number') {
-          console.warn(`⚠️ 잘못된 음절 데이터 [${index}]:`, sp);
-          return null;
+      console.log(`🔍 syllablePitch 구조:`, syllablePitch);
+      console.log(`🔍 syllables 구조:`, syllables);
+      
+      const points: SyllablePoint[] = [];
+      
+      // 🎯 두 가지 데이터 소스를 결합하여 완전한 음절 정보 구성
+      if (syllablePitch.length > 0 && syllables.length > 0) {
+        // syllables에서 시간 구간, syllablePitch에서 주파수 정보 가져오기
+        for (let i = 0; i < Math.min(syllablePitch.length, syllables.length); i++) {
+          const pitchInfo = syllablePitch[i];
+          const syllableInfo = syllables[i];
+          
+          if (typeof pitchInfo.frequency === 'number' && typeof syllableInfo === 'string') {
+            // syllables는 단순 문자열 배열인 경우
+            points.push({
+              syllable: syllableInfo,
+              start: pitchInfo.time - 0.1, // 임시로 시간 중심에서 ±0.1초
+              end: pitchInfo.time + 0.1,
+              frequency: pitchInfo.frequency,
+              time: pitchInfo.time
+            });
+          } else if (typeof pitchInfo.frequency === 'number' && syllableInfo.start !== undefined) {
+            // syllables가 객체 배열인 경우
+            points.push({
+              syllable: pitchInfo.syllable || syllableInfo.syllable || `음절${i + 1}`,
+              start: syllableInfo.start,
+              end: syllableInfo.end,
+              frequency: pitchInfo.frequency,
+              time: pitchInfo.time || (syllableInfo.start + syllableInfo.end) / 2
+            });
+          }
         }
-        
-        return {
-          syllable: sp.syllable || `음절${index + 1}`,
-          start: sp.start,
-          end: sp.end,
-          frequency: sp.frequency,
-          time: (sp.start + sp.end) / 2 // 음절의 중간 시점
-        };
-      }).filter(point => point !== null) as SyllablePoint[];
+      } else if (syllablePitch.length > 0) {
+        // syllablePitch만 있는 경우 (fallback)
+        syllablePitch.forEach((sp: any, index: number) => {
+          if (typeof sp.frequency === 'number') {
+            points.push({
+              syllable: sp.syllable || `음절${index + 1}`,
+              start: sp.time - 0.1,
+              end: sp.time + 0.1,
+              frequency: sp.frequency,
+              time: sp.time
+            });
+          }
+        });
+      }
 
       console.log(`✅ 음절 포인트 데이터 구성 완료: ${points.length}개`);
       console.log(`🎯 설정된 음절 포인트:`, points);
