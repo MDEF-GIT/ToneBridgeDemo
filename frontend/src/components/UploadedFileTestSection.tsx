@@ -2,15 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDualAxisChart } from '../hooks/useDualAxisChart';
 
 interface UploadedFile {
-  id: string;
-  wav_file: string;
-  textgrid_file: string;
-  name: string;
-  gender: string;
-  age_group: string;
-  sentence: string;
-  timestamp: string;
-  display_name: string;
+  file_id: string;
+  filename: string;
+  expected_text: string;
+  has_textgrid: boolean;
+  file_size: number;
+  modified_time: number;
 }
 
 interface SyllablePoint {
@@ -285,11 +282,22 @@ const UploadedFileTestSection: React.FC = () => {
             disabled={loading}
           >
             <option value="">파일을 선택하세요</option>
-            {uploadedFiles.map((file) => (
-              <option key={file.id} value={file.id}>
-                {file.display_name} ({file.timestamp})
-              </option>
-            ))}
+            {uploadedFiles.map((file) => {
+              // 파일명에서 정보 추출하여 표시용 이름 생성
+              const parts = file.file_id.split('_');
+              const learnerName = parts[0] || '익명';
+              const gender = parts[1] || '';
+              const ageGroup = parts[2] || '';
+              const sentence = file.expected_text || parts[3] || '';
+              const timestamp = parts[4] || '';
+              const displayName = `${learnerName} (${gender}, ${ageGroup}) - ${sentence}`;
+              
+              return (
+                <option key={file.file_id} value={file.file_id}>
+                  {displayName} {timestamp && `(${timestamp})`}
+                </option>
+              );
+            })}
           </select>
           {uploadedFiles.length === 0 && !loading && (
             <div className="text-muted small mt-1">
@@ -332,14 +340,25 @@ const UploadedFileTestSection: React.FC = () => {
             <div className="col-md-6">
               <h6 className="mb-1">
                 <i className="fas fa-file-audio me-2"></i>
-                선택된 파일: {uploadedFiles.find(f => f.id === selectedFileId)?.display_name}
+                선택된 파일: {(() => {
+                  const file = uploadedFiles.find(f => f.file_id === selectedFileId);
+                  if (!file) return selectedFileId;
+                  const parts = file.file_id.split('_');
+                  const learnerName = parts[0] || '익명';
+                  const sentence = file.expected_text || parts[3] || '';
+                  return `${learnerName} - ${sentence}`;
+                })()}
               </h6>
               <small className="text-muted">
-                파일명: {selectedFileId}.wav / {selectedFileId}.TextGrid
+                파일명: {selectedFileId}.wav {uploadedFiles.find(f => f.file_id === selectedFileId)?.has_textgrid ? '/ TextGrid 있음' : '/ TextGrid 없음'}
               </small>
               <br />
               <small className="text-muted">
-                업로드 시간: {uploadedFiles.find(f => f.id === selectedFileId)?.timestamp}
+                업로드 시간: {(() => {
+                  const file = uploadedFiles.find(f => f.file_id === selectedFileId);
+                  if (!file) return '';
+                  return new Date(file.modified_time * 1000).toLocaleString();
+                })()}
               </small>
             </div>
             <div className="col-md-6">
