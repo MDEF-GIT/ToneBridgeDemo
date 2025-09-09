@@ -48,8 +48,22 @@ const UploadedFileTestSection: React.FC = () => {
       if (!response.ok) throw new Error('파일 목록 조회 실패');
       
       const data = await response.json();
-      setUploadedFiles(data.files || []);
-      console.log(`📁 업로드 파일 ${data.files?.length || 0}개 로드됨`);
+      
+      // 🎯 개선된 파일만 필터링 (TextGrid가 있고, _original/_trimmed가 아닌 파일)
+      const processedFiles = (data.files || []).filter((file: UploadedFile) => {
+        // TextGrid가 있는 파일만
+        if (!file.has_textgrid) return false;
+        
+        // _original, _trimmed 접미사가 없는 파일만 (최종 개선된 버전)
+        if (file.file_id.endsWith('_original') || file.file_id.endsWith('_trimmed')) {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      setUploadedFiles(processedFiles);
+      console.log(`📁 개선된 업로드 파일 ${processedFiles.length}개 로드됨 (전체 ${data.files?.length || 0}개 중 필터링)`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '파일 목록 조회 실패');
       console.error('❌ 업로드 파일 목록 조회 오류:', err);
@@ -302,7 +316,7 @@ const UploadedFileTestSection: React.FC = () => {
           {uploadedFiles.length === 0 && !loading && (
             <div className="text-muted small mt-1">
               <i className="fas fa-info-circle me-1"></i>
-              업로드된 파일이 없습니다. 위에서 녹음을 먼저 해보세요!
+              개선된 업로드 파일이 없습니다. 위에서 녹음 후 자동 처리를 기다려주세요!
             </div>
           )}
         </div>
