@@ -2,7 +2,8 @@
 ToneBridge 음성 분석 핵심 모듈
 
 재사용 가능한 음성 분석 도구들:
-- 정밀 음절 분절 (PreciseSyllableSegmenter)
+- STT 기반 정밀 분절 (STTBasedSegmenter)
+- 음성학적 분절 폴백 (FallbackSyllableSegmenter)
 - 음성 특징 추출 (AudioFeatureExtractor) 
 - 음절 경계 탐지 (SyllableBoundaryDetector)
 - TextGrid 생성 (TextGridGenerator)
@@ -416,7 +417,7 @@ class FallbackSyllableSegmenter:
     정밀 음절 분절 메인 클래스
     
     사용법:
-        segmenter = PreciseSyllableSegmenter()
+        segmenter = FallbackSyllableSegmenter()
         segments = segmenter.segment(sound, syllable_labels)
     """
     
@@ -545,11 +546,13 @@ def analyze_audio_file(audio_path: str, syllable_text: str, **kwargs) -> List[Sy
         음절 구간 리스트
     """
     try:
-        sound = pm.Sound(audio_path)
-        syllable_labels = split_korean_sentence(syllable_text)
+        print(f"🎯 STT 기반 오디오 분석: {syllable_text}")
         
-        segmenter = PreciseSyllableSegmenter(**kwargs)
-        return segmenter.segment(sound, syllable_labels)
+        # STT 기반 정밀 분절 수행
+        stt_segmenter = STTBasedSegmenter()
+        segments = stt_segmenter.segment_from_audio_file(audio_path, syllable_text)
+        
+        return segments
         
     except Exception as e:
         raise Exception(f"오디오 분석 실패: {e}")
