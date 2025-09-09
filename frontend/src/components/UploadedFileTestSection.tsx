@@ -328,14 +328,18 @@ const UploadedFileTestSection: React.FC = () => {
             <table className="table table-sm table-bordered table-hover">
               <thead className="table-light">
                 <tr>
-                  <th style={{width: '8%'}} className="text-center">음절</th>
-                  <th style={{width: '15%'}} className="text-center">주파수 (Hz)</th>
-                  <th style={{width: '15%'}} className="text-center">
-                    {testDualAxisChart.yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)'}
+                  <th style={{width: '6%'}} className="text-center">음절</th>
+                  <th style={{width: '10%'}} className="text-center">F0 (Hz)</th>
+                  <th style={{width: '10%'}} className="text-center">
+                    {testDualAxisChart.yAxisUnit === 'semitone' ? '세미톤' : '큐톤'}
                   </th>
-                  <th style={{width: '20%'}} className="text-center">시간 구간 (초)</th>
-                  <th style={{width: '12%'}} className="text-center">지속 시간</th>
-                  <th style={{width: '30%'}} className="text-center">분석 결과</th>
+                  <th style={{width: '12%'}} className="text-center">시간구간 (s)</th>
+                  <th style={{width: '8%'}} className="text-center">지속시간</th>
+                  <th style={{width: '10%'}} className="text-center">피치범위</th>
+                  <th style={{width: '10%'}} className="text-center">발음속도</th>
+                  <th style={{width: '12%'}} className="text-center">음성품질</th>
+                  <th style={{width: '12%'}} className="text-center">상대레벨</th>
+                  <th style={{width: '10%'}} className="text-center">특성</th>
                 </tr>
               </thead>
               <tbody>
@@ -345,13 +349,72 @@ const UploadedFileTestSection: React.FC = () => {
                     ? 12 * Math.log2(point.frequency / 440) + 69 // A4 = 440Hz = 69 semitones
                     : Math.log2(point.frequency / 440) * 1200; // cents
                   
+                  // 🎯 전체 음절의 평균 주파수 계산 (상대 레벨용)
+                  const avgFreq = syllablePoints.reduce((sum, p) => sum + p.frequency, 0) / syllablePoints.length;
+                  const freqDeviation = ((point.frequency - avgFreq) / avgFreq * 100);
+                  
+                  // 🎯 주파수 레벨 분류
                   const getFrequencyLevel = (freq: number) => {
-                    if (freq < 100) return { level: '낮음', color: 'text-info' };
-                    if (freq < 200) return { level: '중간', color: 'text-success' };
-                    return { level: '높음', color: 'text-warning' };
+                    if (freq < 100) return { level: '저음', color: 'text-info', badge: 'info' };
+                    if (freq < 150) return { level: '중저음', color: 'text-primary', badge: 'primary' };
+                    if (freq < 200) return { level: '중음', color: 'text-success', badge: 'success' };
+                    if (freq < 300) return { level: '중고음', color: 'text-warning', badge: 'warning' };
+                    return { level: '고음', color: 'text-danger', badge: 'danger' };
+                  };
+                  
+                  // 🎯 피치 범위 계산 (임시: 현재 음절 주변 변동성)
+                  const pitchRange = Math.abs(freqDeviation);
+                  const getRangeLevel = (range: number) => {
+                    if (range < 5) return { level: '안정', color: 'success' };
+                    if (range < 15) return { level: '보통', color: 'warning' };
+                    return { level: '변동', color: 'danger' };
+                  };
+                  
+                  // 🎯 발음 속도 분석
+                  const getSpeedAnalysis = (dur: number) => {
+                    if (dur < 0.15) return { speed: '빠름', level: 'fast', color: 'danger' };
+                    if (dur < 0.3) return { speed: '보통', level: 'normal', color: 'success' };
+                    if (dur < 0.5) return { speed: '느림', level: 'slow', color: 'warning' };
+                    return { speed: '매우느림', level: 'very-slow', color: 'info' };
+                  };
+                  
+                  // 🎯 음성 품질 지표 (임시: 주파수 안정성 기반)
+                  const getQualityAnalysis = (freq: number, dur: number) => {
+                    const stability = freq > 80 && freq < 500 ? 'good' : 'poor';
+                    const clarity = dur > 0.1 && dur < 0.8 ? 'clear' : 'unclear';
+                    
+                    if (stability === 'good' && clarity === 'clear') {
+                      return { quality: '우수', score: '85+', color: 'success' };
+                    } else if (stability === 'good') {
+                      return { quality: '양호', score: '70+', color: 'primary' };
+                    } else {
+                      return { quality: '개선필요', score: '<70', color: 'warning' };
+                    }
+                  };
+                  
+                  // 🎯 상대 레벨 분석
+                  const getRelativeLevel = (deviation: number) => {
+                    if (Math.abs(deviation) < 5) return { level: '표준', color: 'success' };
+                    if (deviation > 0) return { level: `+${deviation.toFixed(1)}%`, color: 'warning' };
+                    return { level: `${deviation.toFixed(1)}%`, color: 'info' };
+                  };
+                  
+                  // 🎯 음절 특성 분석
+                  const getSyllableCharacteristics = (syllable: string, freq: number) => {
+                    const vowels = ['ㅏ', 'ㅓ', 'ㅗ', 'ㅜ', 'ㅡ', 'ㅣ', 'ㅐ', 'ㅔ', 'ㅚ', 'ㅟ'];
+                    const hasVowel = vowels.some(v => syllable.includes(v));
+                    
+                    if (freq > 200) return { char: '명료음', type: '고주파' };
+                    if (freq < 120) return { char: '저음역', type: '안정음' };
+                    return { char: '중간음', type: '표준음' };
                   };
                   
                   const freqLevel = getFrequencyLevel(point.frequency);
+                  const rangeLevel = getRangeLevel(pitchRange);
+                  const speedAnalysis = getSpeedAnalysis(duration);
+                  const qualityAnalysis = getQualityAnalysis(point.frequency, duration);
+                  const relativeLevel = getRelativeLevel(freqDeviation);
+                  const characteristics = getSyllableCharacteristics(point.syllable, point.frequency);
                   
                   return (
                     <tr 
@@ -361,32 +424,84 @@ const UploadedFileTestSection: React.FC = () => {
                       onClick={() => handleSyllableClick(index)}
                       title="클릭하여 해당 구간 재생"
                     >
-                      <td className="text-center fw-bold">{point.syllable}</td>
+                      {/* 음절 */}
+                      <td className="text-center fw-bold fs-6">{point.syllable}</td>
+                      
+                      {/* F0 주파수 */}
                       <td className="text-center">
-                        <span className={freqLevel.color}>
-                          {point.frequency.toFixed(1)}
+                        <span className={freqLevel.color} style={{fontSize: '0.9em'}}>
+                          <strong>{point.frequency.toFixed(1)}</strong>
                         </span>
                       </td>
+                      
+                      {/* 세미톤/큐톤 */}
                       <td className="text-center">
-                        {convertedValue.toFixed(1)}
+                        <small>{convertedValue.toFixed(1)}</small>
                       </td>
+                      
+                      {/* 시간 구간 */}
                       <td className="text-center">
-                        <small>
-                          {point.start.toFixed(2)}s - {point.end.toFixed(2)}s
+                        <small style={{fontSize: '0.75em'}}>
+                          {point.start.toFixed(2)}-{point.end.toFixed(2)}
                         </small>
                       </td>
+                      
+                      {/* 지속 시간 */}
                       <td className="text-center">
                         <small>{duration.toFixed(2)}s</small>
                       </td>
+                      
+                      {/* 피치 범위 */}
                       <td className="text-center">
-                        <small>
-                          <span className={`badge ${freqLevel.color.replace('text-', 'bg-')}`}>
-                            {freqLevel.level} 주파수
-                          </span>
-                          <br />
-                          <span className="text-muted">
-                            {duration < 0.2 ? '빠름' : duration > 0.5 ? '느림' : '보통'}
-                          </span>
+                        <span className={`badge bg-${rangeLevel.color} bg-opacity-75`} style={{fontSize: '0.7em'}}>
+                          {rangeLevel.level}
+                        </span>
+                        <br />
+                        <small className="text-muted" style={{fontSize: '0.65em'}}>
+                          ±{pitchRange.toFixed(1)}%
+                        </small>
+                      </td>
+                      
+                      {/* 발음 속도 */}
+                      <td className="text-center">
+                        <span className={`badge bg-${speedAnalysis.color} bg-opacity-75`} style={{fontSize: '0.7em'}}>
+                          {speedAnalysis.speed}
+                        </span>
+                        <br />
+                        <small className="text-muted" style={{fontSize: '0.65em'}}>
+                          {(1/duration).toFixed(1)} syl/s
+                        </small>
+                      </td>
+                      
+                      {/* 음성 품질 */}
+                      <td className="text-center">
+                        <span className={`badge bg-${qualityAnalysis.color} bg-opacity-75`} style={{fontSize: '0.7em'}}>
+                          {qualityAnalysis.quality}
+                        </span>
+                        <br />
+                        <small className="text-muted" style={{fontSize: '0.65em'}}>
+                          {qualityAnalysis.score}
+                        </small>
+                      </td>
+                      
+                      {/* 상대 레벨 */}
+                      <td className="text-center">
+                        <span className={`badge bg-${relativeLevel.color} bg-opacity-75`} style={{fontSize: '0.7em'}}>
+                          {relativeLevel.level}
+                        </span>
+                        <br />
+                        <small className="text-muted" style={{fontSize: '0.65em'}}>
+                          vs 평균
+                        </small>
+                      </td>
+                      
+                      {/* 특성 */}
+                      <td className="text-center">
+                        <small style={{fontSize: '0.75em'}}>
+                          <div>{characteristics.char}</div>
+                          <div className="text-muted" style={{fontSize: '0.9em'}}>
+                            {characteristics.type}
+                          </div>
                         </small>
                       </td>
                     </tr>
