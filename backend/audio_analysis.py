@@ -903,14 +903,17 @@ class STTBasedSegmenter:
     """
     
     def __init__(self):
+        print(f"🚀🚀🚀 STTBasedSegmenter 초기화 시작: STT_AVAILABLE={STT_AVAILABLE} 🚀🚀🚀")
         if STT_AVAILABLE:
             try:
+                print("🔧 AdvancedSTTProcessor 생성 중...")
                 self.stt_processor = AdvancedSTTProcessor()
                 print("🎯 STT 기반 정밀 분절 활성화")
             except Exception as e:
                 print(f"❌ STT 프로세서 초기화 실패: {e}")
                 self.stt_processor = None
         else:
+            print("❌ STT 시스템 비활성화 - 폴백 사용")
             self.stt_processor = None
         
         # 폴백을 위한 기존 분절기
@@ -928,7 +931,7 @@ class STTBasedSegmenter:
             List[SyllableSegment]: 정확한 타임스탬프가 포함된 음절 분절
         """
         if not self.stt_processor:
-            print("⚠️ STT 비활성 - 폴백 분절 사용")
+            print("⚠️⚠️⚠️ STT 비활성 - 폴백 분절 사용 ⚠️⚠️⚠️")
             sound = pm.Sound(audio_file)
             syllables_text = list(sentence.replace(' ', ''))
             return self.fallback_segmenter.segment(sound, syllables_text)
