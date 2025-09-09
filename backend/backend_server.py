@@ -2435,7 +2435,8 @@ async def optimize_uploaded_file(file_id: str = Form(...)):
         # 🚀 NEW: 통합 음성 프로세서 사용 (모든 차트에서 동일한 품질)
         print("🔧 통합 프로세서 사용: 모든 차트에서 동일한 품질 보장")
         
-        unified_processor = UnifiedVoiceProcessor()
+        # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
+        unified_processor = UnifiedVoiceProcessor(shared_stt_processor=advanced_stt_processor)
         process_result = unified_processor.process_uploaded_file(str(wav_path), reference_sentence)
         
         # 기존 API 형식으로 변환 (하위 호환성)

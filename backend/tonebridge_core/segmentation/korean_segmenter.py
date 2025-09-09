@@ -32,11 +32,17 @@ class KoreanSyllableSegmenter:
     기존 분절 알고리즘들을 통합하여 모든 차트에서 동일한 품질 제공
     """
     
-    def __init__(self):
-        self.stt_engine = UnifiedSTTEngine()
+    def __init__(self, shared_stt_processor=None):
+        # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
+        if shared_stt_processor:
+            self.stt_engine = UnifiedSTTEngine(shared_processor=shared_stt_processor)
+        else:
+            self.stt_engine = UnifiedSTTEngine()
+            
         self.stt_segmenter = None
         self.fallback_segmenter = None
         self.korean_aligner = None
+        self.shared_stt_processor = shared_stt_processor
         
         self._initialize_segmenters()
     
@@ -45,7 +51,13 @@ class KoreanSyllableSegmenter:
         try:
             if SEGMENTATION_AVAILABLE:
                 print("🔧 통합 분절기: STTBasedSegmenter 초기화 중...")
-                self.stt_segmenter = STTBasedSegmenter()
+                
+                # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
+                if self.shared_stt_processor:
+                    self.stt_segmenter = STTBasedSegmenter(shared_stt_processor=self.shared_stt_processor)
+                else:
+                    self.stt_segmenter = STTBasedSegmenter()
+                    
                 self.fallback_segmenter = FallbackSyllableSegmenter()
                 
                 # KoreanSyllableAligner 초기화

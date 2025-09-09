@@ -24,13 +24,19 @@ class UnifiedSTTEngine:
     기존 AdvancedSTTProcessor 기능을 통합하여 제공
     """
     
-    def __init__(self, preferred_engine: str = 'whisper'):
+    def __init__(self, preferred_engine: str = 'whisper', shared_processor=None):
         self.preferred_engine = preferred_engine
         self.advanced_stt = None
         self.universal_stt = None
         
-        # 기존 STT 시스템 초기화
-        self._initialize_stt_engines()
+        # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
+        if shared_processor:
+            print("🔄 기존 STT 인스턴스 재사용")
+            self.advanced_stt = shared_processor
+            self.universal_stt = shared_processor.stt if hasattr(shared_processor, 'stt') else shared_processor
+        else:
+            # 기존 STT 시스템 초기화
+            self._initialize_stt_engines()
     
     def _initialize_stt_engines(self):
         """기존 STT 엔진들 초기화"""

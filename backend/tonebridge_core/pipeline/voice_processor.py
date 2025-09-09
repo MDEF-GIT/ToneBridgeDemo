@@ -23,9 +23,18 @@ class UnifiedVoiceProcessor:
     기존 기능을 유지하면서 통합된 처리 제공
     """
     
-    def __init__(self):
-        self.stt_engine = UnifiedSTTEngine()
-        self.segmenter = KoreanSyllableSegmenter()
+    def __init__(self, shared_stt_processor=None):
+        # 🚀 성능 최적화: 전역 STT 인스턴스 재사용
+        if shared_stt_processor:
+            self.stt_engine = UnifiedSTTEngine(shared_processor=shared_stt_processor)
+        else:
+            self.stt_engine = UnifiedSTTEngine()
+            
+        # 🚀 성능 최적화: 분절기에도 동일한 STT 인스턴스 전달
+        if shared_stt_processor:
+            self.segmenter = KoreanSyllableSegmenter(shared_stt_processor=shared_stt_processor)
+        else:
+            self.segmenter = KoreanSyllableSegmenter()
         self.textgrid_generator = UnifiedTextGridGenerator()
         self.pitch_analyzer = UnifiedPitchAnalyzer()
         
