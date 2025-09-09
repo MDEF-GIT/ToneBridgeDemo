@@ -36,10 +36,10 @@ const UploadedFileTestSection: React.FC = () => {
     console.log('📊 업로드 파일 테스트: 듀얼축 차트 초기화');
   }, [testDualAxisChart]);
 
-  // 업로드된 파일 목록 불러오기
+  // 업로드된 파일 목록 불러오기 (한 번만)
   useEffect(() => {
     loadUploadedFiles();
-  }, []);
+  }, []); // 빈 dependency array로 한 번만 실행
 
   const loadUploadedFiles = async () => {
     try {
@@ -279,7 +279,7 @@ const UploadedFileTestSection: React.FC = () => {
             className="form-select"
             value={selectedFileId}
             onChange={(e) => handleFileSelect(e.target.value)}
-            disabled={loading}
+            disabled={false}
           >
             <option value="">파일을 선택하세요</option>
             {uploadedFiles.map((file) => {
@@ -326,10 +326,10 @@ const UploadedFileTestSection: React.FC = () => {
       )}
 
       {/* 로딩 상태 */}
-      {loading && (
+      {loading && selectedFileId && (
         <div className="text-center text-muted">
           <i className="fas fa-spinner fa-spin me-2"></i>
-          처리 중...
+          파일 분석 중... ({selectedFileId})
         </div>
       )}
 
