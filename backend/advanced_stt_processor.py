@@ -573,9 +573,9 @@ class KoreanSyllableAligner:
                     
                     alignments.append(SyllableAlignment(
                         syllable=syllable,
-                        start_time=start_time,
-                        end_time=end_time,
-                        confidence=word_info.get('confidence', 0.8),
+                        start_time=syl_start_time,  # 🔧 음절별 정확한 시작 시간
+                        end_time=syl_end_time,      # 🔧 음절별 정확한 종료 시간
+                        confidence=0.8,  # word_info에 confidence가 없을 수 있음
                         word_context=word,
                         phonetic_features={
                             'initial': initial,
