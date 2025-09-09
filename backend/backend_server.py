@@ -140,9 +140,21 @@ def auto_segment_syllables(sound: pm.Sound, sentence: str) -> List[dict]:
         print(f"🎯 음성 길이: {duration:.3f}초")
         print(f"🎯 목표: {len(syllables_text)}개 음절 - {syllables_text}")
         
-        # Step 4: STT 기반 정밀 분절 (새 모듈 사용)
-        stt_segmenter = STTBasedSegmenter()
-        segment_results = stt_segmenter.segment_from_audio_file(temp_path, sentence)
+        # Step 4: STT 기반 정밀 분절 (새 모듈 사용) - 통합 라이브러리 사용
+        from tonebridge_core.segmentation.korean_segmenter import KoreanSyllableSegmenter
+        segmenter = KoreanSyllableSegmenter()
+        
+        # 임시 파일 생성 (Parselmouth Sound 객체로부터)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+            temp_path = tmp_file.name
+            sound.save(temp_path, "WAV")
+        
+        segment_results = segmenter.segment(temp_path, sentence)
+        
+        # 임시 파일 정리
+        import os
+        os.unlink(temp_path)
         
         # 기존 형식으로 변환
         syllables = []
@@ -2549,7 +2561,7 @@ async def auto_process_audio(
     - learner_age_group: 학습자 연령대
     - reference_sentence: 참조 문장 이름
     """
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
+    if not file.filename or not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:
@@ -2739,7 +2751,7 @@ async def advanced_stt_process(file: UploadFile = File(...),
     고급 STT 처리 API
     다중 엔진 지원 및 신뢰도 평가
     """
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
+    if not file.filename or not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:
@@ -2786,7 +2798,7 @@ async def multi_engine_comparison(file: UploadFile = File(...),
     """
     다중 STT 엔진 비교 분석
     """
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
+    if not file.filename or not file.filename.endswith(('.wav', '.mp3', '.m4a', '.webm')):
         raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식")
     
     try:
