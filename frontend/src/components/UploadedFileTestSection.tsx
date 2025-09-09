@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { usePitchChart } from '../hooks/usePitchChart';
-import { useDualAxisChart } from '../hooks/useDualAxisChart';
+import Chart from 'chart.js/auto';
 
 interface UploadedFile {
   id: string;
@@ -14,20 +13,35 @@ interface UploadedFile {
   display_name: string;
 }
 
+interface SyllablePoint {
+  syllable: string;
+  start: number;
+  end: number;
+  frequency: number;
+  time: number; // 중간 시점
+}
+
 const UploadedFileTestSection: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [syllablePoints, setSyllablePoints] = useState<SyllablePoint[]>([]);
+  const [currentPlayingSyllable, setCurrentPlayingSyllable] = useState<number>(-1);
   
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const testDualAxisChart = useDualAxisChart(chartCanvasRef, '');
+  const chartRef = useRef<Chart | null>(null);
 
-  // 컴포넌트 마운트 시 듀얼축 차트 초기화
+  // 컴포넌트 마운트 시 차트 초기화
   useEffect(() => {
-    console.log('📊 업로드 파일 테스트: 듀얼축 차트 초기화');
-  }, [testDualAxisChart]);
+    initChart();
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+      }
+    };
+  }, []);
 
   // 업로드된 파일 목록 불러오기
   useEffect(() => {
@@ -51,11 +65,110 @@ const UploadedFileTestSection: React.FC = () => {
     }
   };
 
+  // 🎯 차트 초기화 함수
+  const initChart = () => {
+    const canvas = chartCanvasRef.current;
+    if (!canvas) return;
+
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
+
+    chartRef.current = new Chart(canvas, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: '음절별 피치',
+          data: [],
+          backgroundColor: 'rgba(54, 162, 235, 0.8)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          pointRadius: 8,
+          pointHoverRadius: 12,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: '음절별 피치 분석 - 클릭하여 재생',
+            font: { size: 16 }
+          },
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              title: () => '',
+              label: (context: any) => {
+                const point = syllablePoints[context.dataIndex];
+                if (point) {
+                  return `음절: ${point.syllable} | 피치: ${point.frequency.toFixed(1)}Hz | 시간: ${point.time.toFixed(2)}s`;
+                }
+                return '';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            position: 'bottom',
+            title: {
+              display: true,
+              text: '시간 (초)'
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.1)'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: '주파수 (Hz)'
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.1)'
+            }
+          }
+        },
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const dataIndex = elements[0].index;
+            handleSyllableClick(dataIndex);
+          }
+        }
+      }
+    });
+
+    console.log('📊 음절 분절 차트 초기화 완료');
+  };
+
+  // 🎯 음절 클릭 처리
+  const handleSyllableClick = (syllableIndex: number) => {
+    const syllable = syllablePoints[syllableIndex];
+    if (syllable && audioRef.current) {
+      console.log(`🎵 음절 클릭: ${syllable.syllable} (${syllable.start}s - ${syllable.end}s)`);
+      audioRef.current.currentTime = syllable.start;
+      audioRef.current.play();
+      setCurrentPlayingSyllable(syllableIndex);
+    }
+  };
+
   // 파일 선택 시 차트 업데이트
   const handleFileSelect = async (fileId: string) => {
     if (!fileId) {
       setSelectedFileId('');
-      testDualAxisChart.clearChart();
+      setSyllablePoints([]);
+      setCurrentPlayingSyllable(-1);
+      if (chartRef.current) {
+        chartRef.current.data.datasets[0].data = [];
+        chartRef.current.update();
+      }
       return;
     }
 
@@ -66,53 +179,62 @@ const UploadedFileTestSection: React.FC = () => {
 
       console.log(`🎯 업로드 파일 분석 시작: ${fileId}`);
 
-      // 1. 전체 피치 데이터 로드
-      const pitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch`);
-      if (!pitchResponse.ok) throw new Error('피치 데이터 조회 실패');
-      const pitchData = await pitchResponse.json();
+      // 1. 음절별 대표 피치 로드 (점 표시용)
+      const syllablePitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch?syllable_only=true`);
+      if (!syllablePitchResponse.ok) throw new Error('음절 피치 데이터 조회 실패');
+      const syllablePitch = await syllablePitchResponse.json();
 
-      // 2. 음절 데이터 로드 (annotation용)
+      // 2. 음절 구간 정보 로드
       const syllablesResponse = await fetch(`/api/uploaded_files/${fileId}/syllables`);
       let syllables = [];
       if (syllablesResponse.ok) {
         syllables = await syllablesResponse.json();
       }
 
-      // 3. 음절별 대표 피치 로드 (점 표시용)
-      const syllablePitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch?syllable_only=true`);
-      let syllablePitch = [];
-      if (syllablePitchResponse.ok) {
-        syllablePitch = await syllablePitchResponse.json();
-      }
+      // 3. 음절 포인트 데이터 구성
+      const points: SyllablePoint[] = syllablePitch.map((sp: any, index: number) => ({
+        syllable: sp.syllable,
+        start: sp.start,
+        end: sp.end,
+        frequency: sp.frequency,
+        time: (sp.start + sp.end) / 2 // 음절의 중간 시점
+      }));
 
-      // 4. 차트에 피치 데이터 추가 (기존 데이터 클리어 후)
-      testDualAxisChart.clearChart();
-      
-      // 5. 듀얼축 차트에 피치 데이터 추가 (자동 범위 조정)
-      pitchData.forEach((point: any) => {
-        testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
-      });
-      
-      // 7. 음절 annotation 추가 - 업로드 파일용 데이터 구조 변환
-      if (syllables.length > 0 && syllablePitch.length > 0) {
-        // syllablePitch 데이터를 SyllableData 형식으로 변환
-        const annotationData = syllablePitch.map((sp: any) => ({
-          label: sp.syllable,
-          start: sp.start,
-          end: sp.end,
-          frequency: sp.frequency,
-          semitone: sp.frequency // Hz 모드에서는 frequency 그대로 사용
+      setSyllablePoints(points);
+
+      // 4. 차트에 음절 포인트 표시
+      if (chartRef.current && points.length > 0) {
+        const chartData = points.map(point => ({
+          x: point.time,
+          y: point.frequency
         }));
+
+        chartRef.current.data.datasets[0].data = chartData;
         
-        console.log(`🎯 업로드 파일 음절 annotation 추가: ${annotationData.length}개`);
-        console.log(`🎯 annotation 데이터:`, annotationData);
+        // Y축 범위 자동 조정
+        const frequencies = points.map(p => p.frequency);
+        const minFreq = Math.min(...frequencies);
+        const maxFreq = Math.max(...frequencies);
+        const margin = (maxFreq - minFreq) * 0.2;
         
-        testDualAxisChart.addSyllableAnnotations(annotationData);
-      } else {
-        console.log(`⚠️ 음절 annotation 생략: syllables=${syllables.length}, syllablePitch=${syllablePitch.length}`);
+        chartRef.current.options.scales!.y!.min = Math.max(50, minFreq - margin);
+        chartRef.current.options.scales!.y!.max = maxFreq + margin;
+        
+        // X축 범위 자동 조정
+        const times = points.map(p => p.time);
+        const minTime = Math.min(...times);
+        const maxTime = Math.max(...times);
+        const timeMargin = (maxTime - minTime) * 0.1;
+        
+        chartRef.current.options.scales!.x!.min = Math.max(0, minTime - timeMargin);
+        chartRef.current.options.scales!.x!.max = maxTime + timeMargin;
+        
+        chartRef.current.update();
+        
+        console.log(`📊 음절 포인트 ${points.length}개 차트에 표시 완료`);
       }
 
-      console.log(`✅ 업로드 파일 분석 완료: ${pitchData.length}개 피치 포인트, ${syllables.length}개 음절`);
+      console.log(`✅ 업로드 파일 분석 완료: ${points.length}개 음절`);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : '파일 분석 실패');
@@ -210,28 +332,27 @@ const UploadedFileTestSection: React.FC = () => {
                   onLoadedData={() => console.log('오디오 로드 완료:', selectedFileId)}
                   onPlay={() => {
                     console.log('🎵 업로드 파일 재생 시작');
-                    // 차트와 연동하여 재생 위치 표시
+                    // 재생 진행 상황 추적
                     const updateProgress = () => {
-                      if (audioRef.current && testDualAxisChart.updatePlaybackProgress) {
-                        testDualAxisChart.updatePlaybackProgress(audioRef.current.currentTime);
-                        if (!audioRef.current.paused) {
-                          requestAnimationFrame(updateProgress);
-                        }
+                      if (audioRef.current && !audioRef.current.paused) {
+                        const currentTime = audioRef.current.currentTime;
+                        // 현재 재생 중인 음절 찾기
+                        const currentSyllableIndex = syllablePoints.findIndex(
+                          point => currentTime >= point.start && currentTime <= point.end
+                        );
+                        setCurrentPlayingSyllable(currentSyllableIndex);
+                        requestAnimationFrame(updateProgress);
                       }
                     };
                     requestAnimationFrame(updateProgress);
                   }}
                   onPause={() => {
                     console.log('🎵 업로드 파일 재생 일시정지');
-                    if (testDualAxisChart.clearPlaybackProgress) {
-                      testDualAxisChart.clearPlaybackProgress();
-                    }
+                    setCurrentPlayingSyllable(-1);
                   }}
                   onEnded={() => {
                     console.log('🎵 업로드 파일 재생 완료');
-                    if (testDualAxisChart.clearPlaybackProgress) {
-                      testDualAxisChart.clearPlaybackProgress();
-                    }
+                    setCurrentPlayingSyllable(-1);
                   }}
                 >
                   브라우저가 오디오 재생을 지원하지 않습니다.
@@ -257,67 +378,43 @@ const UploadedFileTestSection: React.FC = () => {
         )}
       </div>
 
-      {/* 차트 컨트롤 버튼들 */}
-      {selectedFileId && (
+      {/* 음절 정보 및 컨트롤 */}
+      {selectedFileId && syllablePoints.length > 0 && (
         <div className="mt-3">
           <div className="row">
             <div className="col-md-8">
-              <div className="btn-group btn-group-sm" role="group">
-                <button
-                  className="btn btn-outline-primary"
-                  onClick={() => testDualAxisChart.adjustPitch('up')}
-                  title="피치 위로 조정"
-                >
-                  <i className="fas fa-arrow-up"></i> 위로
-                </button>
-                <button
-                  className="btn btn-outline-primary"
-                  onClick={() => testDualAxisChart.adjustPitch('down')}
-                  title="피치 아래로 조정"
-                >
-                  <i className="fas fa-arrow-down"></i> 아래로
-                </button>
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => testDualAxisChart.zoomIn()}
-                  title="확대"
-                >
-                  <i className="fas fa-search-plus"></i> 확대
-                </button>
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => testDualAxisChart.zoomOut()}
-                  title="축소"
-                >
-                  <i className="fas fa-search-minus"></i> 축소
-                </button>
-                <button
-                  className="btn btn-outline-info"
-                  onClick={() => testDualAxisChart.scrollLeft()}
-                  title="왼쪽으로"
-                >
-                  <i className="fas fa-arrow-left"></i> 왼쪽
-                </button>
-                <button
-                  className="btn btn-outline-info"
-                  onClick={() => testDualAxisChart.scrollRight()}
-                  title="오른쪽으로"
-                >
-                  <i className="fas fa-arrow-right"></i> 오른쪽
-                </button>
-                <button
-                  className="btn btn-outline-warning"
-                  onClick={() => testDualAxisChart.resetView()}
-                  title="전체 보기"
-                >
-                  <i className="fas fa-expand-arrows-alt"></i> 전체보기
-                </button>
+              <h6 className="mb-2">
+                <i className="fas fa-list me-2"></i>음절별 분석 결과
+              </h6>
+              <div className="row g-2">
+                {syllablePoints.map((point, index) => (
+                  <div key={index} className="col-auto">
+                    <button
+                      className={`btn btn-sm ${
+                        currentPlayingSyllable === index 
+                          ? 'btn-primary' 
+                          : 'btn-outline-primary'
+                      }`}
+                      onClick={() => handleSyllableClick(index)}
+                      title={`${point.syllable}: ${point.frequency.toFixed(1)}Hz`}
+                    >
+                      <strong>{point.syllable}</strong>
+                      <br />
+                      <small>{point.frequency.toFixed(1)}Hz</small>
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="col-md-4 text-end">
               <small className="text-muted">
                 <i className="fas fa-mouse-pointer me-1"></i>
-                차트를 클릭/드래그하여 상호작용 가능
+                음절을 클릭하여 해당 구간 재생
+              </small>
+              <br />
+              <small className="text-muted">
+                <i className="fas fa-chart-line me-1"></i>
+                차트의 점을 클릭해도 재생됩니다
               </small>
             </div>
           </div>
