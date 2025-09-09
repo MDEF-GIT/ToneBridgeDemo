@@ -318,43 +318,93 @@ const UploadedFileTestSection: React.FC = () => {
         </div>
       )}
 
-      {/* 음절 정보 및 컨트롤 */}
+      {/* 음절별 분석 결과 표 */}
       {selectedFileId && syllablePoints.length > 0 && (
         <div className="mt-3">
-          <div className="row">
-            <div className="col-md-8">
-              <h6 className="mb-2">
-                <i className="fas fa-list me-2"></i>음절별 분석 결과
-              </h6>
-              <div className="row g-2">
-                {syllablePoints.map((point, index) => (
-                  <div key={index} className="col-auto">
-                    <button
-                      className={`btn btn-sm ${
-                        currentPlayingSyllable === index 
-                          ? 'btn-primary' 
-                          : 'btn-outline-primary'
-                      }`}
+          <h6 className="mb-3">
+            <i className="fas fa-table me-2"></i>분절별 음성 파라메터 분석
+          </h6>
+          <div className="table-responsive">
+            <table className="table table-sm table-bordered table-hover">
+              <thead className="table-light">
+                <tr>
+                  <th style={{width: '8%'}} className="text-center">음절</th>
+                  <th style={{width: '15%'}} className="text-center">주파수 (Hz)</th>
+                  <th style={{width: '15%'}} className="text-center">
+                    {testDualAxisChart.yAxisUnit === 'semitone' ? '세미톤 (st)' : '큐톤 (Q)'}
+                  </th>
+                  <th style={{width: '20%'}} className="text-center">시간 구간 (초)</th>
+                  <th style={{width: '12%'}} className="text-center">지속 시간</th>
+                  <th style={{width: '30%'}} className="text-center">분석 결과</th>
+                </tr>
+              </thead>
+              <tbody>
+                {syllablePoints.map((point, index) => {
+                  const duration = point.end - point.start;
+                  const convertedValue = testDualAxisChart.yAxisUnit === 'semitone' 
+                    ? 12 * Math.log2(point.frequency / 440) + 69 // A4 = 440Hz = 69 semitones
+                    : Math.log2(point.frequency / 440) * 1200; // cents
+                  
+                  const getFrequencyLevel = (freq: number) => {
+                    if (freq < 100) return { level: '낮음', color: 'text-info' };
+                    if (freq < 200) return { level: '중간', color: 'text-success' };
+                    return { level: '높음', color: 'text-warning' };
+                  };
+                  
+                  const freqLevel = getFrequencyLevel(point.frequency);
+                  
+                  return (
+                    <tr 
+                      key={index}
+                      className={currentPlayingSyllable === index ? 'table-primary' : ''}
+                      style={{ cursor: 'pointer' }}
                       onClick={() => handleSyllableClick(index)}
-                      title={`${point.syllable}: ${point.frequency.toFixed(1)}Hz`}
+                      title="클릭하여 해당 구간 재생"
                     >
-                      <strong>{point.syllable}</strong>
-                      <br />
-                      <small>{point.frequency.toFixed(1)}Hz</small>
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <td className="text-center fw-bold">{point.syllable}</td>
+                      <td className="text-center">
+                        <span className={freqLevel.color}>
+                          {point.frequency.toFixed(1)}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        {convertedValue.toFixed(1)}
+                      </td>
+                      <td className="text-center">
+                        <small>
+                          {point.start.toFixed(2)}s - {point.end.toFixed(2)}s
+                        </small>
+                      </td>
+                      <td className="text-center">
+                        <small>{duration.toFixed(2)}s</small>
+                      </td>
+                      <td className="text-center">
+                        <small>
+                          <span className={`badge ${freqLevel.color.replace('text-', 'bg-')}`}>
+                            {freqLevel.level} 주파수
+                          </span>
+                          <br />
+                          <span className="text-muted">
+                            {duration < 0.2 ? '빠름' : duration > 0.5 ? '느림' : '보통'}
+                          </span>
+                        </small>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="row mt-2">
+            <div className="col-md-8">
+              <small className="text-muted">
+                <i className="fas fa-info-circle me-1"></i>
+                표의 행을 클릭하면 해당 음절 구간을 재생할 수 있습니다.
+              </small>
             </div>
             <div className="col-md-4 text-end">
               <small className="text-muted">
-                <i className="fas fa-mouse-pointer me-1"></i>
-                음절을 클릭하여 해당 구간 재생
-              </small>
-              <br />
-              <small className="text-muted">
-                <i className="fas fa-chart-line me-1"></i>
-                차트의 점을 클릭해도 재생됩니다
+                총 {syllablePoints.length}개 음절 분석 완료
               </small>
             </div>
           </div>
