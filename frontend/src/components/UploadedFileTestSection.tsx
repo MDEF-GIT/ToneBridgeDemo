@@ -78,7 +78,11 @@ const UploadedFileTestSection: React.FC = () => {
       setSelectedFileId('');
       setSyllablePoints([]);
       setCurrentPlayingSyllable(-1);
-      testDualAxisChart.clearChart();
+      try {
+        testDualAxisChart.clearChart();
+      } catch (err) {
+        console.warn('⚠️ 차트 클리어 실패 (빈 선택):', err);
+      }
       return;
     }
 
@@ -86,6 +90,11 @@ const UploadedFileTestSection: React.FC = () => {
       setLoading(true);
       setSelectedFileId(fileId);
       setError('');
+      
+      // 🛡️ 차트 상태 검증
+      if (!testDualAxisChart) {
+        throw new Error('차트가 초기화되지 않았습니다');
+      }
 
       console.log(`🎯 업로드 파일 분석 시작: ${fileId}`);
 
@@ -108,31 +117,59 @@ const UploadedFileTestSection: React.FC = () => {
 
       // 🎯 이제 최적화된 데이터로 분석 진행
       // 1. 전체 피치 데이터 로드
+      console.log(`🔍 피치 데이터 요청: ${fileId}`);
       const pitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch`);
-      if (!pitchResponse.ok) throw new Error('피치 데이터 조회 실패');
+      if (!pitchResponse.ok) throw new Error(`피치 데이터 조회 실패: ${pitchResponse.status}`);
       const pitchData = await pitchResponse.json();
+      
+      // 🛡️ 피치 데이터 검증
+      if (!Array.isArray(pitchData)) {
+        throw new Error('피치 데이터가 배열이 아닙니다');
+      }
+      console.log(`✅ 피치 데이터 로드: ${pitchData.length}개 포인트`);
 
       // 2. 음절별 대표 피치 로드 (음절 정보 포함)
+      console.log(`🔍 음절 피치 데이터 요청: ${fileId}`);
       const syllablePitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch?syllable_only=true`);
-      if (!syllablePitchResponse.ok) throw new Error('음절 피치 데이터 조회 실패');
+      if (!syllablePitchResponse.ok) throw new Error(`음절 피치 데이터 조회 실패: ${syllablePitchResponse.status}`);
       const syllablePitch = await syllablePitchResponse.json();
+      
+      // 🛡️ 음절 피치 데이터 검증
+      if (!Array.isArray(syllablePitch)) {
+        throw new Error('음절 피치 데이터가 배열이 아닙니다');
+      }
+      console.log(`✅ 음절 피치 데이터 로드: ${syllablePitch.length}개 음절`);
 
       // 3. 음절 구간 정보 로드
+      console.log(`🔍 음절 구간 데이터 요청: ${fileId}`);
       const syllablesResponse = await fetch(`/api/uploaded_files/${fileId}/syllables`);
       let syllables = [];
       if (syllablesResponse.ok) {
         syllables = await syllablesResponse.json();
+        console.log(`✅ 음절 구간 데이터 로드: ${syllables.length}개`);
+      } else {
+        console.warn('⚠️ 음절 구간 데이터 로드 실패, 빈 배열로 진행');
       }
 
       // 4. 음절 포인트 데이터 구성
-      const points: SyllablePoint[] = syllablePitch.map((sp: any, index: number) => ({
-        syllable: sp.syllable,
-        start: sp.start,
-        end: sp.end,
-        frequency: sp.frequency,
-        time: (sp.start + sp.end) / 2 // 음절의 중간 시점
-      }));
+      console.log(`🔄 음절 포인트 데이터 구성 시작`);
+      const points: SyllablePoint[] = syllablePitch.map((sp: any, index: number) => {
+        // 🛡️ 각 속성 검증
+        if (typeof sp.start !== 'number' || typeof sp.end !== 'number' || typeof sp.frequency !== 'number') {
+          console.warn(`⚠️ 잘못된 음절 데이터 [${index}]:`, sp);
+          return null;
+        }
+        
+        return {
+          syllable: sp.syllable || `음절${index + 1}`,
+          start: sp.start,
+          end: sp.end,
+          frequency: sp.frequency,
+          time: (sp.start + sp.end) / 2 // 음절의 중간 시점
+        };
+      }).filter(point => point !== null) as SyllablePoint[];
 
+      console.log(`✅ 음절 포인트 데이터 구성 완료: ${points.length}개`);
       setSyllablePoints(points);
 
       // 5. 차트 클리어 후 데이터 추가
