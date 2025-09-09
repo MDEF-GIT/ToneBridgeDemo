@@ -136,25 +136,52 @@ const UploadedFileTestSection: React.FC = () => {
       setSyllablePoints(points);
 
       // 5. 차트 클리어 후 데이터 추가
-      testDualAxisChart.clearChart();
+      try {
+        console.log('🎯 차트 클리어 시작');
+        testDualAxisChart.clearChart();
+        console.log('✅ 차트 클리어 완료');
+      } catch (clearError) {
+        console.error('❌ 차트 클리어 오류:', clearError);
+        throw new Error(`차트 클리어 실패: ${clearError}`);
+      }
       
       // 6. 전체 피치 데이터를 듀얼축 차트에 추가
-      pitchData.forEach((point: any) => {
-        testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
-      });
+      try {
+        console.log(`🎯 피치 데이터 추가 시작: ${pitchData.length}개 포인트`);
+        pitchData.forEach((point: any, index: number) => {
+          if (point && typeof point.frequency === 'number' && typeof point.time === 'number') {
+            testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
+          } else {
+            console.warn(`⚠️ 잘못된 피치 데이터 [${index}]:`, point);
+          }
+        });
+        console.log('✅ 피치 데이터 추가 완료');
+      } catch (pitchError) {
+        console.error('❌ 피치 데이터 추가 오류:', pitchError);
+        throw new Error(`피치 데이터 추가 실패: ${pitchError}`);
+      }
 
       // 7. 음절 annotation 추가
-      if (points.length > 0) {
-        const annotationData = points.map((point) => ({
-          label: point.syllable,
-          start: point.start,
-          end: point.end,
-          frequency: point.frequency,
-          time: point.time
-        }));
-        
-        console.log(`🎯 업로드 파일 음절 annotation 추가: ${annotationData.length}개`);
-        testDualAxisChart.addSyllableAnnotations(annotationData);
+      try {
+        if (points.length > 0) {
+          const annotationData = points.map((point) => ({
+            label: point.syllable,
+            start: point.start,
+            end: point.end,
+            frequency: point.frequency,
+            time: point.time
+          }));
+          
+          console.log(`🎯 업로드 파일 음절 annotation 추가: ${annotationData.length}개`);
+          testDualAxisChart.addSyllableAnnotations(annotationData);
+          console.log('✅ 음절 annotation 추가 완료');
+        } else {
+          console.log('⚠️ 음절 데이터가 없어서 annotation 추가 생략');
+        }
+      } catch (annotationError) {
+        console.error('❌ 음절 annotation 추가 오류:', annotationError);
+        // annotation 오류는 치명적이지 않으므로 계속 진행
+        console.warn('⚠️ annotation 추가 실패했지만 차트는 표시됩니다');
       }
 
       console.log(`✅ 업로드 파일 분석 완료: ${pitchData.length}개 피치 포인트, ${points.length}개 음절`);
