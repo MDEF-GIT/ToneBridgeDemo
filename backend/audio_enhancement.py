@@ -51,12 +51,12 @@ class STTProcessor:
                 print(f"🎤 고급 STT 결과 ({result.engine}): {korean_text}")
                 return korean_text
             except Exception as e:
-                print(f"❌ 고급 STT 오류, fallback 사용: {e}")
-                return self._fallback_transcription(audio_file)
+                print(f"❌ 고급 STT 오류: {e}")
+                raise Exception(f"고급 STT 처리 실패: {e} - 기본 전사는 사용하지 않음")
         
         # 기본 STT 사용
         if not self.whisper_available:
-            return self._fallback_transcription(audio_file)
+            raise Exception("Whisper 사용 불가 - 기본 전사는 사용하지 않음")
         
         try:
             import whisper
@@ -72,7 +72,7 @@ class STTProcessor:
             
         except Exception as e:
             print(f"❌ STT 오류: {e}")
-            return self._fallback_transcription(audio_file)
+            raise Exception(f"STT 처리 실패: {e} - 기본 전사는 사용하지 않음")
     
     def _filter_korean_text(self, text: str) -> str:
         """한국어 텍스트만 필터링"""
@@ -83,18 +83,6 @@ class STTProcessor:
         """한국어 문자인지 확인"""
         return 0xAC00 <= ord(char) <= 0xD7A3 if len(char) == 1 else False
     
-    def _fallback_transcription(self, audio_file: str) -> str:
-        """STT 실패 시 파일명 기반 추정"""
-        filename = Path(audio_file).stem
-        
-        # 파일명에서 한국어 추출
-        korean_chars = self._filter_korean_text(filename)
-        
-        if korean_chars:
-            print(f"📁 파일명 기반 추정: {korean_chars}")
-            return korean_chars
-        
-        return ""
 
 
 class AudioSegmenter:
