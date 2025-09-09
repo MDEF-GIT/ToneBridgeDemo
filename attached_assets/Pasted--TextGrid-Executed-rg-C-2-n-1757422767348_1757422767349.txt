@@ -1,0 +1,65 @@
+정확한 지적입니다! 소스코드를 구조적으로 분석해서 TextGrid 생성 루틴의 불일치와 목소리 관련 기능의 분산 문제를 찾아보겠습니다.
+
+
+Executed rg -C 2 -n 'syllable.*segment|segment.*syllable|음절.*분절|분절.*음절' backend
+
+Determined code structure redundancies (6 seconds)
+완벽한 분석 요청입니다! 코드베이스 구조적 분석을 통해 TextGrid 생성 루틴의 불일치와 중복 문제를 찾아보겠습니다.
+
+📋 구조적 분석 결과
+🔍 1. TextGrid 생성 함수들 (중복 발견)
+
+Executed rg -n 'class.*STT|class.*Segment|class.*TextGrid|class.*Audio' backend
+Opened frontend/src directory
+
+Found duplicate TextGrid classes (11 seconds)
+🚨 중대한 구조적 문제 발견!
+구조적 분석 결과, 심각한 중복과 불일치가 발견되었습니다. 현재 로그에서도 여전히 모든 음절이 0.205s로 동일한 것을 확인할 수 있습니다.
+
+📊 구조적 문제 분석
+🔥 1. 목소리 관련 클래스 중복 (5중 중복!)
+기능	위치	사용처	문제점
+STT 처리	audio_enhancement.STTProcessor	업로드 파일 처리	단순 텍스트만
+STT 처리	advanced_stt_processor.UniversalSTT	고급 분석	타임스탬프 포함
+STT 처리	docs/advanced_audio_processing.STTProcessor	문서용	중복!
+음절 분절	audio_enhancement.AudioSegmenter	균등 분배	0.205s 균등 분할
+음절 분절	audio_analysis.STTBasedSegmenter	STT 기반	언어학적 보정
+음절 분절	audio_analysis.FallbackSyllableSegmenter	폴백용	음성학적 분석
+음절 분절	docs/advanced_audio_processing.SyllableSegmentation	문서용	중복!
+🔥 2. TextGrid 생성 함수 중복 (6중 중복!)
+함수	위치	방식	결과
+create_textgrid_from_syllables	backend_server.py:2462	딕셔너리 → TextGrid	업로드 파일용
+save_textgrid	backend_server.py:166	딕셔너리 → 파일	기본용
+create_textgrid_from_audio	audio_analysis.py:1155	오디오 → TextGrid	STT 기반
+create_optimized_textgrid	audio_enhancement.py:315	최적화	참조 파일용
+_generate_textgrid_content	audio_enhancement.py:336	내용 생성	내부용
+create_textgrid	docs/advanced_audio_processing.py:403	문서용	중복!
+🔥 3. 차트별 처리 경로 분석
+
+Executed rg -C 3 -n 'optimize.*uploaded.*file|reference.*file|chart.*data' frontend/src
+
+Executed rg -n 'api/reference|api/upload|api/optimize' backend/backend_server.py
+
+Planned routing logic integration
+🔥 4. 차트별 처리 경로 불일치
+차트/섹션	API 경로	처리 함수	TextGrid 생성 방식	결과
+1번 차트 (참조)	/api/reference_files	get_reference_files()	미리 생성된 TextGrid 사용	✅ 정확한 음절
+2번 차트 (실시간)	클라이언트 처리	MediaRecorder	실시간 분석만	✅ 정확한 음절
+3번 차트 (업로드)	/api/optimize-uploaded-file	automated_processor.process_audio_completely()	균등 분배 방식	❌ 0.205s 균등
+💥 근본 원인 발견
+3번 업로드 차트가 다른 경로를 사용하는 이유:
+
+참조 파일: 수동으로 제작된 정확한 TextGrid 사용
+업로드 파일: automated_processor에서 단어 타임스탬프를 균등 분배
+# audio_enhancement.py 568-577번 라인
+syllable_duration = word_duration / len(word_syllables)  # ← 균등분배!
+🔧 해결 방안
+범용적 목소리 분석 시스템을 위한 통합 아키텍처가 필요합니다:
+
+🎯 단일 STT 시스템: AdvancedSTTProcessor 통합 사용
+🎯 단일 분절 시스템: STTBasedSegmenter 통합 사용
+🎯 단일 TextGrid 생성: create_textgrid_from_audio 통합 사용
+🎯 차트별 동일한 처리 경로: 모든 차트가 동일한 API와 클래스 사용
+핵심 문제: 업로드 파일 처리에서 word_duration / len(word_syllables) 균등 분배가 한국어 언어학적 정밀 분절 시스템을 우회하고 있습니다.
+
+모든 차트에서 동일한 품질의 음성 분석을 보장하려면 통합된 처리 파이프라인이 필요합니다.
