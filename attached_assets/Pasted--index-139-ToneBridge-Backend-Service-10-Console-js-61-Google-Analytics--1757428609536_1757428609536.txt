@@ -1,0 +1,59 @@
+(index):139 ✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🔍 Google Analytics 초기화 완료 - ID: G-56D78RCESE
+Console.js:61 📊 GA 페이지뷰 이벤트 전송: 음성 분석 - ToneBridge
+Console.js:61 🎯🎯🎯 렌더링 조건 확인: selectedFileId=, syllablePoints.length=0 🎯🎯🎯
+Console.js:61 🔍 syllablePoints 상태: Array(0)
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🚀🚀🚀 업로드 파일 테스트 컴포넌트 마운트됨 🚀🚀🚀
+Console.js:61 📊 업로드 파일 테스트: 듀얼축 차트 초기화
+Console.js:61 🎯 useEffect 트리거됨 - yAxisUnit: hz, 차트존재: false, 데이터개수: 0
+Console.js:61 ⚠️ 차트가 아직 초기화되지 않았습니다.
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 [STEP 3] Hook 상태 변화 감지: Object
+Console.js:61 🎯 ToneBridge Voice Analysis App initialized
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯🎯🎯 렌더링 조건 확인: selectedFileId=, syllablePoints.length=0 🎯🎯🎯
+Console.js:61 🔍 syllablePoints 상태: Array(0)
+Console.js:61 🚀🚀🚀 업로드 파일 테스트 컴포넌트 마운트됨 🚀🚀🚀
+Console.js:61 📊 업로드 파일 테스트: 듀얼축 차트 초기화
+Console.js:61 🎯 useEffect 트리거됨 - yAxisUnit: semitone, 차트존재: true, 데이터개수: 0
+Console.js:61 🔄 Y축 단위 변경됨: semitone, 기존 데이터 0개 재변환 중...
+Console.js:61 🔄 Y축 라벨 변경: "Semitone (세미톤)" → "Semitone (세미톤)"
+Console.js:61 🔄 Y축 범위 변경: -10 ~ 15 (semitone)
+Console.js:61 🔄 툴팁 단위 변경: Semitone
+Console.js:61 ✅ 차트 데이터 재변환 완료: semitone 단위, Y축 라벨: Semitone (세미톤)
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🎯 Chart.js annotation 플러그인이 이미 등록되어 있습니다
+Console.js:61 📁 업로드 파일 15개 로드됨
+Console.js:61 🎯🎯🎯 렌더링 조건 확인: selectedFileId=, syllablePoints.length=0 🎯🎯🎯
+Console.js:61 🔍 syllablePoints 상태: Array(0)
+Console.js:61 🚀🚀🚀 업로드 파일 테스트 컴포넌트 마운트됨 🚀🚀🚀
+Console.js:61 📊 업로드 파일 테스트: 듀얼축 차트 초기화
+Console.js:61 🎯 API 응답 데이터: Object
+Console.js:61 ✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🎯🎯🎯 렌더링 조건 확인: selectedFileId=, syllablePoints.length=0 🎯🎯🎯
+Console.js:61 🔍 syllablePoints 상태: Array(0)
+Console.js:61 🚀🚀🚀 업로드 파일 테스트 컴포넌트 마운트됨 🚀🚀🚀
+Console.js:61 📊 업로드 파일 테스트: 듀얼축 차트 초기화
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 🔥🔥🔥 handleFileSelect 호출됨 🔥🔥🔥 ㄴㅇㄹㄹㄴㅇㄹ_female_20대_안녕하세요_20250909_132734
+Console.js:61 🚀 파일 선택 처리 시작: ㄴㅇㄹㄹㄴㅇㄹ_female_20대_안녕하세요_20250909_132734
+Console.js:61 🎯🎯🎯 업로드 파일 분석 시작: ㄴㅇㄹㄹㄴㅇㄹ_female_20대_안녕하세요_20250909_132734 🎯🎯🎯
+Console.js:61 🚀 파일 최적화 시작: ㄴㅇㄹㄹㄴㅇㄹ_female_20대_안녕하세요_20250909_132734
+Console.js:61 🎯🎯🎯 렌더링 조건 확인: selectedFileId=ㄴㅇㄹㄹㄴㅇㄹ_female_20대_안녕하세요_20250909_132734, syllablePoints.length=0 🎯🎯🎯
+Console.js:61 🔍 syllablePoints 상태: Array(0)
+Console.js:61 🚀🚀🚀 업로드 파일 테스트 컴포넌트 마운트됨 🚀🚀🚀
+Console.js:61 📊 업로드 파일 테스트: 듀얼축 차트 초기화
+optimize-uploaded-file:1  Failed to load resource: the server responded with a status of 504 (Gateway Timeout)
+Console.js:61 ⚠️ 최적화 실패, 기존 데이터로 진행
+Mt.forEach.n.<computed> @ Console.js:61
+(anonymous) @ UploadedFileTestSection.tsx:117
+Console.js:61 🔍 피치 데이터 요청: ㄴㅇㄹㄹㄴㅇㄹ_female_20대_안녕하세요_20250909_132734
