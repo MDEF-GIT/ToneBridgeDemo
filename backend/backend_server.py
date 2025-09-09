@@ -2490,9 +2490,23 @@ async def auto_process_audio(
                 
                 filename = "_".join(filename_parts) if filename_parts else f"recording_{timestamp}"
                 
-                # WAV 파일 저장
+                # 🎵 무음 제거 + 볼륨 정규화된 WAV 파일 생성 및 저장
+                print(f"🎵 무음 제거 + 볼륨 정규화 시작: {filename}")
+                trimmed_path = advanced_stt_processor.create_trimmed_audio(
+                    tmp_path, 
+                    str(UPLOAD_DIR / f"{filename}_trimmed.wav")
+                )
+                
+                # 최적화된 파일을 최종 저장 (사용자가 재생할 파일)
                 wav_path = UPLOAD_DIR / f"{filename}.wav"
-                shutil.copy2(tmp_path, wav_path)
+                shutil.copy2(trimmed_path, wav_path)
+                
+                # 원본도 백업으로 저장
+                original_wav_path = UPLOAD_DIR / f"{filename}_original.wav"
+                shutil.copy2(tmp_path, original_wav_path)
+                
+                print(f"💾 최적화된 WAV 저장: {wav_path}")
+                print(f"💾 원본 WAV 백업: {original_wav_path}")
                 
                 # TextGrid 파일 저장  
                 textgrid_path = UPLOAD_DIR / f"{filename}.TextGrid"
@@ -2500,11 +2514,13 @@ async def auto_process_audio(
                 
                 response_data.update({
                     "saved_files": {
-                        "wav": str(wav_path),
+                        "wav": str(wav_path),  # 최적화된 파일 (재생용)
+                        "wav_original": str(original_wav_path),  # 원본 파일 (백업용)
                         "textgrid": str(textgrid_path)
                     },
                     "filename": filename,
-                    "message": f"✅ 자동 처리 및 영구 저장 완료 - {len(result['syllables'])}개 음절 분절"
+                    "optimization_applied": True,
+                    "message": f"✅ 무음 제거 + 볼륨 정규화 완료 - {len(result['syllables'])}개 음절 분절"
                 })
                 
                 print(f"💾 영구 저장 완료: {filename}.wav + {filename}.TextGrid")
