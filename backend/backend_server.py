@@ -102,19 +102,12 @@ except Exception as e:
     print(f"❌ 고급 STT 초기화 실패: {e}")
     global_ai_instances['advanced_stt'] = None
 
-# Ultimate STT 시스템 초기화
+# Ultimate STT 시스템 (지연 로딩 - 첫 사용 시에만 초기화)
 if ULTIMATE_STT_AVAILABLE:
-    try:
-        print("🎯 Ultimate STT 시스템 초기화 중...")
-        global_ai_instances['ultimate_stt'] = UltimateSTTSystem(
-            target_accuracy=0.99,
-            max_reprocessing_attempts=2,  # 빠른 처리를 위해 2회로 제한
-            quality_threshold=0.95
-        )
-        print("✅ Ultimate STT 시스템 초기화 완료")
-    except Exception as e:
-        print(f"❌ Ultimate STT 초기화 실패: {e}")
-        global_ai_instances['ultimate_stt'] = None
+    global_ai_instances['ultimate_stt'] = None  # 지연 로딩
+    print("⚡ Ultimate STT 시스템: 지연 로딩 설정 (첫 사용 시 자동 초기화)")
+else:
+    global_ai_instances['ultimate_stt'] = None
 
 # Korean Audio Optimizer 초기화
 if KOREAN_OPTIMIZER_AVAILABLE:
@@ -2490,11 +2483,32 @@ async def optimize_uploaded_file(file_id: str = Form(...), use_ultimate_stt: boo
                 reference_sentence = parts[3]
             
             # 🚀 Ultimate STT 시스템 사용 (99% 정확도)
-            if use_ultimate_stt and global_ai_instances.get('ultimate_stt'):
+            if use_ultimate_stt:
                 print("🎯 Ultimate STT 시스템 사용 - 99% 정확도 목표")
                 
-                ultimate_stt = global_ai_instances['ultimate_stt']
-                ultimate_result = await ultimate_stt.process_audio_ultimate(
+                # 지연 로딩: 필요할 때만 초기화
+                if global_ai_instances.get('ultimate_stt') is None:
+                    print("⚡ Ultimate STT 첫 사용: 초기화 중... (1분 정도 소요)")
+                    try:
+                        global_ai_instances['ultimate_stt'] = UltimateSTTSystem(
+                            target_accuracy=0.99,
+                            max_reprocessing_attempts=2,
+                            quality_threshold=0.95
+                        )
+                        print("✅ Ultimate STT 시스템 초기화 완료!")
+                    except Exception as e:
+                        print(f"❌ Ultimate STT 초기화 실패: {e}")
+                        # 백업 시스템으로 전환
+                        print("🔄 기존 시스템으로 백업 처리")
+                        from tonebridge_core.pipeline.voice_processor import UnifiedVoiceProcessor
+                        advanced_stt = global_ai_instances.get('advanced_stt')
+                        unified_processor = UnifiedVoiceProcessor(shared_stt_processor=advanced_stt)
+                        process_result = unified_processor.process_uploaded_file(str(wav_path), reference_sentence)
+                        result = process_result.to_legacy_dict()
+                
+                ultimate_stt = global_ai_instances.get('ultimate_stt')
+                if ultimate_stt:
+                    ultimate_result = await ultimate_stt.process_audio_ultimate(
                     str(wav_path), 
                     reference_sentence,
                     enable_reprocessing=True
@@ -2687,9 +2701,23 @@ async def test_ultimate_stt_on_uploaded_file(file_id: str = Form(...), expected_
             
             print(f"🎯 기대 텍스트: '{expected_text}'")
             
-            # Ultimate STT 시스템 테스트
-            if global_ai_instances.get('ultimate_stt'):
-                ultimate_stt = global_ai_instances['ultimate_stt']
+            # Ultimate STT 시스템 테스트 (지연 로딩)
+            # 지연 로딩: 필요할 때만 초기화
+            if global_ai_instances.get('ultimate_stt') is None:
+                print("⚡ Ultimate STT 첫 사용: 초기화 중... (1분 정도 소요)")
+                try:
+                    global_ai_instances['ultimate_stt'] = UltimateSTTSystem(
+                        target_accuracy=0.99,
+                        max_reprocessing_attempts=2,
+                        quality_threshold=0.95
+                    )
+                    print("✅ Ultimate STT 시스템 초기화 완료!")
+                except Exception as e:
+                    print(f"❌ Ultimate STT 초기화 실패: {e}")
+                    raise HTTPException(status_code=503, detail=f"Ultimate STT 시스템 초기화 실패: {e}")
+            
+            ultimate_stt = global_ai_instances.get('ultimate_stt')
+            if ultimate_stt:
                 
                 # 테스트 시작 시간
                 import time
