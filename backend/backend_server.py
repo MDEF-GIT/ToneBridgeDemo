@@ -37,7 +37,7 @@ except ImportError as e:
 from audio_enhancement import AutomatedProcessor
 from advanced_stt_processor import AdvancedSTTProcessor
 from audio_analysis import (
-    PreciseSyllableSegmenter, 
+    STTBasedSegmenter, 
     split_korean_sentence,
     analyze_audio_file,
     create_textgrid_from_audio,
@@ -140,9 +140,9 @@ def auto_segment_syllables(sound: pm.Sound, sentence: str) -> List[dict]:
         print(f"🎯 음성 길이: {duration:.3f}초")
         print(f"🎯 목표: {len(syllables_text)}개 음절 - {syllables_text}")
         
-        # Step 4: 음성학적 특징 기반 정밀 분절 (새 모듈 사용)
-        segmenter = PreciseSyllableSegmenter()
-        segment_results = segmenter.segment(sound, syllables_text)
+        # Step 4: STT 기반 정밀 분절 (새 모듈 사용)
+        stt_segmenter = STTBasedSegmenter()
+        segment_results = stt_segmenter.segment_from_audio_file(temp_path, sentence)
         
         # 기존 형식으로 변환
         syllables = []

@@ -17,6 +17,14 @@ from dataclasses import dataclass
 import tempfile
 import os
 
+# STT 기반 정확한 분절을 위한 모듈
+try:
+    from advanced_stt_processor import AdvancedSTTProcessor
+    STT_AVAILABLE = True
+except ImportError:
+    STT_AVAILABLE = False
+    print("⚠️ STT 모듈 미설치 - 폴백 분절 사용")
+
 @dataclass
 class SyllableSegment:
     """음절 구간 정보"""
@@ -325,7 +333,85 @@ class SyllableBoundaryDetector:
             result.append(start + (end - start) * i / target_count)
         return result
 
-class PreciseSyllableSegmenter:
+class STTBasedSegmenter:
+    """
+    STT 엔진 기반 정확한 음절 분절 클래스
+    
+    사용법:
+        segmenter = STTBasedSegmenter()
+        segments = segmenter.segment_from_audio_file("audio.wav", "반가워요")
+    """
+    
+    def __init__(self):
+        if STT_AVAILABLE:
+            try:
+                self.stt_processor = AdvancedSTTProcessor()
+                print("🎯 STT 기반 정밀 분절 활성화")
+            except Exception as e:
+                print(f"❌ STT 프로세서 초기화 실패: {e}")
+                self.stt_processor = None
+        else:
+            self.stt_processor = None
+        
+        # 폴백을 위한 기존 분절기
+        self.fallback_segmenter = FallbackSyllableSegmenter()
+    
+    def segment_from_audio_file(self, audio_file: str, sentence: str) -> List[SyllableSegment]:
+        """
+        오디오 파일에서 STT 기반 정확한 음절 분절
+        
+        Args:
+            audio_file: 오디오 파일 경로
+            sentence: 예상 문장 (예: "반가워요")
+            
+        Returns:
+            List[SyllableSegment]: 정확한 타임스탬프가 포함된 음절 분절
+        """
+        if not self.stt_processor:
+            print("⚠️ STT 비활성 - 폴백 분절 사용")
+            sound = pm.Sound(audio_file)
+            syllables_text = list(sentence.replace(' ', ''))
+            return self.fallback_segmenter.segment(sound, syllables_text)
+        
+        try:
+            print(f"🎤 STT 기반 정밀 분절 시작: {sentence}")
+            
+            # 1. STT로 음성 전사 (타임스탬프 포함)
+            transcription_result = self.stt_processor.stt_processor.transcribe(
+                audio_file, language='ko', return_timestamps=True
+            )
+            
+            print(f"🎯 STT 결과: '{transcription_result.text}'")
+            print(f"🎯 단어 타임스탬프: {len(transcription_result.words)}개")
+            
+            # 2. 음절 정렬 (STT 타임스탬프 활용)
+            syllable_alignments = self.stt_processor.aligner.align_syllables_with_timestamps(
+                transcription_result, audio_file
+            )
+            
+            # 3. SyllableSegment 형식으로 변환
+            segments = []
+            for alignment in syllable_alignments:
+                segments.append(SyllableSegment(
+                    label=alignment.syllable,
+                    start=alignment.start_time,
+                    end=alignment.end_time,
+                    duration=alignment.end_time - alignment.start_time,
+                    confidence=alignment.confidence
+                ))
+                
+                print(f"   🎯 '{alignment.syllable}': {alignment.start_time:.3f}s ~ {alignment.end_time:.3f}s (신뢰도: {alignment.confidence:.2f})")
+            
+            print(f"✅ STT 기반 분절 완료: {len(segments)}개 음절")
+            return segments
+            
+        except Exception as e:
+            print(f"❌ STT 분절 실패, 폴백 사용: {e}")
+            sound = pm.Sound(audio_file)
+            syllables_text = list(sentence.replace(' ', ''))
+            return self.fallback_segmenter.segment(sound, syllables_text)
+
+class FallbackSyllableSegmenter:
     """
     정밀 음절 분절 메인 클래스
     
