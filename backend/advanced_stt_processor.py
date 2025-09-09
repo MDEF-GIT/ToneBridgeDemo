@@ -534,9 +534,11 @@ class KoreanSyllableAligner:
         # 🎯 실제 음성 시작점 감지 (Voice Activity Detection)
         actual_start = self._detect_voice_start_time(words, audio_file)
         if actual_start > 0:
-            print(f"🎤 실제 음성 시작점 감지: {actual_start:.3f}s (무음 구간 제거)")
-            # 모든 word 타임스탬프를 실제 시작점만큼 보정
-            words = self._adjust_word_timestamps(words, actual_start)
+            print(f"🎤 실제 음성 시작점 감지: {actual_start:.3f}s (원본 타임스탬프 유지)")
+            # 무음 구간은 감지하지만 타임스탬프는 원본 유지 (동기화를 위해)
+            print(f"📋 원본 오디오와 동기화를 위해 타임스탬프 보정 안함")
+        else:
+            print(f"🎤 무음 구간 없음, 원본 타임스탬프 사용")
         
         alignments = []
         syllable_idx = 0
@@ -718,6 +720,76 @@ class KoreanSyllableAligner:
                 adjusted_words.append(adjusted_word)
         
         return adjusted_words
+    
+    def create_trimmed_audio(self, audio_file: str, output_file: str = None) -> str:
+        """무음 구간 제거한 WAV 파일 생성"""
+        import parselmouth as pm
+        import os
+        
+        try:
+            # 출력 파일명 결정
+            if not output_file:
+                name, ext = os.path.splitext(audio_file)
+                output_file = f"{name}_trimmed{ext}"
+            
+            print(f"🎵 무음 구간 제거 시작: {audio_file}")
+            
+            # STT로 무음 구간 감지
+            result = self.transcribe_audio(audio_file, language='ko', return_timestamps=True)
+            
+            if not result.words:
+                print(f"⚠️ STT words 없음, 원본 파일 복사")
+                import shutil
+                shutil.copy2(audio_file, output_file)
+                return output_file
+            
+            # 무음 구간 감지
+            voice_start = self._detect_voice_start_time(result.words, audio_file)
+            
+            # 마지막 단어 끝 시간 찾기
+            last_word = result.words[-1]
+            if hasattr(last_word, 'end'):
+                voice_end = last_word.end
+            elif isinstance(last_word, dict):
+                voice_end = last_word.get('end', 0)
+            else:
+                voice_end = 0
+            
+            print(f"🎤 음성 구간: {voice_start:.3f}s ~ {voice_end:.3f}s")
+            
+            # 오디오 로드 및 자르기
+            sound = pm.Sound(audio_file)
+            total_duration = sound.get_total_duration()
+            
+            # 실제 음성 구간만 추출 (50ms 여유 추가)
+            trim_start = max(0, voice_start - 0.05)
+            trim_end = min(total_duration, voice_end + 0.05)
+            
+            print(f"✂️ 자르기 구간: {trim_start:.3f}s ~ {trim_end:.3f}s")
+            
+            # 음성 구간 추출
+            trimmed_sound = sound.extract_part(trim_start, trim_end)
+            
+            # 저장
+            trimmed_sound.save(output_file, "WAV")
+            
+            trimmed_duration = trimmed_sound.get_total_duration()
+            original_duration = sound.get_total_duration()
+            removed_duration = original_duration - trimmed_duration
+            
+            print(f"✅ 무음 제거 완료:")
+            print(f"   원본: {original_duration:.3f}s → 정리됨: {trimmed_duration:.3f}s")
+            print(f"   제거된 무음: {removed_duration:.3f}s")
+            print(f"   저장: {output_file}")
+            
+            return output_file
+            
+        except Exception as e:
+            print(f"❌ 무음 제거 실패: {e}")
+            # 실패시 원본 파일 복사
+            import shutil
+            shutil.copy2(audio_file, output_file)
+            return output_file
     
     def _align_with_uniform_distribution(self, syllables: List[str], 
                                        audio_file: str) -> List[SyllableAlignment]:
@@ -980,6 +1052,154 @@ class AdvancedSTTProcessor:
             'available_engines': self.stt.available_engines,
             'confidence_threshold': self.confidence_threshold
         }
+    
+    def create_trimmed_audio(self, audio_file: str, output_file: str = None) -> str:
+        """무음 구간 제거 + 볼륨 정규화한 WAV 파일 생성"""
+        import parselmouth as pm
+        import os
+        
+        try:
+            # 출력 파일명 결정
+            if not output_file:
+                name, ext = os.path.splitext(audio_file)
+                output_file = f"{name}_trimmed{ext}"
+            
+            print(f"🎵 무음 제거 + 볼륨 정규화 시작: {os.path.basename(audio_file)}")
+            
+            # STT로 무음 구간 감지
+            result = self.stt.transcribe(audio_file, language='ko', return_timestamps=True)
+            
+            if not result.words:
+                print(f"⚠️ STT words 없음, 원본 파일 복사")
+                import shutil
+                shutil.copy2(audio_file, output_file)
+                return output_file
+            
+            # 무음 구간 감지
+            voice_start = self._detect_voice_start_time(result.words, audio_file)
+            
+            # 마지막 단어 끝 시간 찾기
+            last_word = result.words[-1]
+            if hasattr(last_word, 'end'):
+                voice_end = last_word.end
+            elif isinstance(last_word, dict):
+                voice_end = last_word.get('end', 0)
+            else:
+                voice_end = 0
+            
+            print(f"🎤 음성 구간: {voice_start:.3f}s ~ {voice_end:.3f}s")
+            
+            # 오디오 로드
+            sound = pm.Sound(audio_file)
+            total_duration = sound.get_total_duration()
+            
+            # 실제 음성 구간만 추출 (50ms 여유 추가)
+            trim_start = max(0, voice_start - 0.05)
+            trim_end = min(total_duration, voice_end + 0.05)
+            
+            print(f"✂️ 자르기 구간: {trim_start:.3f}s ~ {trim_end:.3f}s")
+            
+            # 음성 구간 추출
+            trimmed_sound = sound.extract_part(trim_start, trim_end)
+            
+            # 🔊 볼륨 정규화 (RMS 기반)
+            normalized_sound = self._normalize_volume_rms(trimmed_sound)
+            
+            # 저장
+            normalized_sound.save(output_file, "WAV")
+            
+            # 결과 정보
+            trimmed_duration = normalized_sound.get_total_duration()
+            original_duration = sound.get_total_duration()
+            removed_duration = original_duration - trimmed_duration
+            
+            print(f"✅ 최적화 완료:")
+            print(f"   원본: {original_duration:.3f}s → 정리됨: {trimmed_duration:.3f}s")
+            print(f"   제거된 무음: {removed_duration:.3f}s")
+            print(f"   볼륨 정규화: 완료")
+            print(f"   저장: {output_file}")
+            
+            return output_file
+            
+        except Exception as e:
+            print(f"❌ 최적화 실패: {e}")
+            # 실패시 원본 파일 복사
+            import shutil
+            shutil.copy2(audio_file, output_file)
+            return output_file
+    
+    def _detect_voice_start_time(self, words: List[Dict], audio_file: str = None) -> float:
+        """실제 음성 시작 시간 감지"""
+        if not words:
+            return 0.0
+        
+        # 1차: STT word 타임스탬프 기반 감지
+        first_word = words[0]
+        if hasattr(first_word, 'start'):
+            stt_start = first_word.start
+        elif isinstance(first_word, dict):
+            stt_start = first_word.get('start', 0.0)
+        else:
+            stt_start = 0.0
+        
+        # 2차: STT word 길이 분석으로 무음 구간 감지
+        first_word = words[0]
+        if hasattr(first_word, 'end'):
+            first_duration = first_word.end - first_word.start
+        elif isinstance(first_word, dict):
+            first_duration = first_word.get('end', 0) - first_word.get('start', 0)
+        else:
+            first_duration = 0
+            
+        # 첫 번째 단어가 1.5초 이상 지속되면 무음 구간 포함으로 간주
+        if first_duration > 1.5:
+            estimated_silence = first_duration * 0.7  # 70%는 무음으로 추정
+            print(f"🎤 STT 첫 단어 과도하게 길음 ({first_duration:.3f}s), 무음 구간 추정: {estimated_silence:.3f}s")
+            return estimated_silence
+        
+        # 기존 로직: 첫 단어가 0.5초 이후 시작
+        if stt_start > 0.5:
+            print(f"🎤 STT 기반 무음 구간 감지: {stt_start:.3f}s")
+            return stt_start
+        
+        return stt_start
+    
+    def _normalize_volume_rms(self, sound: pm.Sound, target_rms: float = 0.02) -> pm.Sound:
+        """RMS 기반 볼륨 정규화"""
+        try:
+            # 현재 RMS 계산
+            values = sound.values.flatten()
+            current_rms = (np.mean(values ** 2)) ** 0.5
+            
+            if current_rms < 1e-6:  # 거의 무음인 경우
+                print(f"⚠️ 거의 무음 파일, 정규화 건너뜀")
+                return sound
+            
+            # 정규화 비율 계산
+            normalization_factor = target_rms / current_rms
+            
+            # 클리핑 방지 (최대 3배까지만 증폭)
+            normalization_factor = min(normalization_factor, 3.0)
+            
+            print(f"🔊 볼륨 증폭: RMS {current_rms:.4f} → {target_rms:.4f} (x{normalization_factor:.2f})")
+            
+            # 정규화된 오디오 생성
+            normalized_values = values * normalization_factor
+            
+            # 클리핑 방지 (-1 ~ 1 범위 제한)
+            normalized_values = np.clip(normalized_values, -0.95, 0.95)
+            
+            # 새로운 Sound 객체 생성
+            normalized_sound = pm.Sound(
+                normalized_values.reshape(sound.values.shape),
+                sampling_frequency=sound.sampling_frequency
+            )
+            
+            return normalized_sound
+            
+        except Exception as e:
+            print(f"⚠️ 볼륨 정규화 실패: {e}, 원본 사용")
+            return sound
 
 
 # 사용 예시

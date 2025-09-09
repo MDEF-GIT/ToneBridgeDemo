@@ -1152,7 +1152,7 @@ def analyze_audio_file(audio_path: str, syllable_text: str, **kwargs) -> List[Sy
 def create_textgrid_from_audio(audio_path: str, syllable_text: str = None, 
                               output_path: Optional[str] = None, **kwargs) -> str:
     """
-    오디오 파일에서 STT 기반 TextGrid 생성
+    오디오 파일에서 무음 제거 + 볼륨 정규화 기반 TextGrid 생성
     
     Args:
         audio_path: 오디오 파일 경로
@@ -1164,24 +1164,55 @@ def create_textgrid_from_audio(audio_path: str, syllable_text: str = None,
         생성된 TextGrid 파일 경로
     """
     try:
-        # STT 기반 음절 분절 수행 (파일명 무시)
-        segments = analyze_audio_file(audio_path, syllable_text, **kwargs)
+        print(f"🎯 무음 제거 + 볼륨 정규화 기반 TextGrid 생성: {os.path.basename(audio_path)}")
+        
+        # STT 시스템 초기화
+        stt_processor = AdvancedSTTProcessor()
+        
+        # 1단계: 무음 구간 제거 + 볼륨 정규화된 WAV 파일 생성
+        name, ext = os.path.splitext(audio_path)
+        trimmed_audio_path = f"{name}_trimmed{ext}"
+        
+        print(f"📂 최적화 파일 생성: {os.path.basename(trimmed_audio_path)}")
+        final_trimmed_path = stt_processor.create_trimmed_audio(audio_path, trimmed_audio_path)
+        
+        # 2단계: 최적화된 파일로 STT 분석
+        print(f"🎤 최적화된 파일로 STT 분석 시작")
+        result = stt_processor.stt.transcribe(final_trimmed_path, language='ko', return_timestamps=True)
+        
+        # 3단계: 음절 정렬 (이제 무음 구간이 없고 볼륨이 정규화되어 정확)
+        syllable_alignments = stt_processor.syllable_aligner.align_syllables_with_timestamps(result, final_trimmed_path)
+        
+        print(f"✅ 최적화 기반 분절 성공: {len(syllable_alignments)}개 음절")
         
         # 출력 경로 생성
         if output_path is None:
             base_name = os.path.splitext(audio_path)[0]
             output_path = f"{base_name}.TextGrid"
         
-        # 음성 길이 계산
-        sound = pm.Sound(audio_path)
+        # 최적화된 파일의 길이 사용
+        sound = pm.Sound(final_trimmed_path)
         total_duration = sound.get_total_duration()
+        
+        # SyllableAlignment을 SyllableSegment로 변환
+        segments = []
+        for alignment in syllable_alignments:
+            segments.append(SyllableSegment(
+                label=alignment.syllable,
+                start=alignment.start_time,
+                end=alignment.end_time,
+                duration=alignment.end_time - alignment.start_time,
+                confidence=alignment.confidence
+            ))
         
         # TextGrid 저장
         generator = TextGridGenerator()
         generator.save(segments, output_path, total_duration)
         
         print(f"💾 TextGrid 저장: {output_path}")
+        print(f"🎵 최적화된 오디오: {final_trimmed_path}")
+        
         return output_path
         
     except Exception as e:
-        raise Exception(f"TextGrid 생성 실패: {e}")
+        raise Exception(f"최적화 기반 TextGrid 생성 실패: {e}")
