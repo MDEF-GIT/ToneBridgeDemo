@@ -749,7 +749,7 @@ class SyllableBoundaryDetector:
         except Exception as e:
             print(f"❌ 경계 탐지 실패: {e}")
             # 폴백: 균등 분할
-            return self._equal_division_fallback(
+            return self._equal_division_backup(
                 features.valid_speech_start, features.valid_speech_end, target_count
             )
     
@@ -824,7 +824,7 @@ class SyllableBoundaryDetector:
         """경계점을 목표 음절 수에 맞게 최적화"""
         try:
             if len(boundaries) <= 2:
-                return self._equal_division_fallback(
+                return self._equal_division_backup(
                     boundaries[0], boundaries[-1], target_count
                 )
             
@@ -841,7 +841,7 @@ class SyllableBoundaryDetector:
                 
         except Exception as e:
             print(f"❌ 경계 최적화 실패: {e}")
-            return self._equal_division_fallback(
+            return self._equal_division_backup(
                 boundaries[0], boundaries[-1], target_count
             )
     
@@ -886,8 +886,8 @@ class SyllableBoundaryDetector:
         
         return sorted(result)
     
-    def _equal_division_fallback(self, start: float, end: float, target_count: int) -> List[float]:
-        """폴백: 균등 분할"""
+    def _equal_division_backup(self, start: float, end: float, target_count: int) -> List[float]:
+        """STT 실패시 마지막 수단: 균등 분할"""
         result = []
         for i in range(target_count + 1):
             result.append(start + (end - start) * i / target_count)
