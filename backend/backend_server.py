@@ -2984,7 +2984,8 @@ async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
             amplified_values = np.clip(amplified_values, -0.9, 0.9)
             sound = pm.Sound(amplified_values, sampling_frequency=sound.sampling_frequency)
         
-        pitch = sound.to_pitch()
+        # ✅ Reference 파일과 동일한 피치 파라미터 사용
+        pitch = sound.to_pitch(time_step=0.01, pitch_floor=75.0, pitch_ceiling=500.0)
         
         # 피치 데이터 추출
         times = pitch.xs()
@@ -2999,19 +3000,13 @@ async def get_uploaded_file_pitch(file_id: str, syllable_only: bool = False):
         print(f"🎯 {len(pitch_data)}개 피치 포인트 추출")
         
         if syllable_only:
-            # TextGrid에서 음절별 대표 피치 계산
+            # ✅ Reference 파일과 동일한 함수 사용
             textgrid_file = f"{file_id}.TextGrid"
             textgrid_path = UPLOAD_DIR / textgrid_file
             
             if textgrid_path.exists():
-                # 피치 데이터 시간 범위 로깅
-                if pitch_data:
-                    pitch_times = [p['time'] for p in pitch_data]
-                    print(f"🎯 피치 데이터 시간 범위: {min(pitch_times):.3f}s ~ {max(pitch_times):.3f}s")
-                
-                syllable_pitch = calculate_syllable_pitch_from_textgrid(str(textgrid_path), pitch_data)
-                print(f"🎯 {len(syllable_pitch)}개 음절 대표 피치 반환")
-                return syllable_pitch
+                # Reference 파일과 동일한 처리 함수 호출
+                return await get_syllable_representative_pitch(file_id, str(wav_path), str(textgrid_path), sound, pitch)
         
         return pitch_data
         
