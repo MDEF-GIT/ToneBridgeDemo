@@ -3,7 +3,7 @@ ToneBridge 음성 분석 핵심 모듈
 
 재사용 가능한 음성 분석 도구들:
 - STT 기반 정밀 분절 (STTBasedSegmenter)
-- 음성학적 분절 폴백 (FallbackSyllableSegmenter)
+- 고급 STT 기반 음절 분절 (STTBasedSegmenter)
 - 음성 특징 추출 (AudioFeatureExtractor) 
 - 음절 경계 탐지 (SyllableBoundaryDetector)
 - TextGrid 생성 (TextGridGenerator)
@@ -24,7 +24,7 @@ try:
     STT_AVAILABLE = True
 except ImportError:
     STT_AVAILABLE = False
-    print("⚠️ STT 모듈 미설치 - 폴백 분절 사용")
+    print("⚠️ STT 모듈 미설치 - 고급 분절 사용 불가")
 
 @dataclass
 class SyllableSegment:
@@ -918,7 +918,7 @@ class STTBasedSegmenter:
                 print(f"❌ STT 프로세서 초기화 실패: {e}")
                 self.stt_processor = None
         else:
-            print("❌ STT 시스템 비활성화 - 폴백 사용")
+            print("❌ STT 시스템 비활성화")
             self.stt_processor = None
         
     
@@ -972,73 +972,6 @@ class STTBasedSegmenter:
             print(f"❌ STT 분절 실패: {e}")
             raise Exception(f"STT 기반 분절 실패: {e} - 기본 분절은 사용하지 않음")
 
-class FallbackSyllableSegmenter:
-    """
-    정밀 음절 분절 메인 클래스
-    
-    사용법:
-        segmenter = FallbackSyllableSegmenter()
-        segments = segmenter.segment(sound, syllable_labels)
-    """
-    
-    def __init__(self, **kwargs):
-        self.feature_extractor = AudioFeatureExtractor(**kwargs)
-        self.boundary_detector = SyllableBoundaryDetector(**kwargs)
-    
-    def segment(self, sound: pm.Sound, syllable_labels: List[str]) -> List[SyllableSegment]:
-        """음성을 정밀하게 음절별로 분절"""
-        try:
-            print("🔬 정밀 음성학적 분절 시작")
-            
-            # 1. 음성 특징 추출
-            features = self.feature_extractor.extract(sound)
-            print(f"🔇 무음 제거: {features.valid_speech_start:.3f}s ~ {features.valid_speech_end:.3f}s")
-            
-            # 2. 음절 경계 탐지
-            boundaries = self.boundary_detector.detect(features, len(syllable_labels))
-            print(f"🎯 경계점 탐지: {len(boundaries)-1}개 구간")
-            
-            # 3. 음절 구간 생성
-            segments = []
-            for i, label in enumerate(syllable_labels):
-                segment = SyllableSegment(
-                    label=label,
-                    start=boundaries[i],
-                    end=boundaries[i + 1],
-                    duration=boundaries[i + 1] - boundaries[i]
-                )
-                segments.append(segment)
-                print(f"   🎯 '{label}': {segment.start:.3f}s ~ {segment.end:.3f}s")
-            
-            print(f"✅ 정밀 분절 완료: {len(segments)}개 음절")
-            return segments
-            
-        except Exception as e:
-            print(f"❌ 정밀 분절 실패, 기본 분절로 폴백: {e}")
-            return self._fallback_equal_segmentation(sound, syllable_labels)
-    
-    def _fallback_equal_segmentation(self, sound: pm.Sound, syllable_labels: List[str]) -> List[SyllableSegment]:
-        """폴백: 기본 균등 분할"""
-        duration = sound.get_total_duration()
-        syllable_duration = duration / len(syllable_labels)
-        
-        segments = []
-        for i, label in enumerate(syllable_labels):
-            start_time = i * syllable_duration
-            end_time = (i + 1) * syllable_duration
-            
-            if i == len(syllable_labels) - 1:
-                end_time = duration
-            
-            segment = SyllableSegment(
-                label=label,
-                start=start_time,
-                end=end_time,
-                duration=end_time - start_time
-            )
-            segments.append(segment)
-        
-        return segments
 
 class TextGridGenerator:
     """
