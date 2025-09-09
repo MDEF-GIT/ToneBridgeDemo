@@ -378,16 +378,16 @@ class STTBasedSegmenter:
             print(f"🎤 STT 기반 정밀 분절 시작: {sentence}")
             
             # 1. STT로 음성 전사 (타임스탬프 포함)
-            transcription_result = self.stt_processor.stt_processor.transcribe(
-                audio_file, language='ko', return_timestamps=True
+            transcription_result = self.stt_processor.transcribe_audio(
+                audio_file, return_timestamps=True
             )
             
             print(f"🎯 STT 결과: '{transcription_result.text}'")
             print(f"🎯 단어 타임스탬프: {len(transcription_result.words)}개")
             
             # 2. 음절 정렬 (STT 타임스탬프 활용)
-            syllable_alignments = self.stt_processor.aligner.align_syllables_with_timestamps(
-                transcription_result, audio_file
+            syllable_alignments = self.stt_processor.align_korean_syllables(
+                transcription_result, sentence, audio_file
             )
             
             # 3. SyllableSegment 형식으로 변환
