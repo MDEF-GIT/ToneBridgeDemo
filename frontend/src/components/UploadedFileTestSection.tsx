@@ -283,6 +283,41 @@ const UploadedFileTestSection: React.FC = () => {
         )}
       </div>
 
+      {/* 차트 컨트롤 버튼들 */}
+      {selectedFileId && (
+        <div className="mt-3">
+          <div className="row align-items-center">
+            <div className="col-md-6">
+              <h6 className="mb-2">
+                <i className="fas fa-cog me-2"></i>차트 설정
+              </h6>
+              <div className="btn-group btn-group-sm" role="group">
+                <button
+                  className={`btn ${testDualAxisChart.yAxisUnit === 'semitone' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => testDualAxisChart.setYAxisUnit('semitone')}
+                  title="세미톤 단위로 표시"
+                >
+                  <i className="fas fa-music me-1"></i>세미톤
+                </button>
+                <button
+                  className={`btn ${testDualAxisChart.yAxisUnit === 'qtone' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => testDualAxisChart.setYAxisUnit('qtone')}
+                  title="큐톤 단위로 표시"
+                >
+                  <i className="fas fa-adjust me-1"></i>큐톤
+                </button>
+              </div>
+            </div>
+            <div className="col-md-6 text-end">
+              <small className="text-muted">
+                <i className="fas fa-info-circle me-1"></i>
+                우측 Y축 단위 변경 가능
+              </small>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 음절 정보 및 컨트롤 */}
       {selectedFileId && syllablePoints.length > 0 && (
         <div className="mt-3">
