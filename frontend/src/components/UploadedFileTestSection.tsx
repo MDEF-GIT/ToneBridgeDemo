@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Chart from 'chart.js/auto';
+import { useDualAxisChart } from '../hooks/useDualAxisChart';
 
 interface UploadedFile {
   id: string;
@@ -31,17 +31,12 @@ const UploadedFileTestSection: React.FC = () => {
   
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const chartRef = useRef<Chart | null>(null);
+  const testDualAxisChart = useDualAxisChart(chartCanvasRef, 'uploaded-file-test');
 
-  // 컴포넌트 마운트 시 차트 초기화
+  // 컴포넌트 마운트 시 듀얼축 차트 초기화
   useEffect(() => {
-    initChart();
-    return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-      }
-    };
-  }, []);
+    console.log('📊 업로드 파일 테스트: 듀얼축 차트 초기화');
+  }, [testDualAxisChart]);
 
   // 업로드된 파일 목록 불러오기
   useEffect(() => {
@@ -65,90 +60,8 @@ const UploadedFileTestSection: React.FC = () => {
     }
   };
 
-  // 🎯 차트 초기화 함수
-  const initChart = () => {
-    const canvas = chartCanvasRef.current;
-    if (!canvas) return;
 
-    if (chartRef.current) {
-      chartRef.current.destroy();
-    }
-
-    chartRef.current = new Chart(canvas, {
-      type: 'scatter',
-      data: {
-        datasets: [{
-          label: '음절별 피치',
-          data: [],
-          backgroundColor: 'rgba(54, 162, 235, 0.8)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          pointRadius: 8,
-          pointHoverRadius: 12,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          intersect: false,
-        },
-        plugins: {
-          title: {
-            display: true,
-            text: '음절별 피치 분석 - 클릭하여 재생',
-            font: { size: 16 }
-          },
-          legend: {
-            display: false
-          },
-          tooltip: {
-            callbacks: {
-              title: () => '',
-              label: (context: any) => {
-                const point = syllablePoints[context.dataIndex];
-                if (point) {
-                  return `음절: ${point.syllable} | 피치: ${point.frequency.toFixed(1)}Hz | 시간: ${point.time.toFixed(2)}s`;
-                }
-                return '';
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            type: 'linear',
-            position: 'bottom',
-            title: {
-              display: true,
-              text: '시간 (초)'
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.1)'
-            }
-          },
-          y: {
-            title: {
-              display: true,
-              text: '주파수 (Hz)'
-            },
-            grid: {
-              color: 'rgba(0, 0, 0, 0.1)'
-            }
-          }
-        },
-        onClick: (event, elements) => {
-          if (elements.length > 0) {
-            const dataIndex = elements[0].index;
-            handleSyllableClick(dataIndex);
-          }
-        }
-      }
-    });
-
-    console.log('📊 음절 분절 차트 초기화 완료');
-  };
-
-  // 🎯 음절 클릭 처리
+  // 🎯 음절 클릭 처리 (버튼 클릭 시)
   const handleSyllableClick = (syllableIndex: number) => {
     const syllable = syllablePoints[syllableIndex];
     if (syllable && audioRef.current) {
@@ -165,10 +78,7 @@ const UploadedFileTestSection: React.FC = () => {
       setSelectedFileId('');
       setSyllablePoints([]);
       setCurrentPlayingSyllable(-1);
-      if (chartRef.current) {
-        chartRef.current.data.datasets[0].data = [];
-        chartRef.current.update();
-      }
+      testDualAxisChart.clearChart();
       return;
     }
 
@@ -179,19 +89,24 @@ const UploadedFileTestSection: React.FC = () => {
 
       console.log(`🎯 업로드 파일 분석 시작: ${fileId}`);
 
-      // 1. 음절별 대표 피치 로드 (점 표시용)
+      // 1. 전체 피치 데이터 로드
+      const pitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch`);
+      if (!pitchResponse.ok) throw new Error('피치 데이터 조회 실패');
+      const pitchData = await pitchResponse.json();
+
+      // 2. 음절별 대표 피치 로드 (음절 정보 포함)
       const syllablePitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch?syllable_only=true`);
       if (!syllablePitchResponse.ok) throw new Error('음절 피치 데이터 조회 실패');
       const syllablePitch = await syllablePitchResponse.json();
 
-      // 2. 음절 구간 정보 로드
+      // 3. 음절 구간 정보 로드
       const syllablesResponse = await fetch(`/api/uploaded_files/${fileId}/syllables`);
       let syllables = [];
       if (syllablesResponse.ok) {
         syllables = await syllablesResponse.json();
       }
 
-      // 3. 음절 포인트 데이터 구성
+      // 4. 음절 포인트 데이터 구성
       const points: SyllablePoint[] = syllablePitch.map((sp: any, index: number) => ({
         syllable: sp.syllable,
         start: sp.start,
@@ -202,39 +117,29 @@ const UploadedFileTestSection: React.FC = () => {
 
       setSyllablePoints(points);
 
-      // 4. 차트에 음절 포인트 표시
-      if (chartRef.current && points.length > 0) {
-        const chartData = points.map(point => ({
-          x: point.time,
-          y: point.frequency
-        }));
+      // 5. 차트 클리어 후 데이터 추가
+      testDualAxisChart.clearChart();
+      
+      // 6. 전체 피치 데이터를 듀얼축 차트에 추가
+      pitchData.forEach((point: any) => {
+        testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
+      });
 
-        chartRef.current.data.datasets[0].data = chartData;
+      // 7. 음절 annotation 추가
+      if (points.length > 0) {
+        const annotationData = points.map((point) => ({
+          label: point.syllable,
+          start: point.start,
+          end: point.end,
+          frequency: point.frequency,
+          time: point.time
+        }));
         
-        // Y축 범위 자동 조정
-        const frequencies = points.map(p => p.frequency);
-        const minFreq = Math.min(...frequencies);
-        const maxFreq = Math.max(...frequencies);
-        const margin = (maxFreq - minFreq) * 0.2;
-        
-        chartRef.current.options.scales!.y!.min = Math.max(50, minFreq - margin);
-        chartRef.current.options.scales!.y!.max = maxFreq + margin;
-        
-        // X축 범위 자동 조정
-        const times = points.map(p => p.time);
-        const minTime = Math.min(...times);
-        const maxTime = Math.max(...times);
-        const timeMargin = (maxTime - minTime) * 0.1;
-        
-        chartRef.current.options.scales!.x!.min = Math.max(0, minTime - timeMargin);
-        chartRef.current.options.scales!.x!.max = maxTime + timeMargin;
-        
-        chartRef.current.update();
-        
-        console.log(`📊 음절 포인트 ${points.length}개 차트에 표시 완료`);
+        console.log(`🎯 업로드 파일 음절 annotation 추가: ${annotationData.length}개`);
+        testDualAxisChart.addSyllableAnnotations(annotationData);
       }
 
-      console.log(`✅ 업로드 파일 분석 완료: ${points.length}개 음절`);
+      console.log(`✅ 업로드 파일 분석 완료: ${pitchData.length}개 피치 포인트, ${points.length}개 음절`);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : '파일 분석 실패');

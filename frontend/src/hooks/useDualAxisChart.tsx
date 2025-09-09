@@ -130,6 +130,9 @@ export const useDualAxisChart = (
           legend: {
             display: true,
             position: 'top'
+          },
+          annotation: {
+            annotations: {}
           }
         },
         scales: {
@@ -368,10 +371,76 @@ export const useDualAxisChart = (
     updateAxisUnit();
   }, [updateAxisUnit, yAxisUnit]);
 
-  // 🎯 음절 annotation 추가 (더미 구현)
+  // 🎯 음절 annotation 추가 (실제 구현)
   const addSyllableAnnotations = useCallback((syllableData: any[]) => {
-    console.log('🎯 듀얼축 차트: 음절 annotation 추가됨', syllableData.length);
-    // TODO: 실제 annotation 구현이 필요하면 여기에 추가
+    if (!chartRef.current || !syllableData || syllableData.length === 0) {
+      console.log('🎯 듀얼축 차트: annotation 데이터 없음');
+      return;
+    }
+
+    const annotations: any = {};
+    
+    syllableData.forEach((syllable, index) => {
+      const syllableStart = syllable.start || syllable.time - 0.1;
+      const syllableEnd = syllable.end || syllable.time + 0.1;
+      
+      // 음절 구간 경계선 (시작)
+      annotations[`syllable-start-${index}`] = {
+        type: 'line',
+        scaleID: 'x',
+        value: syllableStart,
+        borderColor: 'rgba(255, 99, 132, 0.8)',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        label: {
+          display: false
+        }
+      };
+      
+      // 음절 구간 경계선 (끝)
+      annotations[`syllable-end-${index}`] = {
+        type: 'line',
+        scaleID: 'x', 
+        value: syllableEnd,
+        borderColor: 'rgba(255, 99, 132, 0.8)',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        label: {
+          display: false
+        }
+      };
+      
+      // 음절 라벨 박스
+      const labelY = syllable.frequency || 200; // 기본값 200Hz
+      annotations[`syllable-label-${index}`] = {
+        type: 'label',
+        xValue: (syllableStart + syllableEnd) / 2,
+        yValue: labelY + 30, // 피치 위쪽에 표시
+        backgroundColor: 'rgba(138, 43, 226, 0.9)',
+        borderColor: 'rgba(138, 43, 226, 1)',
+        borderRadius: 4,
+        borderWidth: 1,
+        color: 'white',
+        content: syllable.label || syllable.syllable || `음절${index + 1}`,
+        font: {
+          size: 12,
+          weight: 'bold'
+        },
+        padding: {
+          x: 6,
+          y: 4
+        }
+      };
+    });
+
+    // Chart.js annotation 플러그인에 annotation 추가
+    if (chartRef.current.options.plugins?.annotation) {
+      chartRef.current.options.plugins.annotation.annotations = annotations;
+      chartRef.current.update();
+      console.log(`🎯 듀얼축 차트: ${syllableData.length}개 음절 annotation 추가 완료`);
+    } else {
+      console.log('⚠️ 듀얼축 차트: annotation 플러그인이 활성화되지 않음');
+    }
   }, []);
 
   // 🎯 재생 진행 상황 업데이트 (더미 구현)
