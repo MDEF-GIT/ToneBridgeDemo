@@ -347,7 +347,7 @@ const UploadedFileTestSection: React.FC = () => {
                   const duration = point.end - point.start;
                   const convertedValue = testDualAxisChart.yAxisUnit === 'semitone' 
                     ? 12 * Math.log2(point.frequency / 440) + 69 // A4 = 440Hz = 69 semitones
-                    : Math.log2(point.frequency / 440) * 1200; // cents
+                    : 1200 * Math.log2(point.frequency / 261.63); // cents from C4 (261.63Hz)
                   
                   // 🎯 전체 음절의 평균 주파수 계산 (상대 레벨용)
                   const avgFreq = syllablePoints.reduce((sum, p) => sum + p.frequency, 0) / syllablePoints.length;
