@@ -511,7 +511,7 @@ class KoreanSyllableAligner:
         """
         전사 결과를 음절 단위로 타임스탬프와 함께 정렬 (한국어 언어학적 보정 포함)
         """
-        print(f"🎯 음절 정렬 시작: {transcription.text}")
+        print(f"🎯🎯🎯 KOREAN SYLLABLE ALIGNER: 음절 정렬 시작: {transcription.text} 🎯🎯🎯")
         
         # 🌟 1단계: 한국어 언어학적 목표 음절 수 계산
         syllables = list(transcription.text.replace(' ', ''))
@@ -522,11 +522,16 @@ class KoreanSyllableAligner:
         
         # 🌟 2단계: 음성학적 분석으로 초기 정렬
         if transcription.words:
+            print(f"🔄 단어 타임스탬프 기반 정렬 사용: {len(transcription.words)}개 단어")
             initial_alignments = self._align_with_word_timestamps(korean_syllables, transcription.words, audio_file)
         else:
+            print(f"🔄 균등 분포 기반 정렬 사용")
             initial_alignments = self._align_with_uniform_distribution(korean_syllables, audio_file)
         
+        print(f"🔍 초기 정렬 결과: {len(initial_alignments)}개 구간")
+        
         # 🌟 3단계: 한국어 언어학적 보정 (과분할 병합)
+        print(f"🚀🚀🚀 한국어 언어학적 보정 호출 시작 🚀🚀🚀")
         corrected_alignments = self._apply_korean_linguistic_correction(
             initial_alignments, korean_syllables, target_syllable_count
         )
