@@ -442,21 +442,44 @@ class AutomatedProcessor:
             num_syllables = len(syllable_list)
             print(f"🎯 목표: {num_syllables}개 음절 - {syllable_list}")
             
-            # 4. 음절을 실제 음성 구간에 맞춰 분절
-            syllables = []
-            for i, syllable_text in enumerate(syllable_list):
-                # 실제 음성 구간 내에서 균등 분배
-                relative_start = (i / num_syllables) * voice_duration
-                relative_end = ((i + 1) / num_syllables) * voice_duration
+            # 4. 🚀🚀🚀 한국어 언어학적 정밀 분절 시스템 사용 🚀🚀🚀
+            print(f"🎯🎯🎯 KOREAN LINGUISTIC SEGMENTATION: 자동 분절 시작 🎯🎯🎯")
+            
+            try:
+                # STT 기반 정밀 분절 시스템 사용
+                from audio_analysis import STTBasedSegmenter
+                stt_segmenter = STTBasedSegmenter()
+                segments = stt_segmenter.segment_from_audio_file(audio_file, transcription)
                 
-                syllable_start = voice_start + relative_start
-                syllable_end = voice_start + relative_end
+                print(f"✅ STT 기반 한국어 정밀 분절 완료: {len(segments)}개 음절")
                 
-                syllables.append({
-                    'label': syllable_text,
-                    'start': syllable_start,
-                    'end': syllable_end
-                })
+                # SyllableSegment를 딕셔너리로 변환
+                syllables = []
+                for segment in segments:
+                    syllables.append({
+                        'label': segment.label,
+                        'start': segment.start,
+                        'end': segment.end
+                    })
+                    print(f"   🎯 '{segment.label}': {segment.start:.3f}s ~ {segment.end:.3f}s")
+                
+            except Exception as e:
+                print(f"❌ STT 기반 분절 실패, 폴백 사용: {e}")
+                # 폴백: 기존 균등 분배 방식
+                syllables = []
+                for i, syllable_text in enumerate(syllable_list):
+                    # 실제 음성 구간 내에서 균등 분배
+                    relative_start = (i / num_syllables) * voice_duration
+                    relative_end = ((i + 1) / num_syllables) * voice_duration
+                    
+                    syllable_start = voice_start + relative_start
+                    syllable_end = voice_start + relative_end
+                    
+                    syllables.append({
+                        'label': syllable_text,
+                        'start': syllable_start,
+                        'end': syllable_end
+                    })
                 
                 print(f"   🎯 '{syllable_text}': {syllable_start:.3f}s ~ {syllable_end:.3f}s")
             
