@@ -35,6 +35,7 @@ const UploadedFileTestSection: React.FC = () => {
 
   // 컴포넌트 마운트 시 듀얼축 차트 초기화
   useEffect(() => {
+    console.log('🚀🚀🚀 업로드 파일 테스트 컴포넌트 마운트됨 🚀🚀🚀');
     console.log('📊 업로드 파일 테스트: 듀얼축 차트 초기화');
   }, [testDualAxisChart]);
 
@@ -74,7 +75,10 @@ const UploadedFileTestSection: React.FC = () => {
 
   // 파일 선택 시 차트 업데이트 (자동 최적화 포함)
   const handleFileSelect = async (fileId: string) => {
+    console.log('🔥🔥🔥 handleFileSelect 호출됨 🔥🔥🔥', fileId);
+    
     if (!fileId) {
+      console.log('📝 파일 선택 해제');
       setSelectedFileId('');
       setSyllablePoints([]);
       setCurrentPlayingSyllable(-1);
@@ -87,6 +91,7 @@ const UploadedFileTestSection: React.FC = () => {
     }
 
     try {
+      console.log('🚀 파일 선택 처리 시작:', fileId);
       setLoading(true);
       setSelectedFileId(fileId);
       setError('');
@@ -96,7 +101,7 @@ const UploadedFileTestSection: React.FC = () => {
         throw new Error('차트가 초기화되지 않았습니다');
       }
 
-      console.log(`🎯 업로드 파일 분석 시작: ${fileId}`);
+      console.log(`🎯🎯🎯 업로드 파일 분석 시작: ${fileId} 🎯🎯🎯`);
 
       // 🎯 첫 번째: 자동 최적화 실행 (reference 파일과 동일한 품질 보장)
       console.log(`🚀 파일 최적화 시작: ${fileId}`);
@@ -410,7 +415,8 @@ const UploadedFileTestSection: React.FC = () => {
 
       {/* 음절별 분석 결과 표 */}
       {(() => {
-        console.log(`🎯 렌더링 조건 확인: selectedFileId=${selectedFileId}, syllablePoints.length=${syllablePoints.length}`);
+        console.log(`🎯🎯🎯 렌더링 조건 확인: selectedFileId=${selectedFileId}, syllablePoints.length=${syllablePoints.length} 🎯🎯🎯`);
+        console.log('🔍 syllablePoints 상태:', syllablePoints);
         return null;
       })()}
       {selectedFileId && syllablePoints.length > 0 && (
