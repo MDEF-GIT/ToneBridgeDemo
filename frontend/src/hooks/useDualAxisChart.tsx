@@ -10,6 +10,7 @@ import {
   Legend,
   ChartConfiguration
 } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
 
 ChartJS.register(
   CategoryScale,
@@ -18,7 +19,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  annotationPlugin
 );
 
 interface DualAxisChartData {
@@ -443,16 +445,57 @@ export const useDualAxisChart = (
     }
   }, []);
 
-  // 🎯 재생 진행 상황 업데이트 (더미 구현)
+  // 🎯 재생 진행 상황 업데이트 - 실제 구현
   const updatePlaybackProgress = useCallback((currentTime: number) => {
-    console.log('🎵 듀얼축 차트: 재생 진행', currentTime);
-    // TODO: 실제 재생 진행 표시가 필요하면 여기에 추가
+    if (!chartRef.current) return;
+
+    const annotations = chartRef.current.options.plugins?.annotation?.annotations as any;
+    if (!annotations) return;
+
+    // 기존 재생 진행선 제거
+    if (annotations['playback-progress']) {
+      delete annotations['playback-progress'];
+    }
+
+    // 새로운 재생 진행선 추가
+    annotations['playback-progress'] = {
+      type: 'line',
+      scaleID: 'x',
+      value: currentTime,
+      borderColor: 'rgba(255, 0, 0, 0.8)',
+      borderWidth: 3,
+      borderDash: [3, 3],
+      label: {
+        display: true,
+        content: `${currentTime.toFixed(1)}s`,
+        position: 'end',
+        backgroundColor: 'rgba(255, 0, 0, 0.8)',
+        color: 'white',
+        padding: {
+          x: 4,
+          y: 2
+        },
+        font: {
+          size: 10,
+          weight: 'bold'
+        }
+      }
+    };
+
+    chartRef.current.update('none'); // 애니메이션 없이 즉시 업데이트
+    console.log(`🎵 듀얼축 차트: 재생 진행 ${currentTime.toFixed(2)}s`);
   }, []);
 
-  // 🎯 재생 진행 상황 클리어 (더미 구현)
+  // 🎯 재생 진행 상황 클리어 - 실제 구현
   const clearPlaybackProgress = useCallback(() => {
-    console.log('🎵 듀얼축 차트: 재생 진행 클리어');
-    // TODO: 실제 재생 진행 클리어가 필요하면 여기에 추가
+    if (!chartRef.current) return;
+
+    const annotations = chartRef.current.options.plugins?.annotation?.annotations as any;
+    if (annotations && annotations['playback-progress']) {
+      delete annotations['playback-progress'];
+      chartRef.current.update('none');
+      console.log('🎵 듀얼축 차트: 재생 진행 클리어');
+    }
   }, []);
 
   // 🎯 피치 조정 (더미 구현)

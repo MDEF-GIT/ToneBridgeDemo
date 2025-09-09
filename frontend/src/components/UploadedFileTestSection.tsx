@@ -241,6 +241,10 @@ const UploadedFileTestSection: React.FC = () => {
                     const updateProgress = () => {
                       if (audioRef.current && !audioRef.current.paused) {
                         const currentTime = audioRef.current.currentTime;
+                        
+                        // 🎯 차트에 현재 재생 시점 표시
+                        testDualAxisChart.updatePlaybackProgress(currentTime);
+                        
                         // 현재 재생 중인 음절 찾기
                         const currentSyllableIndex = syllablePoints.findIndex(
                           point => currentTime >= point.start && currentTime <= point.end
@@ -253,10 +257,12 @@ const UploadedFileTestSection: React.FC = () => {
                   }}
                   onPause={() => {
                     console.log('🎵 업로드 파일 재생 일시정지');
+                    testDualAxisChart.clearPlaybackProgress();
                     setCurrentPlayingSyllable(-1);
                   }}
                   onEnded={() => {
                     console.log('🎵 업로드 파일 재생 완료');
+                    testDualAxisChart.clearPlaybackProgress();
                     setCurrentPlayingSyllable(-1);
                   }}
                 >
