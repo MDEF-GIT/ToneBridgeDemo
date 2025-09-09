@@ -170,30 +170,24 @@ def save_textgrid(syllables: List[dict], output_path: str, total_duration: float
     print(f"💾 TextGrid 저장: {output_path}")
     
     try:
-        # TextGrid 문자열 생성
-        textgrid_content = f'''File type = "ooTextFile"
-Object class = "TextGrid"
-
-xmin = 0 
-xmax = {total_duration} 
-tiers? <exists> 
-size = 1 
-item []: 
-    item [1]:
-        class = "IntervalTier" 
-        name = "syllables" 
-        xmin = 0 
-        xmax = {total_duration} 
-        intervals: size = {len(syllables)} 
-'''
+        # 🚀 통합 라이브러리 사용하여 TextGrid 생성
+        from tonebridge_core.textgrid.generator import UnifiedTextGridGenerator
+        from tonebridge_core.models import SyllableSegment
         
-        # 각 음절 구간 추가
-        for i, syllable in enumerate(syllables):
-            textgrid_content += f'''        intervals [{i+1}]:
-            xmin = {syllable['start']} 
-            xmax = {syllable['end']} 
-            text = "{syllable.get('label', syllable.get('syllable', ''))}" 
-'''
+        # 기존 딕셔너리 형식을 SyllableSegment로 변환
+        segments = []
+        for syl in syllables:
+            if isinstance(syl, dict):
+                segments.append(SyllableSegment(
+                    label=syl.get('label', syl.get('syllable', '')),
+                    start=syl.get('start', 0.0),
+                    end=syl.get('end', 0.0),
+                    confidence=syl.get('confidence', 0.8)
+                ))
+        
+        # 통합 생성기로 TextGrid 생성
+        generator = UnifiedTextGridGenerator()
+        textgrid_content = generator.from_syllables(segments, total_duration)
         
         # UTF-16으로 저장 (기존 TextGrid와 동일한 인코딩)
         with open(output_path, 'w', encoding='utf-16') as f:
@@ -2423,8 +2417,15 @@ async def optimize_uploaded_file(file_id: str = Form(...)):
         if len(parts) >= 4:
             reference_sentence = parts[3]
         
-        # 자동 처리 실행 (reference 파일과 동일한 플로우)
-        result = automated_processor.process_audio_completely(str(wav_path), reference_sentence)
+        # 🚀 NEW: 통합 음성 프로세서 사용 (모든 차트에서 동일한 품질)
+        from tonebridge_core.pipeline.voice_processor import UnifiedVoiceProcessor
+        
+        print("🔧 통합 프로세서로 변경: 모든 차트에서 동일한 품질 보장")
+        unified_processor = UnifiedVoiceProcessor()
+        process_result = unified_processor.process_uploaded_file(str(wav_path), reference_sentence)
+        
+        # 기존 API 형식으로 변환 (하위 호환성)
+        result = process_result.to_legacy_dict()
         
         if result['success']:
             # 최적화된 TextGrid 생성
@@ -2460,31 +2461,23 @@ async def optimize_uploaded_file(file_id: str = Form(...)):
         raise HTTPException(status_code=500, detail=f"최적화 중 오류: {e}")
 
 def create_textgrid_from_syllables(syllables, duration):
-    """음절 데이터로부터 TextGrid 생성"""
-    content = '''File type = "ooTextFile"
-Object class = "TextGrid"
-
-xmin = 0.0
-xmax = {duration}
-tiers? <exists>
-size = 1
-item []:
-    item [1]:
-        class = "IntervalTier"
-        name = "syllables"
-        xmin = 0.0
-        xmax = {duration}
-        intervals: size = {count}
-'''.format(duration=duration, count=len(syllables))
+    """음절 데이터로부터 TextGrid 생성 - 통합 라이브러리 사용"""
+    from tonebridge_core.textgrid.generator import UnifiedTextGridGenerator
+    from tonebridge_core.models import SyllableSegment
     
-    for i, syllable in enumerate(syllables, 1):
-        content += f'''        intervals [{i}]:
-            xmin = {syllable.get('start', 0)}
-            xmax = {syllable.get('end', 0)}
-            text = "{syllable.get('label', '')}"
-'''
+    # 기존 딕셔너리 형식을 SyllableSegment로 변환
+    segments = []
+    for syl in syllables:
+        if isinstance(syl, dict):
+            segments.append(SyllableSegment(
+                label=syl.get('label', ''),
+                start=syl.get('start', 0.0),
+                end=syl.get('end', 0.0),
+                confidence=syl.get('confidence', 0.8)
+            ))
     
-    return content
+    generator = UnifiedTextGridGenerator()
+    return generator.from_syllables(segments, duration)
 
 def create_optimized_audio(wav_path, syllables):
     """0.25초 마진을 적용한 최적화된 오디오 생성"""
