@@ -1,0 +1,58 @@
+✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)
+Console.js:61 🔍 Google Analytics 초기화 완료 - ID: G-56D78RCESE
+Console.js:61 📊 GA 페이지뷰 이벤트 전송: 음성 분석 - ToneBridge
+Console.js:61 🎯 useEffect 트리거됨 - yAxisUnit: hz, 차트존재: false, 데이터개수: 0
+Console.js:61 ⚠️ 차트가 아직 초기화되지 않았습니다.
+Console.js:61 🎯 [STEP 3] Hook 상태 변화 감지: {state.isPlayingRecorded: false, state.recordedBlob: false, recordedAudioRef.current: false}
+Console.js:61 🎯 useEffect 트리거됨 - yAxisUnit: hz, 차트존재: false, 데이터개수: 0
+Console.js:61 ⚠️ 차트가 아직 초기화되지 않았습니다.
+Console.js:61 🎯 듀얼 Y축 차트 초기화 완료
+Console.js:61 🔄 듀얼축 차트 단위 변경: semitone
+Console.js:61 🎯 ToneBridge Voice Analysis App initialized
+Console.js:61 🎯 피치 콜백 설정 중...
+Console.js:61 🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 semitone, 두 차트에 전달
+Console.js:61 🎯 usePitchChart: Y축 단위 변경 요청 → semitone
+Console.js:61 Error: Canvas is already in use. Chart with ID '0' must be destroyed before the canvas with ID '' can be reused.
+    at new yo (core.controller.js:128:13)
+    at useDualAxisChart.tsx:181:24
+    at useDualAxisChart.tsx:358:5
+    at il (react-dom.production.min.js:243:332)
+    at _c (react-dom.production.min.js:285:111)
+    at react-dom.production.min.js:281:391
+    at _ (scheduler.production.min.js:13:203)
+    at MessagePort.N (scheduler.production.min.js:14:128)
+Mt.forEach.n.<computed> @ Console.js:61
+ds @ react-dom.production.min.js:188
+n.callback @ react-dom.production.min.js:188
+Ha @ react-dom.production.min.js:156
+vl @ react-dom.production.min.js:261
+yl @ react-dom.production.min.js:259
+xl @ react-dom.production.min.js:258
+(anonymous) @ react-dom.production.min.js:282
+wc @ react-dom.production.min.js:280
+lc @ react-dom.production.min.js:272
+Vr @ react-dom.production.min.js:127
+_c @ react-dom.production.min.js:285
+(anonymous) @ react-dom.production.min.js:281
+_ @ scheduler.production.min.js:13
+N @ scheduler.production.min.js:14Understand this error
+core.controller.js:128 Uncaught Error: Canvas is already in use. Chart with ID '0' must be destroyed before the canvas with ID '' can be reused.
+    at new yo (core.controller.js:128:13)
+    at useDualAxisChart.tsx:181:24
+    at useDualAxisChart.tsx:358:5
+    at il (react-dom.production.min.js:243:332)
+    at _c (react-dom.production.min.js:285:111)
+    at react-dom.production.min.js:281:391
+    at _ (scheduler.production.min.js:13:203)
+    at MessagePort.N (scheduler.production.min.js:14:128)
+yo @ core.controller.js:128
+(anonymous) @ useDualAxisChart.tsx:181
+(anonymous) @ useDualAxisChart.tsx:358
+il @ react-dom.production.min.js:243
+_c @ react-dom.production.min.js:285
+(anonymous) @ react-dom.production.min.js:281
+_ @ scheduler.production.min.js:13
+N @ scheduler.production.min.js:14Understand this error
+Console.js:61 🎯 Chart.js annotation 플러그인이 이미 등록되어 있습니다
+Console.js:61 🎯 API 응답 데이터: {files: Array(10)}
+Console.js:61 ✅ ToneBridge Backend Service: 연결됨 (참조 파일 10개 로드됨)

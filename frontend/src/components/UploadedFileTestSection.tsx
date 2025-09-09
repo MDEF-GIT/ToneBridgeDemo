@@ -23,12 +23,14 @@ const UploadedFileTestSection: React.FC = () => {
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const testPitchChart = usePitchChart(chartCanvasRef);
-  const testDualAxisChart = useDualAxisChart(chartCanvasRef, '');
 
-  // 컴포넌트 마운트 시 듀얼 축 차트 초기화
+  // 컴포넌트 마운트 시 세미톤 단위로 설정
   useEffect(() => {
-    console.log('📊 업로드 파일 테스트: 듀얼 축 차트 초기화');
-  }, [testDualAxisChart]);
+    if (testPitchChart.setYAxisUnit) {
+      testPitchChart.setYAxisUnit('semitone'); // 세미톤 단위로 설정
+      console.log('📊 업로드 파일 테스트: Y축 단위를 세미톤으로 설정');
+    }
+  }, [testPitchChart]);
 
   // 업로드된 파일 목록 불러오기
   useEffect(() => {
@@ -56,7 +58,7 @@ const UploadedFileTestSection: React.FC = () => {
   const handleFileSelect = async (fileId: string) => {
     if (!fileId) {
       setSelectedFileId('');
-      testDualAxisChart.clearChart();
+      testPitchChart.clearChart();
       return;
     }
 
@@ -87,7 +89,7 @@ const UploadedFileTestSection: React.FC = () => {
       }
 
       // 4. 차트에 피치 데이터 추가 (기존 데이터 클리어 후)
-      testDualAxisChart.clearChart();
+      testPitchChart.clearChart();
       
       // 5. X축, Y축 범위 계산 (최소/최대값 기반 여유 공간 추가)
       if (pitchData.length > 0) {
@@ -111,13 +113,14 @@ const UploadedFileTestSection: React.FC = () => {
         console.log(`   Y축: ${yMin.toFixed(1)}Hz ~ ${yMax.toFixed(1)}Hz (데이터: ${minFreq.toFixed(1)}~${maxFreq.toFixed(1)})`);
         console.log(`   X축: ${xMin.toFixed(2)}초 ~ ${xMax.toFixed(2)}초 (데이터: ${minTime.toFixed(2)}~${maxTime.toFixed(2)})`);
         
-        // 차트 축 범위 설정 (듀얼 축 차트는 자동 조정)
-        console.log('📊 듀얼 축 차트 - 자동 범위 조정');
+        // 차트 축 범위 설정
+        testPitchChart.setYAxisRange(yMin, yMax);
+        testPitchChart.setXAxisRange(xMin, xMax);
       }
       
-      // 6. 듀얼 축 차트에 피치 데이터 추가
+      // 6. 피치 데이터 추가
       pitchData.forEach((point: any) => {
-        testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
+        testPitchChart.addPitchData(point.frequency, point.time, 'reference');
       });
       
       // 7. 음절 annotation 추가 - 업로드 파일용 데이터 구조 변환
