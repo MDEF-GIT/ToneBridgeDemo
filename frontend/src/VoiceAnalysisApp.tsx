@@ -45,7 +45,7 @@ const VoiceAnalysisApp: React.FC = () => {
   const [yAxisUnit, setYAxisUnit] = useState<'semitone' | 'qtone'>('semitone');
   
   // 🎯 화자별 기준 주파수 관리
-  const [usePersonalizedReference, setUsePersonalizedReference] = useState<boolean>(false);
+  const [referenceMode, setReferenceMode] = useState<'disabled' | 'measurement' | 'adaptive'>('disabled');
   const [personalReferenceFreq, setPersonalReferenceFreq] = useState<number>(200);
   
   // 🎭 화자 프로필 관리
@@ -61,7 +61,7 @@ const VoiceAnalysisApp: React.FC = () => {
   const dualAxisCanvasRef = useRef<HTMLCanvasElement>(null);
   
   // 🎯 기준 주파수 계산 (개인화 옵션에 따라 결정)
-  const effectiveReferenceFreq = usePersonalizedReference ? personalReferenceFreq : 200;
+  const effectiveReferenceFreq = referenceMode !== 'disabled' ? personalReferenceFreq : 200;
 
   // 🎯 Hooks  
   const pitchChart = usePitchChart(chartRef, API_BASE, effectiveReferenceFreq);
@@ -207,7 +207,7 @@ const VoiceAnalysisApp: React.FC = () => {
     setLearnerInfo(newLearnerInfo);
 
     // 화자별 맞춤 기준 주파수 설정이 활성화되고 이름+성별이 모두 있을 때 프로필 자동 생성
-    if (usePersonalizedReference && 
+    if (referenceMode !== 'disabled' && 
         newLearnerInfo.name && 
         newLearnerInfo.gender && 
         (field === 'name' || field === 'gender')) {
@@ -223,7 +223,7 @@ const VoiceAnalysisApp: React.FC = () => {
         console.log('📋 기존 프로필 발견:', existingProfile.name);
       }
     }
-  }, [learnerInfo, usePersonalizedReference, availableProfiles, createProfileFromLearnerInfo]);
+  }, [learnerInfo, referenceMode, availableProfiles, createProfileFromLearnerInfo]);
   
   // 🎯 학습 방법 선택
   const handleLearningMethodChange = useCallback((method: LearningMethod) => {
