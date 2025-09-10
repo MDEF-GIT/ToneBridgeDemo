@@ -380,11 +380,33 @@ export const useDualAxisChart = (
       return;
     }
 
+    console.log('🎯 듀얼축 차트: 음절 데이터 상태 확인:', syllableData.map(s => ({
+      syllable: s.syllable || s.text,
+      time: s.time,
+      start: s.start,
+      end: s.end,
+      hasActualRange: !!(s.start && s.end)
+    })));
+
     const annotations: any = {};
     
     syllableData.forEach((syllable, index) => {
-      const syllableStart = syllable.start || syllable.time - 0.1;
-      const syllableEnd = syllable.end || syllable.time + 0.1;
+      // ✅ 실제 시간 범위 우선 사용 (백엔드에서 제공하는 정확한 범위)
+      let syllableStart: number;
+      let syllableEnd: number;
+      
+      if (syllable.start !== undefined && syllable.end !== undefined) {
+        // 백엔드에서 제공하는 정확한 시간 범위 사용
+        syllableStart = syllable.start;
+        syllableEnd = syllable.end;
+        console.log(`🎯 음절 ${index+1} "${syllable.syllable || syllable.text}": 정확한 범위 [${syllableStart.toFixed(3)}s ~ ${syllableEnd.toFixed(3)}s]`);
+      } else {
+        // 구버전 호환성을 위한 임시 범위 (더 이상 사용되지 않아야 함)
+        const duration = 0.2; // ±0.1초
+        syllableStart = syllable.time - (duration / 2);
+        syllableEnd = syllable.time + (duration / 2);
+        console.warn(`⚠️ 음절 ${index+1} "${syllable.syllable || syllable.text}": 임시 범위 사용 [${syllableStart.toFixed(3)}s ~ ${syllableEnd.toFixed(3)}s]`);
+      }
       
       // 음절 구간 경계선 (시작)
       annotations[`syllable-start-${index}`] = {
