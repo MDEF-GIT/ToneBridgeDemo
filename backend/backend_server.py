@@ -4128,6 +4128,129 @@ def generate_schedule_message(status: str, days_until: int, urgency: str) -> str
     else:
         return f"✅ 다음 재측정까지 {days_until}일 남았습니다."
 
+# ===== 🎭 화자 프로필 관리 API =====
+
+# 프로필 저장소 (실제 구현에서는 데이터베이스 사용 권장)
+speaker_profiles = {}
+
+@app.post("/api/speaker-profile")
+async def create_speaker_profile(profile_data: dict):
+    """
+    화자 프로필 생성/업데이트
+    profile_data: {
+        "name": str,           # 학습자 이름
+        "gender": str,         # 성별 (male/female)
+        "age_group": str,      # 연령대
+        "reference_frequency": float,  # 기준 주파수
+        "measurements": {...}  # 측정 데이터
+    }
+    """
+    try:
+        import uuid
+        from datetime import datetime
+        
+        # 프로필 ID 생성 (이름 기반)
+        profile_id = f"{profile_data['name']}_{profile_data['gender']}_{profile_data.get('age_group', 'unknown')}"
+        
+        # 프로필 데이터 구조화
+        profile = {
+            "profile_id": profile_id,
+            "name": profile_data["name"],
+            "gender": profile_data["gender"],
+            "age_group": profile_data.get("age_group", ""),
+            "reference_frequency": profile_data.get("reference_frequency", 200.0),
+            "measurements": profile_data.get("measurements", {}),
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "measurement_count": len(profile_data.get("measurements", {}))
+        }
+        
+        # 프로필 저장
+        speaker_profiles[profile_id] = profile
+        
+        print(f"👤 화자 프로필 생성: {profile['name']} ({profile['gender']}, {profile['age_group']})")
+        print(f"   기준 주파수: {profile['reference_frequency']}Hz")
+        print(f"   측정 데이터: {profile['measurement_count']}개")
+        
+        return {
+            "success": True,
+            "profile_id": profile_id,
+            "profile": profile
+        }
+        
+    except Exception as e:
+        print(f"❌ 프로필 생성 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"프로필 생성 실패: {str(e)}")
+
+@app.get("/api/speaker-profiles")
+async def get_speaker_profiles():
+    """
+    모든 화자 프로필 목록 조회
+    """
+    try:
+        profiles_list = list(speaker_profiles.values())
+        
+        print(f"📋 프로필 목록 조회: {len(profiles_list)}개 프로필")
+        
+        return {
+            "success": True,
+            "profiles": profiles_list,
+            "total_count": len(profiles_list)
+        }
+        
+    except Exception as e:
+        print(f"❌ 프로필 목록 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"프로필 조회 실패: {str(e)}")
+
+@app.get("/api/speaker-profile/{profile_id}")
+async def get_speaker_profile(profile_id: str):
+    """
+    특정 화자 프로필 조회
+    """
+    try:
+        if profile_id not in speaker_profiles:
+            raise HTTPException(status_code=404, detail="프로필을 찾을 수 없습니다")
+        
+        profile = speaker_profiles[profile_id]
+        
+        print(f"👤 프로필 조회: {profile['name']} (기준주파수: {profile['reference_frequency']}Hz)")
+        
+        return {
+            "success": True,
+            "profile": profile
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ 프로필 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"프로필 조회 실패: {str(e)}")
+
+@app.delete("/api/speaker-profile/{profile_id}")
+async def delete_speaker_profile(profile_id: str):
+    """
+    화자 프로필 삭제
+    """
+    try:
+        if profile_id not in speaker_profiles:
+            raise HTTPException(status_code=404, detail="프로필을 찾을 수 없습니다")
+        
+        deleted_profile = speaker_profiles.pop(profile_id)
+        
+        print(f"🗑️ 프로필 삭제: {deleted_profile['name']}")
+        
+        return {
+            "success": True,
+            "message": "프로필이 삭제되었습니다",
+            "deleted_profile_id": profile_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ 프로필 삭제 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"프로필 삭제 실패: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

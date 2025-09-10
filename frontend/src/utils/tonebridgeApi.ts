@@ -40,6 +40,19 @@ export interface SyllableData {
   semitone?: number;
 }
 
+// 🎭 화자 프로필 인터페이스
+export interface SpeakerProfile {
+  profile_id: string;
+  name: string;
+  gender: string;
+  age_group: string;
+  reference_frequency: number;
+  measurements: any;
+  created_at: string;
+  updated_at: string;
+  measurement_count: number;
+}
+
 /**
  * 참조 파일 관련 API
  */
@@ -209,6 +222,54 @@ export const miscApi = {
 };
 
 /**
+ * 화자 프로필 관리 API
+ */
+export const speakerProfileApi = {
+  /**
+   * 프로필 생성/업데이트
+   */
+  async create(profileData: {
+    name: string;
+    gender: string;
+    age_group?: string;
+    reference_frequency?: number;
+    measurements?: any;
+  }): Promise<ApiResponse<{ profile_id: string; profile: SpeakerProfile }>> {
+    return apiClient.post('/api/speaker-profile', profileData, {
+      logRequest: true,
+      logResponse: true
+    });
+  },
+
+  /**
+   * 모든 프로필 목록 조회
+   */
+  async getList(): Promise<ApiResponse<{ profiles: SpeakerProfile[]; total_count: number }>> {
+    return apiClient.getObject('/api/speaker-profiles');
+  },
+
+  /**
+   * 특정 프로필 조회
+   */
+  async getProfile(profileId: string): Promise<ApiResponse<{ profile: SpeakerProfile }>> {
+    const endpoint = `/api/speaker-profile/${encodeURIComponent(profileId)}`;
+    return apiClient.getObject(endpoint);
+  },
+
+  /**
+   * 프로필 삭제
+   */
+  async delete(profileId: string): Promise<ApiResponse<any>> {
+    const endpoint = `/api/speaker-profile/${encodeURIComponent(profileId)}`;
+    return apiClient.fetch(endpoint, {
+      method: 'DELETE',
+      logRequest: true,
+      logResponse: true
+    });
+  }
+};
+
+/**
  * 통합 ToneBridge API 객체 (화자 프로필 시스템 확장)
  */
 export const tonebridgeApi = {
@@ -220,7 +281,10 @@ export const tonebridgeApi = {
   referenceFiles: referenceFilesApi,
   uploadedFiles: uploadedFilesApi,
   recording: recordingApi,
-  misc: miscApi
+  misc: miscApi,
+  
+  // 🎭 새로운 화자 프로필 API
+  speakerProfile: speakerProfileApi
 };
 
 export default tonebridgeApi;
