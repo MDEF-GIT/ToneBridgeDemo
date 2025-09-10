@@ -28,7 +28,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend && uvicorn backend_server:app --host 0.0.0.0 --port 8000 --reload"
+args = "cd backend && ./run_server.sh"
 waitForPort = 8000
 
 [[workflows.workflow]]

@@ -30,7 +30,10 @@ except ImportError:
 
 # 텍스트 처리
 from difflib import SequenceMatcher
-import Levenshtein
+try:
+    import Levenshtein
+except ImportError:
+    Levenshtein = None
 import re
 
 # 프로젝트 모듈
