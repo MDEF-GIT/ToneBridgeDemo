@@ -2614,23 +2614,52 @@ async def optimize_uploaded_file(file_id: str = Form(...), use_ultimate_stt: boo
             raise HTTPException(status_code=500, detail=f"최적화 중 오류: {e}")
 
 def create_textgrid_from_syllables(syllables, duration):
-    """음절 데이터로부터 TextGrid 생성 - 통합 라이브러리 사용"""
-    from tonebridge_core.textgrid.generator import UnifiedTextGridGenerator
-    from tonebridge_core.models import SyllableSegment
+    """음절 데이터로부터 TextGrid 생성 - 직접 생성 방식"""
+    print(f"🎯 TextGrid 생성: {len(syllables)}개 음절, 지속시간: {duration:.3f}초")
     
-    # 기존 딕셔너리 형식을 SyllableSegment로 변환
-    segments = []
-    for syl in syllables:
+    # 음절 텍스트 추출 (다양한 키 이름 대응)
+    processed_syllables = []
+    for i, syl in enumerate(syllables):
         if isinstance(syl, dict):
-            segments.append(SyllableSegment(
-                label=syl.get('label', ''),
-                start=syl.get('start', 0.0),
-                end=syl.get('end', 0.0),
-                confidence=syl.get('confidence', 0.8)
-            ))
+            # 다양한 텍스트 키 확인
+            text = syl.get('label', '') or syl.get('text', '') or syl.get('syllable', '') or syl.get('name', '')
+            start = syl.get('start', 0.0)
+            end = syl.get('end', 0.0)
+            
+            processed_syllables.append({
+                'text': text,
+                'start': start,
+                'end': end
+            })
+            print(f"   음절 {i+1}: '{text}' [{start:.3f}s ~ {end:.3f}s]")
     
-    generator = UnifiedTextGridGenerator()
-    return generator.from_syllables(segments, duration)
+    # 직접 TextGrid 내용 생성
+    textgrid_content = f'''File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0.0
+xmax = {duration}
+tiers? <exists>
+size = 1
+item []:
+    item [1]:
+        class = "IntervalTier"
+        name = "syllables"
+        xmin = 0.0
+        xmax = {duration}
+        intervals: size = {len(processed_syllables)}
+'''
+    
+    # 각 음절 구간 추가
+    for i, syl in enumerate(processed_syllables, 1):
+        textgrid_content += f'''        intervals [{i}]:
+            xmin = {syl['start']}
+            xmax = {syl['end']}
+            text = "{syl['text']}"
+'''
+    
+    print(f"✅ TextGrid 내용 생성 완료: {len(processed_syllables)}개 음절")
+    return textgrid_content
 
 def create_optimized_audio(wav_path, syllables):
     """0.25초 마진을 적용한 최적화된 오디오 생성"""
