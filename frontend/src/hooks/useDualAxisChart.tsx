@@ -31,7 +31,8 @@ interface DualAxisChartData {
 
 export const useDualAxisChart = (
   canvasRef: React.RefObject<HTMLCanvasElement>,
-  API_BASE: string
+  API_BASE: string,
+  referenceFreq: number = 200
 ) => {
   const chartRef = useRef<ChartJS | null>(null);
   const chartDataRef = useRef<DualAxisChartData[]>([]);
@@ -44,15 +45,15 @@ export const useDualAxisChart = (
 
   // 🎯 주파수 → 세미톤/큐톤 변환 함수 (usePitchChart와 동일한 공식 사용)
   const convertFrequencyToUnit = useCallback((frequency: number): number => {
-    const baseFreq = 200; // 🎯 usePitchChart와 동일한 기준 주파수 사용
+    const baseFreq = referenceFreq; // 🎯 매개변수로 받은 기준 주파수 사용
     if (yAxisUnit === 'semitone') {
-      // 세미톤: 12 * log2(f/200) - usePitchChart와 동일
+      // 세미톤: 12 * log2(f/baseFreq) - 개인화된 기준 주파수 적용
       return 12 * Math.log2(frequency / baseFreq);
     } else {
-      // 큐톤: 24 * log2(f/200) - usePitchChart와 동일 (Quarter-tone = 세미톤 × 2)
+      // 큐톤: 24 * log2(f/baseFreq) - 개인화된 기준 주파수 적용 (Quarter-tone = 세미톤 × 2)
       return 24 * Math.log2(frequency / baseFreq);
     }
-  }, [yAxisUnit]);
+  }, [yAxisUnit, referenceFreq]);
 
   // 🎯 차트 초기화
   const initChart = useCallback(() => {

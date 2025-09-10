@@ -54,9 +54,12 @@ const VoiceAnalysisApp: React.FC = () => {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const dualAxisCanvasRef = useRef<HTMLCanvasElement>(null);
   
+  // 🎯 기준 주파수 계산 (개인화 옵션에 따라 결정)
+  const effectiveReferenceFreq = usePersonalizedReference ? personalReferenceFreq : 200;
+
   // 🎯 Hooks  
-  const pitchChart = usePitchChart(chartRef, API_BASE);
-  const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE);
+  const pitchChart = usePitchChart(chartRef, API_BASE, effectiveReferenceFreq);
+  const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE, effectiveReferenceFreq);
   const audioRecording = useAudioRecording(learnerInfo, selectedFile, pitchChart);
   
   // 🎯 통합 재생 동기화 훅

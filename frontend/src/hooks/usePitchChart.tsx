@@ -40,7 +40,7 @@ interface SyllableData {
   semitone?: number;
 }
 
-export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '') => {
+export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | null>, API_BASE: string = '', referenceFreq: number = 200) => {
   const chartRef = useRef<ChartJS | null>(null);
   const pitchDataRef = useRef<PitchData[]>([]);
   const startTimeRef = useRef<number>(0);
@@ -165,12 +165,12 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   }, [canvasRef]); // yAxisUnit 의존성 제거하여 차트 재초기화 방지
 
   // 🎯 주파수를 semitone 또는 Q-tone으로 변환하는 함수
-  const frequencyToSemitone = (frequency: number, baseFrequency: number = 200): number => {
+  const frequencyToSemitone = (frequency: number, baseFrequency: number = referenceFreq): number => {
     if (frequency <= 0 || baseFrequency <= 0) return 0;
     return 12 * Math.log2(frequency / baseFrequency);
   };
 
-  const frequencyToQtone = (frequency: number, baseFrequency: number = 200): number => {
+  const frequencyToQtone = (frequency: number, baseFrequency: number = referenceFreq): number => {
     if (frequency <= 0 || baseFrequency <= 0) return 0;
     // Q-tone = Quarter-tone = 1/4 semitone = 24 * log2(f/f0)
     // 1 semitone = 2 Q-tones
