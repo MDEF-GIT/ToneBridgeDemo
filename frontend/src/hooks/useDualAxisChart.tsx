@@ -36,6 +36,7 @@ export const useDualAxisChart = (
 ) => {
   const chartRef = useRef<ChartJS | null>(null);
   const chartDataRef = useRef<DualAxisChartData[]>([]);
+  const isRealtimeRecording = useRef<boolean>(false); // 🎯 실시간 녹음 상태 추적
   const [yAxisUnit, setYAxisUnitInternal] = React.useState<'semitone' | 'qtone'>('semitone');
 
   // 🎯 외부에서 Y축 단위를 설정하는 함수
@@ -145,8 +146,9 @@ export const useDualAxisChart = (
             title: {
               display: true,
               text: '시간 (초)'
-            }
-            // min, max 제거 - 데이터에 맞게 동적 설정 (0.2초 마진 포함)
+            },
+            min: -0.5,
+            max: 5.0 // 🎯 실시간 녹음용 고정 시간 윈도우 (5초)
           },
           'y-frequency': {
             type: 'linear',
@@ -201,6 +203,11 @@ export const useDualAxisChart = (
 
     chartDataRef.current.push(chartData);
 
+    // 🎯 실시간 데이터일 때 상태 플래그 설정
+    if (type === 'live') {
+      isRealtimeRecording.current = true;
+    }
+
     // 차트 데이터 업데이트
     chartRef.current.data.labels!.push(timestamp.toFixed(2));
     chartRef.current.data.datasets[0].data.push({ x: timestamp, y: frequency });
@@ -231,9 +238,9 @@ export const useDualAxisChart = (
     const scales = chartRef.current.options.scales;
     if (!scales) return;
 
-    // X축 시간 범위 조정 (0.2초 마진 추가)
+    // 🎯 실시간 녹음 중이 아닐 때만 X축 범위 조정
     const xScale = scales.x as any;
-    if (xScale) {
+    if (xScale && !isRealtimeRecording.current) {
       const allTimes = chartDataRef.current.map(d => d.time);
       if (allTimes.length > 0) {
         const minTime = Math.min(...allTimes);
@@ -244,6 +251,8 @@ export const useDualAxisChart = (
         xScale.max = maxTime + timeMargin;
         console.log(`📊 듀얼차트 X축 범위: ${xScale.min.toFixed(1)}s ~ ${xScale.max.toFixed(1)}s (마진: ${timeMargin}s)`);
       }
+    } else if (isRealtimeRecording.current) {
+      console.log(`🎤 실시간 녹음 중 - 듀얼차트 X축 범위 고정 유지`);
     }
 
     // 주파수 축(왼쪽) 범위 조정
@@ -282,21 +291,22 @@ export const useDualAxisChart = (
     if (!chartRef.current) return;
 
     chartDataRef.current = [];
+    isRealtimeRecording.current = false; // 🎯 실시간 녹음 상태 초기화
     chartRef.current.data.labels = [];
     chartRef.current.data.datasets[0].data = [];
     chartRef.current.data.datasets[1].data = [];
     (chartRef.current.data.datasets[0] as any).pointBackgroundColor = [];
     (chartRef.current.data.datasets[1] as any).pointBackgroundColor = [];
     
-    // 🎯 X축 및 Y축 범위 초기화 - 올바른 기본값으로 설정
+    // 🎯 X축 및 Y축 범위 초기화 (실시간 녹음용 고정 윈도우)
     if (chartRef.current.options.scales) {
       const xScale = chartRef.current.options.scales.x as any;
       const frequencyScale = chartRef.current.options.scales['y-frequency'] as any;
       const convertedScale = chartRef.current.options.scales['y-converted'] as any;
       
       if (xScale) {
-        xScale.min = -0.2; // 0.2초 마진으로 시작
-        xScale.max = 5; // 기본 5초 범위
+        xScale.min = -0.5; // 🎯 실시간 녹음용 고정 윈도우
+        xScale.max = 5.0;   // 🎯 5초 고정 윈도우
       }
       if (frequencyScale) {
         frequencyScale.min = 100;
@@ -544,6 +554,9 @@ export const useDualAxisChart = (
   const addRealtimePitch = useCallback((frequency: number) => {
     if (!chartRef.current) return;
 
+    // 🎯 실시간 녹음 상태 설정
+    isRealtimeRecording.current = true;
+
     const convertedValue = convertFrequencyToUnit(frequency);
     const chart = chartRef.current;
     
@@ -605,12 +618,16 @@ export const useDualAxisChart = (
   const clearRealtimePitch = useCallback(() => {
     if (!chartRef.current) return;
 
+    // 🎯 실시간 녹음 상태 종료
+    isRealtimeRecording.current = false;
+
     const chart = chartRef.current;
     if (chart.options.plugins?.annotation?.annotations) {
       const annotations = chart.options.plugins.annotation.annotations as any;
       delete annotations.realtimeHz;
       delete annotations.realtimeConverted;
       chart.update('none');
+      console.log('🎯 실시간 데이터 숨김 및 녹음 상태 종료 (듀얼차트)');
     }
   }, []);
 
