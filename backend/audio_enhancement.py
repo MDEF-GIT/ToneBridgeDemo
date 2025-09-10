@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import tempfile
 import json
-import subprocess
-import sys
-import os
+import subprocess  # Used for FFmpeg calls
+import sys  # Used for path operations
+import os  # Used for file operations
 
 class STTProcessor:
     """
