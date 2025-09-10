@@ -1,101 +1,104 @@
-# ToneBridge Voice Analysis Microservices
+# ToneBridge Voice Analysis Platform
 
 ## Overview
-ToneBridge is a Korean prosody learning platform designed to assist users, particularly in deaf education and language therapy, in analyzing and improving Korean speech patterns. It utilizes a microservices architecture for voice analysis and pronunciation training, offering real-time audio processing and visualization. The platform integrates authentic Praat pitch extraction algorithms via Parselmouth with a modern React frontend, providing interactive user experiences. Its modular design allows for independent deployment and integration, supporting both language therapists and general users, with mechanisms for gathering feedback for continuous improvement.
+
+ToneBridge is a comprehensive Korean voice analysis platform designed for pronunciation learning and speech therapy applications. The system integrates advanced speech processing algorithms, multi-engine STT (Speech-to-Text) capabilities, and real-time pitch analysis to provide accurate voice analysis and feedback for Korean language learners, particularly targeting hearing-impaired education and speech therapy domains.
+
+The platform implements a microservices architecture with a FastAPI backend handling complex audio processing pipelines and a React TypeScript frontend providing interactive visualization and user interface components.
 
 ## User Preferences
+
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### UI/UX Decisions
-- **Frontend**: React 18+ with TypeScript for interactive interfaces.
-- **Visualizations**: Chart.js with annotation plugins for real-time audio data.
-- **Styling**: Bootstrap 5.3+ and Pretendard Korean font for optimal readability and responsive design.
-- **Color Schemes**: Custom Bootstrap integration.
-- **Animations**: CSS animations (`shake`, `bounce`) for mobile warnings.
-- **Gradients**: Linear gradients for CTAs and warning sections.
-- **Font**: Pretendard Korean font for optimal readability.
+### Frontend Architecture
+The frontend is built using React 18+ with TypeScript, implementing a component-based architecture:
 
-### Technical Implementations
-- **Backend API Service (Port 8000)**:
-    - **Framework**: FastAPI with Python 3.8+.
-    - **Audio Processing**: Parselmouth (Praat Python) for pitch extraction and prosodic analysis.
-    - **API Design**: RESTful endpoints supporting WAV and TextGrid files.
-    - **Database**: SQLAlchemy ORM, configurable (default SQLite).
-    - **Location**: `backend/` directory.
-    - **Advanced Voice Processing**: Includes modules for multi-engine STT (Whisper, Google Cloud, Azure, Naver CLOVA) with reliability scoring, Korean syllable alignment, and jamo decomposition. Features automated audio processing, advanced STT, engine comparison, and syllable alignment analysis.
-- **Frontend Service**:
-    - **Framework**: React 18+ with TypeScript.
-    - **Build System**: Create React App.
-    - **API Integration**: Configurable backend API endpoint.
-    - **Location**: `frontend/` directory.
-- **Client Proxy Service (Port 5000)**:
-    - **Framework**: Express.js with CORS and proxy middleware.
-    - **Purpose**: Demonstration client, proxies requests to the backend.
-    - **Location**: `temp-frontend/` directory.
-- **Data Storage**:
-    - **Database**: SQLAlchemy ORM (default SQLite).
-    - **Models**: User, analysis sessions, surveys, reference files.
-    - **File Storage**: Local filesystem in `static/uploads`.
-- **Authentication**: Flask-Login based, with password hashing and database-backed sessions. Public access to demo features and reference files.
-- **Audio Analysis Pipeline**:
-    - Real-time F0 analysis, gender detection, Korean syllable counting.
-    - Supports WAV audio and TextGrid annotations.
-    - Automated TextGrid optimization using energy and pitch variation analysis, silent interval removal, and adaptive syllable boundary optimization for enhanced phonological accuracy.
-- **Deployment**: Standalone design with virtual environments, cross-platform support (Linux, macOS, Windows), Replit compatibility, and hot-reloading for development.
+- **Build System**: Create React App (CRA) with TypeScript configuration
+- **State Management**: React hooks with custom hook patterns for audio analysis
+- **Visualization**: Chart.js with react-chartjs-2 for dual-axis pitch charts and real-time audio visualization
+- **HTTP Client**: Axios for API communication with the backend
+- **Routing**: React Router v6 for single-page application navigation
+- **UI Components**: Custom components for file upload, audio analysis, and pitch visualization
 
-### Feature Specifications
-- **Core Features (from `index.html` as target for React)**:
-    - Personalized Coaching Survey CTA.
-    - Mobile Landscape Orientation Guide.
-    - Learner Information Input (name, gender, age group).
-    - Learning Method Selection (pitch vs. reference intonation).
-    - Practice Sentence Selection & Video Guide.
-    - Real-time Analysis Chart with controls (zoom, scroll, key adjustment).
-    - Syllable Analysis Table with prosodic measurements.
-    - Gender Selection Modal for voice calibration.
-- **Technical Implementations for React**:
-    - Utilizes `MediaRecorder API` for audio capture.
-    - `FormData` handling for file uploads.
-    - `Fetch API` for backend integration.
-    - `Chart.js` for pitch visualization.
-    - Comprehensive error handling.
-    - Syllable annotation visualization on charts (dotted lines, purple labels).
-    - Chart controls for pitch adjustment, zoom, scroll, and reset.
-    - Integration of multi-engine STT and Korean syllable alignment for improved accuracy.
-    - **Performance Optimization**: Conditional preprocessing to avoid redundant processing on file selection.
-    - **Smart File Management**: Processing status display (✅ processed, ⏳ pending) and manual reprocessing option.
+Key frontend components include:
+- `VoiceAnalysisApp`: Main application component managing audio analysis workflow
+- `UploadedFileTestSection`: Handles user audio file uploads and processing
+- Custom hooks for pitch chart management and audio analysis state
+
+### Backend Architecture
+The backend implements a FastAPI-based microservices architecture with specialized audio processing modules:
+
+- **Core Server**: FastAPI application (`backend_server.py`) with 25+ API endpoints
+- **Audio Processing Pipeline**: Parselmouth (Python binding for Praat) for authentic pitch extraction
+- **STT Integration**: Multi-engine STT system supporting Whisper, Google Cloud, Azure, and Naver CLOVA
+- **Korean Language Processing**: Specialized modules for Korean syllable segmentation and phonetic analysis
+- **File Management**: Static file serving for reference audio files and user uploads
+
+Core backend modules include:
+- `tonebridge_core/`: Core AI modules for analysis, segmentation, and STT processing
+- `advanced_stt_processor.py`: Multi-engine STT with Korean language optimization
+- `korean_audio_optimizer.py`: Korean-specific audio preprocessing for improved STT accuracy
+- `audio_analysis.py`: Comprehensive audio feature extraction and analysis tools
+
+### Database and Storage
+The system uses SQLAlchemy ORM with models for:
+- User management and learner profiles
+- Analysis session tracking
+- Reference file metadata management
+- Survey response collection
+
+File storage is handled through a static file system with organized directories for reference files and user uploads.
+
+### API Architecture
+The backend exposes a comprehensive REST API with endpoints for:
+- **Audio Analysis**: `/analyze_ref`, `/api/record_realtime` for real-time and batch audio processing
+- **File Management**: CRUD operations for reference files and user uploads
+- **STT Processing**: Multiple STT engine endpoints with quality validation
+- **Pitch Analysis**: Specialized endpoints for pitch data extraction and TextGrid generation
+
+### Real-time Processing Pipeline
+The system implements a sophisticated audio processing pipeline:
+1. Audio normalization and Korean-specific preprocessing
+2. Multi-engine STT processing with ensemble results
+3. Syllable segmentation using Korean linguistic rules
+4. Pitch analysis using Praat algorithms via Parselmouth
+5. TextGrid generation for temporal alignment
+6. Real-time visualization data preparation
 
 ## External Dependencies
 
-### Core Python Libraries
-- **FastAPI**: Web framework.
-- **Parselmouth**: Praat interface for speech analysis.
-- **SQLAlchemy**: Database ORM.
-- **NumPy**: Numerical computing.
-- **Uvicorn**: ASGI server.
+### Core Technologies
+- **FastAPI**: Backend web framework for high-performance API development
+- **React 18+**: Frontend framework with TypeScript for type safety
+- **Parselmouth**: Python binding for Praat acoustic analysis software
+- **SQLAlchemy**: ORM for database operations and model management
 
-### Frontend Dependencies
-- **React**: UI library.
-- **Chart.js**: Charting library for visualization.
-- **Axios**: HTTP client.
-- **React Query**: Server state management.
-- **Bootstrap**: CSS framework.
+### Audio Processing Libraries
+- **librosa**: Advanced audio analysis and feature extraction
+- **soundfile**: Audio file I/O operations
+- **pydub**: Audio manipulation and format conversion
+- **numpy**: Numerical computing for audio signal processing
 
-### Development Tools
-- **Concurrently**: For running multiple scripts.
-- **TypeScript**: Static typing for JavaScript.
-- **React Scripts**: Build toolchain.
-- **Create React App**: Project bootstrapping.
+### STT Engines and APIs
+- **OpenAI Whisper**: Local STT processing with Korean language support
+- **Google Cloud Speech-to-Text**: Cloud-based STT with high accuracy
+- **Azure Cognitive Services**: Microsoft's speech recognition services
+- **Naver CLOVA Speech**: Korean-optimized commercial STT service
 
-### External Services
-- **Google Analytics**: User behavior tracking (ID: G-56D78RCESE).
-- **Naver Forms**: External survey collection.
-- **CDN Resources**: Bootstrap, Font Awesome, Chart.js, Pretendard font.
+### Visualization and UI
+- **Chart.js**: Charting library for pitch visualization and real-time audio feedback
+- **chartjs-plugin-annotation**: Chart.js plugin for adding annotations to pitch charts
+- **react-chartjs-2**: React wrapper for Chart.js integration
 
-### System Requirements
-- **Python**: 3.8+.
-- **Node.js**: 16+.
-- **Browser Compatibility**: Modern browsers with WebRTC.
-- **Audio Hardware**: Microphone access.
+### Development and Deployment
+- **Express.js**: Client proxy server for microservices communication (port 5000)
+- **CORS**: Cross-origin resource sharing for API access
+- **http-proxy-middleware**: Proxy middleware for frontend-backend communication
+
+### Analytics and Monitoring
+- **Google Analytics**: User behavior tracking with ID G-56D78RCESE
+- Comprehensive logging system for debugging and performance monitoring
+
+The system is designed to handle gateway timeouts and connection issues gracefully, with fallback mechanisms for STT processing and audio analysis when primary services are unavailable.
