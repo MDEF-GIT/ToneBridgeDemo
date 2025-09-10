@@ -47,7 +47,7 @@ class STTProcessor:
             # 고급 STT 사용
             try:
                 result = self.advanced_stt.stt.transcribe(audio_file, language=language)
-                korean_text = self._filter_korean_text(result.text)
+                korean_text = self._filter_korean_text(str(result.text))
                 print(f"🎤 고급 STT 결과 ({result.engine}): {korean_text}")
                 return korean_text
             except Exception as e:
@@ -64,7 +64,7 @@ class STTProcessor:
             result = model.transcribe(audio_file, language=language)
             
             # 한국어 텍스트만 추출
-            text = result["text"].strip()
+            text = str(result.get("text", "")).strip()
             korean_text = self._filter_korean_text(text)
             
             print(f"🎤 기본 STT 결과: {korean_text}")
@@ -469,7 +469,8 @@ class AutomatedProcessor:
                         'end': syllable_end
                     })
                 
-                print(f"   🎯 '{syllable_text}': {syllable_start:.3f}s ~ {syllable_end:.3f}s")
+                # 로깅은 루프 밖에서
+                pass
             
             # 5. TextGrid 생성 (원본 duration 사용)
             output_path = str(Path(audio_file).with_suffix('.TextGrid'))
