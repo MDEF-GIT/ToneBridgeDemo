@@ -12,6 +12,7 @@ import { useAudioPlaybackSync } from './hooks/useAudioPlaybackSync';
 import { SpeakerProfileManager } from './components/SpeakerProfileManager';
 import UploadedFileTestSection from './components/UploadedFileTestSection';
 // import { PitchTestMode } from './components/PitchTestMode';
+import { tonebridgeApi, SpeakerProfile } from './utils/tonebridgeApi';
 import './custom.css';
 
 const VoiceAnalysisApp: React.FC = () => {
@@ -46,6 +47,11 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 화자별 기준 주파수 관리
   const [usePersonalizedReference, setUsePersonalizedReference] = useState<boolean>(false);
   const [personalReferenceFreq, setPersonalReferenceFreq] = useState<number>(200);
+  
+  // 🎭 화자 프로필 관리
+  const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(false);
   
   // 🎯 API Base URL
   const API_BASE = '';
@@ -93,6 +99,7 @@ const VoiceAnalysisApp: React.FC = () => {
   // 🎯 초기화 (한 번만 실행)
   useEffect(() => {
     loadReferenceFiles();
+    loadAvailableProfiles();
     console.log('🎯 ToneBridge Voice Analysis App initialized');
   }, []); // 빈 의존성 배열로 한 번만 실행
   
@@ -151,10 +158,72 @@ const VoiceAnalysisApp: React.FC = () => {
     }
   };
 
-  // 🎯 학습자 정보 업데이트
-  const updateLearnerInfo = useCallback((field: keyof LearnerInfo, value: string) => {
-    setLearnerInfo(prev => ({ ...prev, [field]: value }));
+  // 🎯 프로필 목록 로드
+  const loadAvailableProfiles = useCallback(async () => {
+    setIsLoadingProfiles(true);
+    try {
+      const response = await tonebridgeApi.speakerProfile.getList();
+      if (response.success && response.data) {
+        setAvailableProfiles(response.data.profiles || []);
+        console.log(`📋 프로필 목록 로드 완료: ${response.data.profiles?.length || 0}개`);
+      }
+    } catch (error) {
+      console.error('❌ 프로필 목록 로드 실패:', error);
+    } finally {
+      setIsLoadingProfiles(false);
+    }
   }, []);
+
+  // 🎯 학습자 정보 기반 프로필 자동 생성
+  const createProfileFromLearnerInfo = useCallback(async (learnerData: LearnerInfo) => {
+    if (!learnerData.name || !learnerData.gender) {
+      return null; // 필수 정보가 없으면 생성하지 않음
+    }
+
+    try {
+      const profileData = {
+        name: learnerData.name,
+        gender: learnerData.gender,
+        age_group: learnerData.ageGroup || '',
+        reference_frequency: 200.0, // 기본값으로 시작
+        measurements: {}
+      };
+
+      const response = await tonebridgeApi.speakerProfile.create(profileData);
+      if (response.success && response.data) {
+        console.log(`👤 프로필 자동 생성 완료: ${response.data.profile.name}`);
+        await loadAvailableProfiles(); // 목록 새로고침
+        return response.data.profile;
+      }
+    } catch (error) {
+      console.error('❌ 프로필 생성 실패:', error);
+    }
+    return null;
+  }, [loadAvailableProfiles]);
+
+  // 🎯 학습자 정보 업데이트 (프로필 자동 생성 포함)
+  const updateLearnerInfo = useCallback(async (field: keyof LearnerInfo, value: string) => {
+    const newLearnerInfo = { ...learnerInfo, [field]: value };
+    setLearnerInfo(newLearnerInfo);
+
+    // 화자별 맞춤 기준 주파수 설정이 활성화되고 이름+성별이 모두 있을 때 프로필 자동 생성
+    if (usePersonalizedReference && 
+        newLearnerInfo.name && 
+        newLearnerInfo.gender && 
+        (field === 'name' || field === 'gender')) {
+      
+      // 기존 프로필이 있는지 확인
+      const profileId = `${newLearnerInfo.name}_${newLearnerInfo.gender}_${newLearnerInfo.ageGroup || 'unknown'}`;
+      const existingProfile = availableProfiles.find(p => p.profile_id === profileId);
+      
+      if (!existingProfile) {
+        console.log('🎯 학습자 정보 변경 감지 → 자동 프로필 생성 시작');
+        await createProfileFromLearnerInfo(newLearnerInfo);
+      } else {
+        console.log('📋 기존 프로필 발견:', existingProfile.name);
+      }
+    }
+  }, [learnerInfo, usePersonalizedReference, availableProfiles, createProfileFromLearnerInfo]);
   
   // 🎯 학습 방법 선택
   const handleLearningMethodChange = useCallback((method: LearningMethod) => {
@@ -554,6 +623,57 @@ const VoiceAnalysisApp: React.FC = () => {
                           </>
                         )}
                       </small>
+                      
+                      {/* 🎭 프로필 선택 UI (개인화 모드 활성화 시에만 표시) */}
+                      {usePersonalizedReference && (
+                        <div className="mt-3">
+                          <label className="form-label fw-bold">
+                            <i className="fas fa-user-circle me-2 text-primary"></i>
+                            화자 프로필 선택
+                          </label>
+                          <select 
+                            className="form-select" 
+                            value={selectedProfileId}
+                            onChange={(e) => {
+                              const profileId = e.target.value;
+                              setSelectedProfileId(profileId);
+                              
+                              // 선택된 프로필의 기준 주파수 적용
+                              if (profileId) {
+                                const selectedProfile = availableProfiles.find(p => p.profile_id === profileId);
+                                if (selectedProfile) {
+                                  setPersonalReferenceFreq(selectedProfile.reference_frequency);
+                                  console.log(`🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`);
+                                }
+                              }
+                            }}
+                            disabled={isLoadingProfiles}
+                          >
+                            <option value="">
+                              {isLoadingProfiles ? '프로필 로딩 중...' : '프로필을 선택하세요'}
+                            </option>
+                            {availableProfiles.map((profile) => (
+                              <option key={profile.profile_id} value={profile.profile_id}>
+                                {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz
+                              </option>
+                            ))}
+                          </select>
+                          
+                          {availableProfiles.length === 0 && !isLoadingProfiles && (
+                            <small className="text-warning mt-1 d-block">
+                              <i className="fas fa-exclamation-triangle me-1"></i>
+                              저장된 프로필이 없습니다. 학습자 정보를 입력하면 자동으로 프로필이 생성됩니다.
+                            </small>
+                          )}
+                          
+                          {selectedProfileId && (
+                            <small className="text-success mt-1 d-block">
+                              <i className="fas fa-check-circle me-1"></i>
+                              현재 기준 주파수: {personalReferenceFreq.toFixed(1)}Hz
+                            </small>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
