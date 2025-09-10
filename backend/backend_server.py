@@ -3607,6 +3607,527 @@ async def update_all_textgrids():
         print(f"❌ TextGrid 일괄 업데이트 실패: {e}")
         raise HTTPException(status_code=500, detail=f"TextGrid 업데이트 실패: {str(e)}")
 
+# 🎵 음역대 측정 API - 최저음/최고음 측정 및 기하평균 계산
+@app.post("/api/voice-range-measurement")
+async def voice_range_measurement(file: UploadFile = File(...)):
+    """
+    화자의 음역대를 측정하여 기준 주파수 계산
+    - 최저음/최고음 측정
+    - 기하평균 계산: √(최저주파수 × 최고주파수)
+    - 로그 스케일 중간점 계산
+    """
+    try:
+        print(f"🎵 음역대 측정 시작: {file.filename}")
+        
+        # 임시 파일로 저장
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+        content = await file.read()
+        temp_file.write(content)
+        temp_file.close()
+        
+        # Parselmouth로 음성 로드
+        sound = parselmouth.Sound(temp_file.name)
+        
+        # 피치 추출 (더 넓은 범위로 설정)
+        pitch = sound.to_pitch(time_step=0.01, pitch_floor=50.0, pitch_ceiling=600.0)
+        
+        # 유효한 피치 값들만 추출 (0이 아닌 값들)
+        pitch_values = []
+        for i in range(pitch.get_number_of_frames()):
+            f0 = pitch.get_value_at_time(pitch.get_time_from_frame_number(i + 1))
+            if f0 > 0:  # 유효한 피치 값만
+                pitch_values.append(f0)
+        
+        if len(pitch_values) < 10:
+            raise HTTPException(status_code=400, detail="충분한 음성 데이터를 추출할 수 없습니다")
+        
+        # 최저음/최고음 추출 (극단값 제거)
+        sorted_pitches = sorted(pitch_values)
+        # 하위 5%와 상위 5%는 노이즈로 간주하여 제거
+        trim_count = max(1, len(sorted_pitches) // 20)
+        trimmed_pitches = sorted_pitches[trim_count:-trim_count]
+        
+        min_freq = min(trimmed_pitches)
+        max_freq = max(trimmed_pitches)
+        
+        # 기하평균 계산: √(min × max)
+        geometric_mean = (min_freq * max_freq) ** 0.5
+        
+        # 로그 스케일 중간점 계산 (세미톤 단위)
+        import math
+        log_midpoint = math.exp((math.log(min_freq) + math.log(max_freq)) / 2)
+        
+        # 평균 피치 (산술평균)
+        arithmetic_mean = sum(trimmed_pitches) / len(trimmed_pitches)
+        
+        # 임시 파일 삭제
+        os.unlink(temp_file.name)
+        
+        result = {
+            "measurement_type": "voice_range",
+            "min_frequency": round(min_freq, 2),
+            "max_frequency": round(max_freq, 2),
+            "geometric_mean": round(geometric_mean, 2),
+            "log_midpoint": round(log_midpoint, 2),
+            "arithmetic_mean": round(arithmetic_mean, 2),
+            "total_samples": len(pitch_values),
+            "valid_samples": len(trimmed_pitches),
+            "range_semitones": round(12 * math.log2(max_freq / min_freq), 1)
+        }
+        
+        print(f"🎵 음역대 측정 완료:")
+        print(f"   최저음: {min_freq:.1f}Hz, 최고음: {max_freq:.1f}Hz")
+        print(f"   기하평균: {geometric_mean:.1f}Hz, 음역: {result['range_semitones']}st")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 음역대 측정 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"음역대 측정 실패: {str(e)}")
+
+# 🗣️ 모음별 분석 API - /아/, /이/, /우/ 개별 주파수 분석
+@app.post("/api/vowel-analysis")
+async def vowel_analysis(file: UploadFile = File(...), vowel_type: str = Form(...)):
+    """
+    특정 모음의 주파수 특성 분석
+    vowel_type: 'a' (/아/), 'i' (/이/), 'u' (/우/)
+    """
+    try:
+        print(f"🗣️ 모음별 분석 시작: {vowel_type} - {file.filename}")
+        
+        # 임시 파일로 저장
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+        content = await file.read()
+        temp_file.write(content)
+        temp_file.close()
+        
+        # Parselmouth로 음성 로드
+        sound = parselmouth.Sound(temp_file.name)
+        
+        # 피치 추출
+        pitch = sound.to_pitch(time_step=0.01)
+        
+        # 포먼트 분석 (모음 특성)
+        formant = sound.to_formant_burg(time_step=0.01, max_number_of_formants=4)
+        
+        # 피치 값들 추출
+        pitch_values = []
+        f1_values = []  # 첫 번째 포먼트
+        f2_values = []  # 두 번째 포먼트
+        
+        for i in range(min(pitch.get_number_of_frames(), formant.get_number_of_frames())):
+            time = pitch.get_time_from_frame_number(i + 1)
+            f0 = pitch.get_value_at_time(time)
+            f1 = formant.get_value_at_time(1, time)  # 첫 번째 포먼트
+            f2 = formant.get_value_at_time(2, time)  # 두 번째 포먼트
+            
+            if f0 > 0:
+                pitch_values.append(f0)
+            if not math.isnan(f1) and f1 > 0:
+                f1_values.append(f1)
+            if not math.isnan(f2) and f2 > 0:
+                f2_values.append(f2)
+        
+        if len(pitch_values) < 5:
+            raise HTTPException(status_code=400, detail="충분한 모음 데이터를 추출할 수 없습니다")
+        
+        # 통계 계산
+        mean_f0 = sum(pitch_values) / len(pitch_values)
+        mean_f1 = sum(f1_values) / len(f1_values) if f1_values else 0
+        mean_f2 = sum(f2_values) / len(f2_values) if f2_values else 0
+        
+        # 표준편차 계산
+        import statistics
+        std_f0 = statistics.stdev(pitch_values) if len(pitch_values) > 1 else 0
+        
+        # 임시 파일 삭제
+        os.unlink(temp_file.name)
+        
+        result = {
+            "vowel_type": vowel_type,
+            "fundamental_frequency": round(mean_f0, 2),
+            "f1_formant": round(mean_f1, 2),
+            "f2_formant": round(mean_f2, 2),
+            "f0_std_deviation": round(std_f0, 2),
+            "stability_score": round(1 / (1 + std_f0/mean_f0), 3),  # 안정성 점수
+            "sample_count": len(pitch_values)
+        }
+        
+        print(f"🗣️ 모음 /{vowel_type}/ 분석 완료: F0={mean_f0:.1f}Hz, F1={mean_f1:.0f}Hz, F2={mean_f2:.0f}Hz")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 모음 분석 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"모음 분석 실패: {str(e)}")
+
+# 📊 기하평균 기반 기준점 계산 API
+@app.post("/api/calculate-reference-frequency")
+async def calculate_reference_frequency(measurements: dict):
+    """
+    다중 측정값을 통합하여 최적 기준 주파수 계산
+    measurements: {
+        "comfortable_pitch": float,  # 편안한 발화 주파수
+        "voice_range": {...},        # 음역대 측정 결과
+        "vowel_analysis": [...]      # 모음별 분석 결과들
+    }
+    """
+    try:
+        print("📊 기하평균 기반 기준점 계산 시작")
+        
+        reference_candidates = []
+        weights = []
+        
+        # 1. 편안한 발화 주파수 (가중치: 0.4)
+        if "comfortable_pitch" in measurements:
+            reference_candidates.append(measurements["comfortable_pitch"])
+            weights.append(0.4)
+            print(f"   편안한 발화: {measurements['comfortable_pitch']:.1f}Hz (가중치: 0.4)")
+        
+        # 2. 음역대 기하평균 (가중치: 0.3)
+        if "voice_range" in measurements:
+            range_data = measurements["voice_range"]
+            reference_candidates.append(range_data["geometric_mean"])
+            weights.append(0.3)
+            print(f"   음역대 기하평균: {range_data['geometric_mean']:.1f}Hz (가중치: 0.3)")
+        
+        # 3. 모음별 분석 평균 (가중치: 0.3)
+        if "vowel_analysis" in measurements and measurements["vowel_analysis"]:
+            vowel_freqs = []
+            for vowel in measurements["vowel_analysis"]:
+                # 안정성 점수로 가중치 조정
+                stability = vowel.get("stability_score", 0.5)
+                freq = vowel["fundamental_frequency"]
+                vowel_freqs.append(freq * stability)
+            
+            if vowel_freqs:
+                vowel_mean = sum(vowel_freqs) / len(vowel_freqs)
+                reference_candidates.append(vowel_mean)
+                weights.append(0.3)
+                print(f"   모음 평균: {vowel_mean:.1f}Hz (가중치: 0.3)")
+        
+        if not reference_candidates:
+            raise HTTPException(status_code=400, detail="계산에 필요한 측정 데이터가 없습니다")
+        
+        # 가중 기하평균 계산
+        import math
+        
+        # 정규화된 가중치
+        total_weight = sum(weights)
+        normalized_weights = [w / total_weight for w in weights]
+        
+        # 가중 기하평균: (∏ fi^wi)^(1/Σwi)
+        log_sum = sum(math.log(freq) * weight for freq, weight in zip(reference_candidates, normalized_weights))
+        weighted_geometric_mean = math.exp(log_sum)
+        
+        # 가중 산술평균 (비교용)
+        weighted_arithmetic_mean = sum(freq * weight for freq, weight in zip(reference_candidates, normalized_weights))
+        
+        # 신뢰도 점수 계산 (측정값들의 일관성)
+        import statistics
+        if len(reference_candidates) > 1:
+            cv = statistics.stdev(reference_candidates) / statistics.mean(reference_candidates)  # 변동계수
+            confidence_score = max(0, 1 - cv)  # 변동이 적을수록 신뢰도 높음
+        else:
+            confidence_score = 0.5
+        
+        result = {
+            "reference_frequency": round(weighted_geometric_mean, 2),
+            "alternative_reference": round(weighted_arithmetic_mean, 2),
+            "confidence_score": round(confidence_score, 3),
+            "measurement_count": len(reference_candidates),
+            "individual_measurements": [
+                {"value": round(freq, 2), "weight": round(weight, 2)} 
+                for freq, weight in zip(reference_candidates, normalized_weights)
+            ]
+        }
+        
+        print(f"📊 최적 기준 주파수: {weighted_geometric_mean:.1f}Hz (신뢰도: {confidence_score:.2f})")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 기준점 계산 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"기준점 계산 실패: {str(e)}")
+
+# 🔄 실시간 기준점 조정 API - 현재 발화 기반 동적 업데이트
+@app.post("/api/adaptive-reference-adjustment")
+async def adaptive_reference_adjustment(current_data: dict):
+    """
+    실시간 발화 데이터를 기반으로 기준 주파수 동적 조정
+    current_data: {
+        "current_frequency": float,    # 현재 발화 주파수
+        "current_reference": float,    # 현재 기준 주파수
+        "confidence": float,           # 피치 신뢰도 (0-1)
+        "adjustment_factor": float,    # 조정 강도 (0-1, 기본: 0.1)
+        "context": str                 # 발화 상황 ("normal", "stressed", "relaxed")
+    }
+    """
+    try:
+        print("🔄 실시간 기준점 조정 시작")
+        
+        current_freq = current_data["current_frequency"]
+        current_ref = current_data["current_reference"]
+        confidence = current_data.get("confidence", 0.8)
+        adjustment_factor = current_data.get("adjustment_factor", 0.1)
+        context = current_data.get("context", "normal")
+        
+        # 상황별 조정 계수
+        context_multipliers = {
+            "normal": 1.0,      # 일반 상황
+            "stressed": 0.5,    # 스트레스 상황: 조정 강도 줄임
+            "relaxed": 1.2,     # 편안한 상황: 조정 강도 높임
+            "loud": 0.3,        # 큰 소리: 급격한 변화 억제
+            "quiet": 0.8        # 작은 소리: 적당한 조정
+        }
+        
+        effective_adjustment = adjustment_factor * context_multipliers.get(context, 1.0) * confidence
+        
+        # 주파수 차이 계산 (세미톤 단위)
+        import math
+        freq_diff_semitones = 12 * math.log2(current_freq / current_ref)
+        
+        # 점진적 조정 (exponential moving average 방식)
+        # 새로운 기준점 = 기존 기준점 + (차이 × 조정계수)
+        adjustment_hz = (current_freq - current_ref) * effective_adjustment
+        new_reference = current_ref + adjustment_hz
+        
+        # 극단적 변화 방지 (±3 세미톤 이내로 제한)
+        max_change_semitones = 3.0
+        max_change_hz = current_ref * (2**(max_change_semitones/12) - 1)
+        
+        if abs(adjustment_hz) > max_change_hz:
+            adjustment_hz = max_change_hz if adjustment_hz > 0 else -max_change_hz
+            new_reference = current_ref + adjustment_hz
+        
+        # 결과 검증 (50Hz ~ 600Hz 범위 내)
+        new_reference = max(50.0, min(600.0, new_reference))
+        
+        result = {
+            "original_reference": round(current_ref, 2),
+            "new_reference": round(new_reference, 2),
+            "adjustment_hz": round(adjustment_hz, 2),
+            "adjustment_semitones": round(12 * math.log2(new_reference / current_ref), 3),
+            "effective_factor": round(effective_adjustment, 3),
+            "context": context,
+            "confidence_used": confidence
+        }
+        
+        print(f"🔄 기준점 조정: {current_ref:.1f}Hz → {new_reference:.1f}Hz (±{adjustment_hz:.1f}Hz)")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 실시간 기준점 조정 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"실시간 조정 실패: {str(e)}")
+
+# 📈 이동평균 기반 기준점 업데이트 API
+@app.post("/api/moving-average-update")
+async def moving_average_update(pitch_history: dict):
+    """
+    최근 N개 발화의 가중평균으로 기준점 업데이트
+    pitch_history: {
+        "recent_pitches": [float],     # 최근 피치 값들
+        "timestamps": [float],         # 각 피치의 시간정보
+        "confidences": [float],        # 각 피치의 신뢰도
+        "window_size": int,            # 이동평균 윈도우 크기 (기본: 20)
+        "decay_factor": float          # 시간 감쇠 계수 (기본: 0.95)
+    }
+    """
+    try:
+        print("📈 이동평균 기반 기준점 업데이트 시작")
+        
+        recent_pitches = pitch_history["recent_pitches"]
+        timestamps = pitch_history.get("timestamps", [])
+        confidences = pitch_history.get("confidences", [1.0] * len(recent_pitches))
+        window_size = pitch_history.get("window_size", 20)
+        decay_factor = pitch_history.get("decay_factor", 0.95)
+        
+        if len(recent_pitches) < 3:
+            raise HTTPException(status_code=400, detail="이동평균 계산에 충분한 데이터가 없습니다")
+        
+        # 최근 N개 데이터만 사용
+        if len(recent_pitches) > window_size:
+            recent_pitches = recent_pitches[-window_size:]
+            if timestamps:
+                timestamps = timestamps[-window_size:]
+            confidences = confidences[-window_size:]
+        
+        # 시간 기반 가중치 계산 (최근일수록 높은 가중치)
+        weights = []
+        if timestamps:
+            max_time = max(timestamps)
+            for i, timestamp in enumerate(timestamps):
+                # 시간 차이에 따른 감쇠
+                time_diff = max_time - timestamp
+                time_weight = decay_factor ** time_diff
+                # 신뢰도와 시간 가중치 결합
+                combined_weight = time_weight * confidences[i]
+                weights.append(combined_weight)
+        else:
+            # 시간 정보가 없으면 순서 기반 가중치
+            for i in range(len(recent_pitches)):
+                position_weight = decay_factor ** (len(recent_pitches) - 1 - i)
+                combined_weight = position_weight * confidences[i]
+                weights.append(combined_weight)
+        
+        # 가중 평균 계산 (기하평균 사용)
+        import math
+        
+        total_weight = sum(weights)
+        if total_weight == 0:
+            raise HTTPException(status_code=400, detail="유효한 가중치가 없습니다")
+        
+        # 정규화된 가중치로 기하평균 계산
+        normalized_weights = [w / total_weight for w in weights]
+        log_sum = sum(math.log(freq) * weight for freq, weight in zip(recent_pitches, normalized_weights))
+        weighted_geometric_mean = math.exp(log_sum)
+        
+        # 가중 산술평균 (비교용)
+        weighted_arithmetic_mean = sum(freq * weight for freq, weight in zip(recent_pitches, normalized_weights))
+        
+        # 안정성 지표 계산
+        import statistics
+        pitch_std = statistics.stdev(recent_pitches) if len(recent_pitches) > 1 else 0
+        pitch_mean = statistics.mean(recent_pitches)
+        stability_coefficient = 1 - (pitch_std / pitch_mean)  # 변동이 적을수록 높음
+        
+        result = {
+            "updated_reference": round(weighted_geometric_mean, 2),
+            "alternative_reference": round(weighted_arithmetic_mean, 2),
+            "stability_coefficient": round(stability_coefficient, 3),
+            "sample_count": len(recent_pitches),
+            "effective_window": len(recent_pitches),
+            "pitch_range": {
+                "min": round(min(recent_pitches), 2),
+                "max": round(max(recent_pitches), 2),
+                "std": round(pitch_std, 2)
+            }
+        }
+        
+        print(f"📈 이동평균 기준점: {weighted_geometric_mean:.1f}Hz (안정성: {stability_coefficient:.2f})")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 이동평균 업데이트 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"이동평균 업데이트 실패: {str(e)}")
+
+# ⏰ 주기적 재측정 알림 시스템 API
+@app.post("/api/remeasurement-schedule")
+async def remeasurement_schedule(user_profile: dict):
+    """
+    사용자 프로필 기반 재측정 스케줄 관리
+    user_profile: {
+        "user_id": str,
+        "last_measurement": str,       # ISO 날짜 형식
+        "measurement_frequency": int,  # 개월 단위 (기본: 3개월)
+        "voice_change_factors": [str], # ["age", "health", "training"]
+        "current_age": int,
+        "gender": str
+    }
+    """
+    try:
+        print("⏰ 재측정 스케줄 관리 시작")
+        
+        from datetime import datetime, timedelta
+        import json
+        
+        user_id = user_profile["user_id"]
+        last_measurement_str = user_profile["last_measurement"]
+        frequency_months = user_profile.get("measurement_frequency", 3)
+        change_factors = user_profile.get("voice_change_factors", [])
+        current_age = user_profile.get("current_age", 30)
+        gender = user_profile.get("gender", "unknown")
+        
+        # 날짜 파싱
+        last_measurement = datetime.fromisoformat(last_measurement_str.replace('Z', '+00:00'))
+        
+        # 기본 재측정 주기 계산
+        base_interval_months = frequency_months
+        
+        # 나이별 조정
+        if current_age < 18:
+            base_interval_months = max(1, base_interval_months // 2)  # 청소년: 더 자주
+        elif current_age > 60:
+            base_interval_months = max(2, int(base_interval_months * 0.8))  # 고령: 약간 더 자주
+        
+        # 변화 요인별 주기 조정
+        adjustment_factor = 1.0
+        for factor in change_factors:
+            if factor == "training":
+                adjustment_factor *= 0.5  # 음성 훈련 중: 더 자주
+            elif factor == "health":
+                adjustment_factor *= 0.7  # 건강 문제: 자주
+            elif factor == "medication":
+                adjustment_factor *= 0.6  # 약물 복용: 자주
+            elif factor == "surgery":
+                adjustment_factor *= 0.3  # 수술 후: 매우 자주
+        
+        adjusted_interval_months = max(1, int(base_interval_months * adjustment_factor))
+        
+        # 다음 측정 예정일 계산
+        next_measurement = last_measurement + timedelta(days=adjusted_interval_months * 30)
+        
+        # 현재까지의 경과 시간
+        now = datetime.now()
+        days_since_last = (now - last_measurement).days
+        days_until_next = (next_measurement - now).days
+        
+        # 알림 상태 결정
+        if days_until_next <= 0:
+            alert_status = "overdue"
+            urgency = "high"
+        elif days_until_next <= 7:
+            alert_status = "due_soon"
+            urgency = "medium"
+        elif days_until_next <= 30:
+            alert_status = "upcoming"
+            urgency = "low"
+        else:
+            alert_status = "scheduled"
+            urgency = "none"
+        
+        # 권장 측정 항목
+        recommended_tests = ["comfortable_pitch"]
+        if days_since_last > 90:  # 3개월 이상
+            recommended_tests.extend(["voice_range", "vowel_analysis"])
+        if "training" in change_factors:
+            recommended_tests.append("stability_analysis")
+        
+        result = {
+            "user_id": user_id,
+            "last_measurement_date": last_measurement_str,
+            "next_measurement_date": next_measurement.isoformat(),
+            "days_since_last": days_since_last,
+            "days_until_next": days_until_next,
+            "adjusted_interval_months": adjusted_interval_months,
+            "alert_status": alert_status,
+            "urgency_level": urgency,
+            "recommended_tests": recommended_tests,
+            "change_factors_considered": change_factors,
+            "schedule_message": self._generate_schedule_message(alert_status, days_until_next, urgency)
+        }
+        
+        print(f"⏰ 사용자 {user_id}: {alert_status} (다음 측정까지 {days_until_next}일)")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ 재측정 스케줄 관리 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"스케줄 관리 실패: {str(e)}")
+
+def _generate_schedule_message(status: str, days_until: int, urgency: str) -> str:
+    """재측정 알림 메시지 생성"""
+    if status == "overdue":
+        return f"⚠️ 기준 주파수 재측정이 {abs(days_until)}일 지연되었습니다. 정확한 분석을 위해 지금 측정하세요."
+    elif status == "due_soon":
+        return f"🔔 {days_until}일 후 기준 주파수 재측정이 예정되어 있습니다."
+    elif status == "upcoming":
+        return f"📅 {days_until}일 후 기준 주파수 재측정 예정입니다."
+    else:
+        return f"✅ 다음 재측정까지 {days_until}일 남았습니다."
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
