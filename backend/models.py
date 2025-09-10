@@ -95,7 +95,7 @@ class AudioFile(Base, TimestampMixin):
                                       cascade="all, delete-orphan")
 
     # 메타데이터
-    metadata = Column(JSON, default={})
+    file_metadata = Column(JSON, default={})
 
     # 인덱스
     __table_args__ = (
@@ -117,7 +117,7 @@ class AudioFile(Base, TimestampMixin):
             'format': self.format,
             'status': self.status.value if self.status else None,
             'user_id': self.user_id,
-            'metadata': self.metadata,
+            'metadata': self.file_metadata,
             'created_at':
             self.created_at.isoformat() if self.created_at else None,
             'updated_at':
@@ -465,7 +465,7 @@ def save_audio_file(db: Session,
                            original_name=original_name,
                            file_path=file_path,
                            user_id=user_id,
-                           metadata=metadata)
+                           file_file_metadata=metadata)
 
     # 파일 정보 추출
     if Path(file_path).exists():

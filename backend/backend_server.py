@@ -31,7 +31,7 @@ from core import (AudioNormalizer, AudioQualityEnhancer, KoreanAudioOptimizer,
 
 # ToneBridge Core 모듈
 from tonebridge_core import (VoiceProcessor, ProcessingPipeline,
-                             PipelineConfig, UniversalSTT, UniversalSTTConfig,
+                             PipelineConfig, UniversalSTT, STTConfig,
                              KoreanSegmenter, TextGridGenerator, PitchAnalyzer)
 
 # 데이터베이스 모델
@@ -304,7 +304,7 @@ async def transcribe_audio(request: TranscribeRequest):
         file_path = get_file_path(request.file_id)
 
         # STT 설정
-        stt_config = UniversalSTTConfig(language=request.language,
+        stt_config = STTConfig(language=request.language,
                                primary_engine=request.engine,
                                enable_punctuation=request.enable_punctuation)
 

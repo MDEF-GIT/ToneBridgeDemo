@@ -18,8 +18,7 @@ from .segmentation import (KoreanSegmenter, SyllableSegment,
                            SegmentationResult)
 
 # STT 모듈
-from .stt import (UniversalSTT, STTConfig as UniversalSTTConfig, STTResult as
-                  UniversalSTTResult)
+from .stt import (UniversalSTT, STTConfig, STTResult as UniversalSTTResult)
 
 # TextGrid 모듈
 from .textgrid import (TextGridGenerator, TextGridTier, TextGridInterval,
@@ -53,7 +52,7 @@ __all__ = [
 
     # STT
     "UniversalSTT",
-    "UniversalSTTConfig",
+    "STTConfig",
     "UniversalSTTResult",
 
     # TextGrid
