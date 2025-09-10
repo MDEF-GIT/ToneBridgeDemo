@@ -42,15 +42,15 @@ export const useDualAxisChart = (
     setYAxisUnitInternal(newUnit);
   }, []);
 
-  // 🎯 주파수 → 세미톤/큐톤 변환 함수
+  // 🎯 주파수 → 세미톤/큐톤 변환 함수 (usePitchChart와 동일한 공식 사용)
   const convertFrequencyToUnit = useCallback((frequency: number): number => {
+    const baseFreq = 200; // 🎯 usePitchChart와 동일한 기준 주파수 사용
     if (yAxisUnit === 'semitone') {
-      // 세미톤: 12 * log2(f/150) (남성 기준), 12 * log2(f/200) (여성 기준)
-      const baseFreq = 150; // 기본적으로 남성 기준
+      // 세미톤: 12 * log2(f/200) - usePitchChart와 동일
       return 12 * Math.log2(frequency / baseFreq);
     } else {
-      // Q-톤: 5 * log2(f/130)
-      return 5 * Math.log2(frequency / 130);
+      // 큐톤: 24 * log2(f/200) - usePitchChart와 동일 (Quarter-tone = 세미톤 × 2)
+      return 24 * Math.log2(frequency / baseFreq);
     }
   }, [yAxisUnit]);
 
