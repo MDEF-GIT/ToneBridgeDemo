@@ -102,7 +102,7 @@ export const useDualAxisChart = (
         plugins: {
           title: {
             display: true,
-            text: '듀얼 Y축 비교 차트 - 주파수 vs 세미톤/큐톤',
+            text: '🎯 변환 공식 검증 차트 - 실시간 피치 값 비교',
             font: {
               size: 16,
               weight: 'bold'
@@ -539,6 +539,80 @@ export const useDualAxisChart = (
     // TODO: 실제 전체 보기 기능이 필요하면 여기에 추가
   }, []);
 
+  // 🎯 실시간 피치 데이터를 가로선으로 표시하는 함수
+  const addRealtimePitch = useCallback((frequency: number) => {
+    if (!chartRef.current) return;
+
+    const convertedValue = convertFrequencyToUnit(frequency);
+    const chart = chartRef.current;
+    
+    console.log(`🎤 실시간 피치 데이터: ${frequency.toFixed(1)}Hz → ${convertedValue.toFixed(2)} ${yAxisUnit} (공식 검증용)`);
+
+    // 🎯 annotation을 사용해서 가로선(수평선) 표시
+    if (chart.options.plugins?.annotation?.annotations) {
+      const annotations = chart.options.plugins.annotation.annotations as any;
+      
+      // Hz 값 가로선 (왼쪽 Y축)
+      annotations.realtimeHz = {
+        type: 'line',
+        yMin: frequency,
+        yMax: frequency,
+        yScaleID: 'y-frequency',
+        borderColor: 'rgba(255, 99, 132, 0.8)',
+        borderWidth: 3,
+        borderDash: [5, 5],
+        label: {
+          enabled: true,
+          content: `${frequency.toFixed(1)}Hz`,
+          position: 'start',
+          backgroundColor: 'rgba(255, 99, 132, 0.9)',
+          color: 'white',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      };
+      
+      // 변환된 값 가로선 (오른쪽 Y축)
+      annotations.realtimeConverted = {
+        type: 'line',
+        yMin: convertedValue,
+        yMax: convertedValue,
+        yScaleID: 'y-converted',
+        borderColor: 'rgba(54, 162, 235, 0.8)',
+        borderWidth: 3,
+        borderDash: [5, 5],
+        label: {
+          enabled: true,
+          content: `${convertedValue.toFixed(2)}${yAxisUnit === 'semitone' ? 'st' : 'Q'}`,
+          position: 'end',
+          backgroundColor: 'rgba(54, 162, 235, 0.9)',
+          color: 'white',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      };
+      
+      chart.update('none');
+    }
+  }, [convertFrequencyToUnit, yAxisUnit]);
+
+  // 🎯 실시간 가로선 제거 함수
+  const clearRealtimePitch = useCallback(() => {
+    if (!chartRef.current) return;
+
+    const chart = chartRef.current;
+    if (chart.options.plugins?.annotation?.annotations) {
+      const annotations = chart.options.plugins.annotation.annotations as any;
+      delete annotations.realtimeHz;
+      delete annotations.realtimeConverted;
+      chart.update('none');
+    }
+  }, []);
+
   return {
     addDualAxisData,
     clearChart,
@@ -546,7 +620,10 @@ export const useDualAxisChart = (
     chartData: chartDataRef.current,
     setYAxisUnit,
     yAxisUnit,
-    // 새로 추가된 함수들
+    // 🎯 새로 추가된 실시간 피치 검증 함수들
+    addRealtimePitch,
+    clearRealtimePitch,
+    // 기존 함수들
     addSyllableAnnotations,
     updatePlaybackProgress,
     clearPlaybackProgress,

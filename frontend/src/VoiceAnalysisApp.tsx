@@ -100,6 +100,10 @@ const VoiceAnalysisApp: React.FC = () => {
         if (dualAxisChart && dualAxisChart.addDualAxisData) {
           dualAxisChart.addDualAxisData(frequency, timestamp, 'live');
         }
+        // 🎯 실시간 피치 값을 가로선으로 표시 (변환 공식 검증용)
+        if (dualAxisChart && dualAxisChart.addRealtimePitch) {
+          dualAxisChart.addRealtimePitch(frequency);
+        }
       });
     }
   }, []); // 빈 배열로 한 번만 실행
@@ -1021,13 +1025,13 @@ const VoiceAnalysisApp: React.FC = () => {
             <div className="card-header">
               <div className="d-flex justify-content-between align-items-center">
                 <h5 className="mb-0 fw-bold">
-                  <i className="fas fa-chart-line me-2"></i>듀얼 Y축 비교 차트
+                  <i className="fas fa-calculator me-2"></i>🎯 변환 공식 검증 차트
                 </h5>
                 {selectedFile && (
                   <div className="d-flex align-items-center gap-3">
                     <small className="text-muted">
                       <i className="fas fa-info-circle me-1"></i>
-                      왼쪽: 주파수(Hz), 오른쪽: {yAxisUnit === 'semitone' ? '세미톤' : '큐톤'}
+                      실시간 값 검증 - 왼쪽: 주파수(Hz), 오른쪽: {yAxisUnit === 'semitone' ? '세미톤' : '큐톤'} (가로선: 실시간 입력)
                     </small>
                   </div>
                 )}
