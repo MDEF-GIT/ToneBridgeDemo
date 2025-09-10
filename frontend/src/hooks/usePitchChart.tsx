@@ -475,21 +475,25 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     try {
       // Load syllable-only pitch data (오리지널과 동일한 음절별 대표값)
       const pitchUrl = `${API_BASE}/api/reference_files/${fileId}/pitch?syllable_only=true`;
-      const syllableUrl = `${API_BASE}/api/reference_files/${fileId}/syllables`;
+      // ✅ /syllables API 제거: /pitch?syllable_only=true API에 모든 정보 포함됨
       
-      const [pitchResponse, syllableResponse] = await Promise.all([
-        fetch(pitchUrl),
-        fetch(syllableUrl)
-      ]);
+      // ✅ 단일 API 사용: 음절별 피치 데이터 (시간 범위 포함)
+      console.log(`🔍 참조 파일 피치 데이터 로드: ${fileId}`);
+      
+      const pitchResponse = await fetch(pitchUrl);
+      if (!pitchResponse.ok) {
+        throw new Error(`참조 파일 피치 데이터 로드 실패: ${pitchResponse.status}`);
+      }
       
       const pitchData = await pitchResponse.json();
-      let syllableData: SyllableData[] = [];
       
-      try {
-        syllableData = await syllableResponse.json();
-      } catch (e) {
-        console.log('📝 No syllable data available for this file');
+      // ✅ 데이터 유효성 검증
+      if (!Array.isArray(pitchData)) {
+        console.error('❌ 참조 파일 피치 데이터가 배열이 아닙니다:', pitchData);
+        return;
       }
+      
+      console.log(`✅ 참조 파일 피치 데이터 로드 성공: ${pitchData.length}개 음절`, pitchData);
       
       if (pitchData && pitchData.length > 0) {
         // Clear existing reference data
@@ -509,7 +513,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         console.log(`🎯 시간 정규화: 첫 번째 시간 ${firstTime.toFixed(2)}s를 0s로 조정`);
         
         // Add reference data points and collect converted values
-        pitchData.forEach((point: {time: number, frequency: number, syllable?: string}) => {
+        pitchData.forEach((point: {time: number, frequency: number, syllable?: string, start?: number, end?: number}) => {
           // 🎯 시간값 정규화: 첫 번째 시간을 빼서 0부터 시작
           const normalizedTime = point.time - firstTime;
           addPitchData(point.frequency, normalizedTime, 'reference');
@@ -545,16 +549,21 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           chartRef.current.update('none');
         }
         
-        // 🎯 Add syllable annotations to chart (시간 정규화 적용)
-        if (syllableData && syllableData.length > 0) {
-          // 음절 데이터의 시간값도 정규화
-          const normalizedSyllableData = syllableData.map(syllable => ({
-            ...syllable,
-            start: syllable.start - firstTime,
-            end: syllable.end - firstTime
+        // ✅ 음절 annotation 추가 (pitchData에서 직접 추출)
+        const syllableAnnotations = pitchData
+          .filter(point => point.syllable && point.start !== undefined && point.end !== undefined)
+          .map(point => ({
+            syllable: point.syllable,
+            label: point.syllable,  // ✅ label 속성 추가 (SyllableData 타입 요구사항)
+            start: (point.start || point.time) - firstTime,  // 시간 정규화
+            end: (point.end || point.time) - firstTime,      // 시간 정규화
+            time: point.time - firstTime,
+            frequency: point.frequency
           }));
-          addSyllableAnnotations(normalizedSyllableData);
-          console.log(`🎯 음절 데이터 시간 정규화 완료: ${syllableData.length}개 음절`);
+        
+        if (syllableAnnotations.length > 0) {
+          addSyllableAnnotations(syllableAnnotations);
+          console.log(`✅ 음절 annotation 추가 완료: ${syllableAnnotations.length}개 음절`);
         }
       }
     } catch (error) {
