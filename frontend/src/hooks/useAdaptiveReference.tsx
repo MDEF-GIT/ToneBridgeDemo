@@ -80,7 +80,7 @@ export const useAdaptiveReference = () => {
         context
       }]);
       
-      console.log(`🔄 적응형 조정: ${data.original_reference:.1f}Hz → ${data.new_reference:.1f}Hz (${context})`);
+      console.log(`🔄 적응형 조정: ${data.original_reference.toFixed(1)}Hz → ${data.new_reference.toFixed(1)}Hz (${context})`);
       
       return data;
       
@@ -118,7 +118,7 @@ export const useAdaptiveReference = () => {
       // 기준점 업데이트
       setCurrentReference(data.updated_reference);
       
-      console.log(`📈 이동평균 업데이트: ${data.updated_reference:.1f}Hz (안정성: ${data.stability_coefficient:.2f})`);
+      console.log(`📈 이동평균 업데이트: ${data.updated_reference.toFixed(1)}Hz (안정성: ${data.stability_coefficient.toFixed(2)})`);
       
       return data;
       

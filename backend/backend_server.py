@@ -4106,7 +4106,7 @@ async def remeasurement_schedule(user_profile: dict):
             "urgency_level": urgency,
             "recommended_tests": recommended_tests,
             "change_factors_considered": change_factors,
-            "schedule_message": self._generate_schedule_message(alert_status, days_until_next, urgency)
+            "schedule_message": generate_schedule_message(alert_status, days_until_next, urgency)
         }
         
         print(f"⏰ 사용자 {user_id}: {alert_status} (다음 측정까지 {days_until_next}일)")
@@ -4117,7 +4117,7 @@ async def remeasurement_schedule(user_profile: dict):
         print(f"❌ 재측정 스케줄 관리 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=f"스케줄 관리 실패: {str(e)}")
 
-def _generate_schedule_message(status: str, days_until: int, urgency: str) -> str:
+def generate_schedule_message(status: str, days_until: int, urgency: str) -> str:
     """재측정 알림 메시지 생성"""
     if status == "overdue":
         return f"⚠️ 기준 주파수 재측정이 {abs(days_until)}일 지연되었습니다. 정확한 분석을 위해 지금 측정하세요."

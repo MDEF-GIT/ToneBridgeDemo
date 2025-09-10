@@ -29,6 +29,7 @@ export const SpeakerProfileManager: React.FC<SpeakerProfileManagerProps> = ({
     currentReference
   } = useSpeakerProfile();
 
+  const adaptiveHook = useAdaptiveReference();
   const {
     currentReference: adaptiveReference,
     isAdaptive,
@@ -38,7 +39,7 @@ export const SpeakerProfileManager: React.FC<SpeakerProfileManagerProps> = ({
     getTrend,
     adjustmentFactor,
     setAdjustmentFactor
-  } = useAdaptiveReference();
+  } = adaptiveHook;
 
   const [activeTab, setActiveTab] = useState<'profile' | 'measurement' | 'adaptive'>('profile');
   const [userId, setUserId] = useState('');

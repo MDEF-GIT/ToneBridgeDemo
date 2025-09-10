@@ -1027,7 +1027,7 @@ const VoiceAnalysisApp: React.FC = () => {
           {/* 🎯 화자별 맞춤 기준 주파수 설정 */}
           <SpeakerProfileManager 
             onReferenceFrequencyChange={setPersonalReferenceFreq}
-            currentFrequency={audioRecording.currentPitch}
+            currentFrequency={undefined}
           />
 
           {/* 🎯 듀얼 Y축 비교 차트 */}

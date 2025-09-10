@@ -209,9 +209,14 @@ export const miscApi = {
 };
 
 /**
- * 통합 ToneBridge API 객체
+ * 통합 ToneBridge API 객체 (화자 프로필 시스템 확장)
  */
 export const tonebridgeApi = {
+  // 🔄 범용 HTTP 메서드들 (화자 프로필 시스템용)
+  get: (url: string, config?: any) => apiClient.get(url, config),
+  post: (url: string, data?: any, config?: any) => apiClient.post(url, data, config),
+  
+  // 기존 API들
   referenceFiles: referenceFilesApi,
   uploadedFiles: uploadedFilesApi,
   recording: recordingApi,
