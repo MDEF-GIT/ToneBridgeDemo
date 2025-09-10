@@ -9,6 +9,7 @@ import { useAudioRecording } from './hooks/useAudioRecording';
 import { usePitchChart } from './hooks/usePitchChart';
 import { useDualAxisChart } from './hooks/useDualAxisChart';
 import { useAudioPlaybackSync } from './hooks/useAudioPlaybackSync';
+import { SpeakerProfileManager } from './components/SpeakerProfileManager';
 import UploadedFileTestSection from './components/UploadedFileTestSection';
 // import { PitchTestMode } from './components/PitchTestMode';
 import './custom.css';
@@ -41,6 +42,9 @@ const VoiceAnalysisApp: React.FC = () => {
   
   // 🎯 차트 설정
   const [yAxisUnit, setYAxisUnit] = useState<'semitone' | 'qtone'>('semitone');
+  
+  // 🎯 화자별 기준 주파수 관리
+  const [personalReferenceFreq, setPersonalReferenceFreq] = useState<number>(200);
   
   // 🎯 API Base URL
   const API_BASE = '';
@@ -1019,6 +1023,12 @@ const VoiceAnalysisApp: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* 🎯 화자별 맞춤 기준 주파수 설정 */}
+          <SpeakerProfileManager 
+            onReferenceFrequencyChange={setPersonalReferenceFreq}
+            currentFrequency={audioRecording.currentPitch}
+          />
 
           {/* 🎯 듀얼 Y축 비교 차트 */}
           <div className="card mt-4" id="dual-axis-chart-card">
