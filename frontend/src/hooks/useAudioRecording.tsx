@@ -164,21 +164,17 @@ export const useAudioRecording = (
 
       // Start pitch detection
       const detectPitch = () => {
-        if (!analyser) return;
+        if (!analyser || !yinDetectorRef.current) return;
 
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Float32Array(bufferLength);
-        analyser.getFloatFrequencyData(dataArray);
-
-        // Simple pitch detection using autocorrelation
-        const sampleRate = audioContext.sampleRate;
         const timeDomainData = new Float32Array(analyser.fftSize);
         analyser.getFloatTimeDomainData(timeDomainData);
 
-        const frequency = autoCorrelate(timeDomainData, sampleRate);
+        // 🎯 고급 YIN 피치 검출기 사용
+        const pitchResult = yinDetectorRef.current.detectPitch(timeDomainData, Date.now());
 
-        if (frequency > 0 && onPitchDataRef.current) {
-          onPitchDataRef.current(frequency, Date.now());
+        if (pitchResult.f0 > 0 && pitchResult.confidence > 0.5 && onPitchDataRef.current) {
+          // 🎯 정확한 Hz 단위로 피치 값 전달
+          onPitchDataRef.current(pitchResult.f0, Date.now());
         }
 
         animationFrameRef.current = requestAnimationFrame(detectPitch);
