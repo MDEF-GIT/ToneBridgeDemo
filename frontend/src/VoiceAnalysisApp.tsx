@@ -2,82 +2,101 @@
  * ToneBridge Voice Analysis - index.html 완전 재현
  * 한국어 억양 학습 플랫폼의 모든 기능 구현
  */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { ReferenceFile, LearnerInfo, LearningMethod, SyllableData } from './types/api';
-import { useAudioRecording } from './hooks/useAudioRecording';
-import { usePitchChart } from './hooks/usePitchChart';
-import { useDualAxisChart } from './hooks/useDualAxisChart';
-import { useAudioPlaybackSync } from './hooks/useAudioPlaybackSync';
-import { SpeakerProfileManager } from './components/SpeakerProfileManager';
-import UploadedFileTestSection from './components/UploadedFileTestSection';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
+import {
+  ReferenceFile,
+  LearnerInfo,
+  LearningMethod,
+  SyllableData,
+} from "./types/api";
+import { useAudioRecording } from "./hooks/useAudioRecording";
+import { usePitchChart } from "./hooks/usePitchChart";
+import { useDualAxisChart } from "./hooks/useDualAxisChart";
+import { useAudioPlaybackSync } from "./hooks/useAudioPlaybackSync";
+import { SpeakerProfileManager } from "./components/SpeakerProfileManager";
+import UploadedFileTestSection from "./components/UploadedFileTestSection";
 // import { PitchTestMode } from './components/PitchTestMode';
-import { tonebridgeApi, SpeakerProfile } from './utils/tonebridgeApi';
-import './custom.css';
+import { tonebridgeApi, SpeakerProfile } from "./utils/tonebridgeApi";
+import "./custom.css";
 
 const VoiceAnalysisApp: React.FC = () => {
   // 🎯 학습자 정보 및 학습 방법
   const [learnerInfo, setLearnerInfo] = useState<LearnerInfo>({
-    name: '',
-    gender: '',
-    ageGroup: ''
+    name: "",
+    gender: "",
+    ageGroup: "",
   });
-  const [learningMethod, setLearningMethod] = useState<LearningMethod>('');
-  
+  const [learningMethod, setLearningMethod] = useState<LearningMethod>("");
+
   // 🎯 UI 상태 관리
-  const [showSentenceDetails, setShowSentenceDetails] = useState<boolean>(false);
+  const [showSentenceDetails, setShowSentenceDetails] =
+    useState<boolean>(false);
   const [showPitchDetails, setShowPitchDetails] = useState<boolean>(false);
-  const [showAudioAnalysisSection, setShowAudioAnalysisSection] = useState<boolean>(false);
+  const [showAudioAnalysisSection, setShowAudioAnalysisSection] =
+    useState<boolean>(false);
   const [showSyllableAnalysis] = useState<boolean>(false);
   const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
-  const [selectedGender, setSelectedGender] = useState<string>('');
-  
+  const [selectedGender, setSelectedGender] = useState<string>("");
+
   // 🎯 참조 파일 및 분석 상태
   const [referenceFiles, setReferenceFiles] = useState<ReferenceFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>('');
-  
+  const [status, setStatus] = useState<string>("");
+
   // const [analysisResult] = useState<AnalysisResult | null>(null);
   const [syllableData] = useState<SyllableData[]>([]);
-  
+
   // 🎯 차트 설정
-  const [yAxisUnit, setYAxisUnit] = useState<'semitone' | 'qtone'>('semitone');
-  
+  const [yAxisUnit, setYAxisUnit] = useState<"semitone" | "qtone">("semitone");
+
   // 🎯 화자별 기준 주파수 관리
-  const [referenceMode, setReferenceMode] = useState<'disabled' | 'measurement' | 'adaptive'>('disabled');
-  const [personalReferenceFreq, setPersonalReferenceFreq] = useState<number>(200);
-  
+  const [referenceMode, setReferenceMode] = useState<
+    "disabled" | "measurement" | "adaptive"
+  >("disabled");
+  const [personalReferenceFreq, setPersonalReferenceFreq] =
+    useState<number>(200);
+
   // 🎭 화자 프로필 관리
   const [availableProfiles, setAvailableProfiles] = useState<any[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(false);
-  
+
   // 🎯 API Base URL
-  const API_BASE = '';
-  
+  const API_BASE = "";
+
   // 🎯 Refs
   const chartRef = useRef<HTMLCanvasElement>(null);
   const dualAxisCanvasRef = useRef<HTMLCanvasElement>(null);
-  
-  // 🎯 기준 주파수 계산 (개인화 옵션에 따라 결정)
-  const effectiveReferenceFreq = referenceMode !== 'disabled' ? personalReferenceFreq : 200;
 
-  // 🎯 Hooks  
+  // 🎯 기준 주파수 계산 (개인화 옵션에 따라 결정)
+  const effectiveReferenceFreq =
+    referenceMode !== "disabled" ? personalReferenceFreq : 200;
+
+  // 🎯 Hooks
   const pitchChart = usePitchChart(chartRef, API_BASE, effectiveReferenceFreq);
-  const dualAxisChart = useDualAxisChart(dualAxisCanvasRef, API_BASE, effectiveReferenceFreq);
-  const audioRecording = useAudioRecording(learnerInfo, selectedFile, pitchChart);
-  
+  const dualAxisChart = useDualAxisChart(
+    dualAxisCanvasRef,
+    API_BASE,
+    effectiveReferenceFreq,
+  );
+  const audioRecording = useAudioRecording(
+    learnerInfo,
+    selectedFile,
+    pitchChart,
+  );
+
   // 🎯 통합 재생 동기화 훅
   const referencePlaybackSync = useAudioPlaybackSync({
     chartInstance: pitchChart,
-    updateInterval: 'frame',
-    enableLogging: true
+    updateInterval: "frame",
+    enableLogging: true,
   });
-  
+
   // 🎯 애니메이션 스타일 주입
   useEffect(() => {
-    const styleElement = document.createElement('style');
+    const styleElement = document.createElement("style");
     styleElement.textContent = `
       .shake-animation { animation: shake 4s infinite; }
       .bounce-animation { animation: bounce 2s infinite; }
@@ -88,7 +107,7 @@ const VoiceAnalysisApp: React.FC = () => {
       }
     `;
     document.head.appendChild(styleElement);
-    
+
     return () => {
       if (document.head.contains(styleElement)) {
         document.head.removeChild(styleElement);
@@ -100,26 +119,28 @@ const VoiceAnalysisApp: React.FC = () => {
   useEffect(() => {
     loadReferenceFiles();
     loadAvailableProfiles();
-    console.log('🎯 ToneBridge Voice Analysis App initialized');
+    console.log("🎯 ToneBridge Voice Analysis App initialized");
   }, []); // 빈 의존성 배열로 한 번만 실행
-  
+
   // 🎯 피치 콜백 설정 (한 번만 실행)
   useEffect(() => {
     if (audioRecording && audioRecording.setPitchCallback) {
-      console.log('🎯 피치 콜백 설정 중...');
-      audioRecording.setPitchCallback((frequency: number, timestamp: number) => {
-        if (pitchChart && pitchChart.addPitchData) {
-          pitchChart.addPitchData(frequency, timestamp, 'live');
-        }
-        // 🎯 듀얼축 차트에도 동시에 데이터 추가
-        if (dualAxisChart && dualAxisChart.addDualAxisData) {
-          dualAxisChart.addDualAxisData(frequency, timestamp, 'live');
-        }
-        // 🎯 실시간 피치 값을 가로선으로 표시 (변환 공식 검증용)
-        if (dualAxisChart && dualAxisChart.addRealtimePitch) {
-          dualAxisChart.addRealtimePitch(frequency);
-        }
-      });
+      console.log("🎯 피치 콜백 설정 중...");
+      audioRecording.setPitchCallback(
+        (frequency: number, timestamp: number) => {
+          if (pitchChart && pitchChart.addPitchData) {
+            pitchChart.addPitchData(frequency, timestamp, "live");
+          }
+          // 🎯 듀얼축 차트에도 동시에 데이터 추가
+          if (dualAxisChart && dualAxisChart.addDualAxisData) {
+            dualAxisChart.addDualAxisData(frequency, timestamp, "live");
+          }
+          // 🎯 실시간 피치 값을 가로선으로 표시 (변환 공식 검증용)
+          if (dualAxisChart && dualAxisChart.addRealtimePitch) {
+            dualAxisChart.addRealtimePitch(frequency);
+          }
+        },
+      );
     }
   }, []); // 빈 배열로 한 번만 실행
 
@@ -127,13 +148,13 @@ const VoiceAnalysisApp: React.FC = () => {
   const loadReferenceFiles = async () => {
     try {
       setIsLoading(true);
-      setStatus('참조 파일을 로딩 중입니다...');
-      
+      setStatus("참조 파일을 로딩 중입니다...");
+
       const response = await fetch(`${API_BASE}/api/reference_files`);
       const data = await response.json();
-      
-      console.log('🎯 API 응답 데이터:', data);
-      
+
+      console.log("🎯 API 응답 데이터:", data);
+
       // 🎯 오리지널처럼 data.files 또는 직접 배열 처리
       let files = [];
       if (data && data.files && Array.isArray(data.files)) {
@@ -141,18 +162,21 @@ const VoiceAnalysisApp: React.FC = () => {
       } else if (Array.isArray(data)) {
         files = data;
       } else {
-        console.warn('⚠️ 예상하지 못한 응답 구조:', data);
-        setStatus('참조 파일 로딩 실패: 잘못된 응답 구조');
+        console.warn("⚠️ 예상하지 못한 응답 구조:", data);
+        setStatus("참조 파일 로딩 실패: 잘못된 응답 구조");
         return;
       }
-      
+
       setReferenceFiles(files);
-      console.log(`✅ ToneBridge Backend Service: 연결됨 (참조 파일 ${files.length}개 로드됨)`);
-      setStatus('');
-      
+      console.log(
+        `✅ ToneBridge Backend Service: 연결됨 (참조 파일 ${files.length}개 로드됨)`,
+      );
+      setStatus("");
     } catch (error) {
-      console.error('❌ 참조 파일 로딩 실패:', error);
-      setStatus('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+      console.error("❌ 참조 파일 로딩 실패:", error);
+      setStatus(
+        "백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -165,222 +189,263 @@ const VoiceAnalysisApp: React.FC = () => {
       const response = await tonebridgeApi.speakerProfile.getList();
       if (response.success && response.data) {
         setAvailableProfiles(response.data.profiles || []);
-        console.log(`📋 프로필 목록 로드 완료: ${response.data.profiles?.length || 0}개`);
+        console.log(
+          `📋 프로필 목록 로드 완료: ${response.data.profiles?.length || 0}개`,
+        );
       }
     } catch (error) {
-      console.error('❌ 프로필 목록 로드 실패:', error);
+      console.error("❌ 프로필 목록 로드 실패:", error);
     } finally {
       setIsLoadingProfiles(false);
     }
   }, []);
 
   // 🎯 학습자 정보 기반 프로필 자동 생성
-  const createProfileFromLearnerInfo = useCallback(async (learnerData: LearnerInfo) => {
-    if (!learnerData.name || !learnerData.gender) {
-      return null; // 필수 정보가 없으면 생성하지 않음
-    }
-
-    try {
-      const profileData = {
-        name: learnerData.name,
-        gender: learnerData.gender,
-        age_group: learnerData.ageGroup || '',
-        reference_frequency: 200.0, // 기본값으로 시작
-        measurements: {}
-      };
-
-      const response = await tonebridgeApi.speakerProfile.create(profileData);
-      if (response.success && response.data) {
-        console.log(`👤 프로필 자동 생성 완료: ${response.data.profile.name}`);
-        await loadAvailableProfiles(); // 목록 새로고침
-        return response.data.profile;
+  const createProfileFromLearnerInfo = useCallback(
+    async (learnerData: LearnerInfo) => {
+      if (!learnerData.name || !learnerData.gender) {
+        return null; // 필수 정보가 없으면 생성하지 않음
       }
-    } catch (error) {
-      console.error('❌ 프로필 생성 실패:', error);
-    }
-    return null;
-  }, [loadAvailableProfiles]);
+
+      try {
+        const profileData = {
+          name: learnerData.name,
+          gender: learnerData.gender,
+          age_group: learnerData.ageGroup || "",
+          reference_frequency: 200.0, // 기본값으로 시작
+          measurements: {},
+        };
+
+        const response = await tonebridgeApi.speakerProfile.create(profileData);
+        if (response.success && response.data) {
+          console.log(
+            `👤 프로필 자동 생성 완료: ${response.data.profile.name}`,
+          );
+          await loadAvailableProfiles(); // 목록 새로고침
+          return response.data.profile;
+        }
+      } catch (error) {
+        console.error("❌ 프로필 생성 실패:", error);
+      }
+      return null;
+    },
+    [loadAvailableProfiles],
+  );
 
   // 🎯 학습자 정보 업데이트 (프로필 자동 생성 포함)
-  const updateLearnerInfo = useCallback(async (field: keyof LearnerInfo, value: string) => {
-    const newLearnerInfo = { ...learnerInfo, [field]: value };
-    setLearnerInfo(newLearnerInfo);
+  const updateLearnerInfo = useCallback(
+    async (field: keyof LearnerInfo, value: string) => {
+      const newLearnerInfo = { ...learnerInfo, [field]: value };
+      setLearnerInfo(newLearnerInfo);
 
-    // 화자별 맞춤 기준 주파수 설정이 활성화되고 이름+성별이 모두 있을 때 프로필 자동 생성
-    if (referenceMode !== 'disabled' && 
-        newLearnerInfo.name && 
-        newLearnerInfo.gender && 
-        (field === 'name' || field === 'gender')) {
-      
-      // 동일한 이름과 성별을 가진 기존 프로필이 있는지 확인 (단순 참고용)
-      const similarProfiles = availableProfiles.filter(p => 
-        p.name === newLearnerInfo.name && 
-        p.gender === newLearnerInfo.gender
-      );
-      
-      if (similarProfiles.length === 0) {
-        console.log('🎯 학습자 정보 변경 감지 → 새 고유 프로필 생성 시작');
-        await createProfileFromLearnerInfo(newLearnerInfo);
-      } else {
-        console.log(`📋 유사한 프로필 ${similarProfiles.length}개 발견 → 새 고유 프로필 생성 시작`);
-        await createProfileFromLearnerInfo(newLearnerInfo);
-      }
-    }
-  }, [learnerInfo, referenceMode, availableProfiles, createProfileFromLearnerInfo]);
-  
-  // 🎯 학습 방법 선택
-  const handleLearningMethodChange = useCallback((method: LearningMethod) => {
-    // 🎯 성별 선택 필수 검증 (원본 로직)
-    if (!learnerInfo.gender) {
-      alert('먼저 학습자 성별을 선택해주세요.\n성별 정보는 정확한 음성 분석을 위해 필요합니다.');
-      return;
-    }
-    
-    setLearningMethod(method);
-    
-    if (method === 'pitch') {
-      setShowPitchDetails(true);
-      setShowSentenceDetails(false);
-      setShowAudioAnalysisSection(false);
-    } else if (method === 'sentence') {
-      setShowSentenceDetails(true);
-      setShowPitchDetails(false);
-      setShowAudioAnalysisSection(true);
-    } else {
-      setShowSentenceDetails(false);
-      setShowPitchDetails(false);
-      setShowAudioAnalysisSection(false);
-    }
-  }, [learnerInfo.gender]);
-  
-  // 🎯 연습 문장 선택 (오리지널과 동일한 로직)
-  const handleSentenceSelection = useCallback(async (fileId: string) => {
-    if (!fileId) {
-      setSelectedFile('');
-      setStatus('연습할 문장을 선택해주세요.');
-      return;
-    }
-    
-    // 🎯 학습자 성별 확인 (오리지널 로직)
-    if (!learnerInfo.gender) {
-      alert('먼저 학습자 성별 정보를 선택해주세요.');
-      return;
-    }
-    
-    setSelectedFile(fileId);
-    setIsLoading(true);
-    setStatus(`"${fileId}" 문장을 불러오는 중...`);
-    
-    try {
-      console.log(`🎯 연습 문장 선택됨: ${fileId}`);
-      
-      // 🎯 오리지널처럼 pitchChart.loadReferenceData 호출
-      if (pitchChart && pitchChart.loadReferenceData) {
-        await pitchChart.loadReferenceData(fileId);
-        
-        // 🎯 듀얼축 차트에도 참조 데이터 로딩 (시간 정규화 적용)
-        try {
-          const response = await fetch(`${API_BASE}/api/reference_files/${encodeURIComponent(fileId)}/pitch`);
-          if (response.ok) {
-            const pitchData = await response.json();
-            // 듀얼축 차트 클리어 후 참조 데이터 추가
-            dualAxisChart.clearChart();
-            
-            // 🎯 시간 정규화: 첫 번째 시간값을 0으로 만들기
-            const firstTime = pitchData.length > 0 ? pitchData[0].time : 0;
-            console.log(`🎯 듀얼차트 시간 정규화: 첫 번째 시간 ${firstTime.toFixed(2)}s를 0s로 조정`);
-            
-            pitchData.forEach((point: any) => {
-              // 시간값 정규화: 첫 번째 시간을 빼서 0부터 시작
-              const normalizedTime = point.time - firstTime;
-              dualAxisChart.addDualAxisData(point.frequency, normalizedTime, 'reference');
-            });
-            
-            // 🎯 데이터 로딩 완료 후 Y축 범위 자동 조정
-            if (dualAxisChart.updateYAxisRanges) {
-              dualAxisChart.updateYAxisRanges();
-            }
-            
-            console.log(`📊 듀얼축 차트에 참조 데이터 로딩 완료: ${fileId} (${pitchData.length}개 포인트)`);
-          }
-        } catch (error) {
-          console.warn('⚠️ 듀얼축 차트 참조 데이터 로딩 실패:', error);
+      // 화자별 맞춤 기준 주파수 설정이 활성화되고 이름+성별이 모두 있을 때 프로필 자동 생성
+      if (
+        referenceMode !== "disabled" &&
+        newLearnerInfo.name &&
+        newLearnerInfo.gender &&
+        (field === "name" || field === "gender")
+      ) {
+        // 동일한 이름과 성별을 가진 기존 프로필이 있는지 확인 (단순 참고용)
+        const similarProfiles = availableProfiles.filter(
+          (p) =>
+            p.name === newLearnerInfo.name &&
+            p.gender === newLearnerInfo.gender,
+        );
+
+        if (similarProfiles.length === 0) {
+          console.log("🎯 학습자 정보 변경 감지 → 새 고유 프로필 생성 시작");
+          await createProfileFromLearnerInfo(newLearnerInfo);
+        } else {
+          console.log(
+            `📋 유사한 프로필 ${similarProfiles.length}개 발견 → 새 고유 프로필 생성 시작`,
+          );
+          await createProfileFromLearnerInfo(newLearnerInfo);
         }
-        
-        setStatus(`✅ "${fileId}" 문장이 로드되었습니다. 참조음성 재생 또는 녹음 연습을 시작하세요.`);
-        console.log('🎯 차트 업데이트 완료!');
-      } else {
-        console.warn('⚠️ pitchChart.loadReferenceData가 없습니다');
-        setStatus('차트 로딩 중 오류가 발생했습니다.');
       }
-      
-    } catch (error) {
-      console.error('🎯 문장 로딩 오류:', error);
-      setStatus('문장 로딩 중 오류가 발생했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [learnerInfo.gender, pitchChart, dualAxisChart, API_BASE]);
-  
+    },
+    [
+      learnerInfo,
+      referenceMode,
+      availableProfiles,
+      createProfileFromLearnerInfo,
+    ],
+  );
+
+  // 🎯 학습 방법 선택
+  const handleLearningMethodChange = useCallback(
+    (method: LearningMethod) => {
+      // 🎯 성별 선택 필수 검증 (원본 로직)
+      if (!learnerInfo.gender) {
+        alert(
+          "먼저 학습자 성별을 선택해주세요.\n성별 정보는 정확한 음성 분석을 위해 필요합니다.",
+        );
+        return;
+      }
+
+      setLearningMethod(method);
+
+      if (method === "pitch") {
+        setShowPitchDetails(true);
+        setShowSentenceDetails(false);
+        setShowAudioAnalysisSection(false);
+      } else if (method === "sentence") {
+        setShowSentenceDetails(true);
+        setShowPitchDetails(false);
+        setShowAudioAnalysisSection(true);
+      } else {
+        setShowSentenceDetails(false);
+        setShowPitchDetails(false);
+        setShowAudioAnalysisSection(false);
+      }
+    },
+    [learnerInfo.gender],
+  );
+
+  // 🎯 연습 문장 선택 (오리지널과 동일한 로직)
+  const handleSentenceSelection = useCallback(
+    async (fileId: string) => {
+      if (!fileId) {
+        setSelectedFile("");
+        setStatus("연습할 문장을 선택해주세요.");
+        return;
+      }
+
+      // 🎯 학습자 성별 확인 (오리지널 로직)
+      if (!learnerInfo.gender) {
+        alert("먼저 학습자 성별 정보를 선택해주세요.");
+        return;
+      }
+
+      setSelectedFile(fileId);
+      setIsLoading(true);
+      setStatus(`"${fileId}" 문장을 불러오는 중...`);
+
+      try {
+        console.log(`🎯 연습 문장 선택됨: ${fileId}`);
+
+        // 🎯 오리지널처럼 pitchChart.loadReferenceData 호출
+        if (pitchChart && pitchChart.loadReferenceData) {
+          await pitchChart.loadReferenceData(fileId);
+
+          // 🎯 듀얼축 차트에도 참조 데이터 로딩 (시간 정규화 적용)
+          try {
+            const response = await fetch(
+              `${API_BASE}/api/reference_files/${encodeURIComponent(fileId)}/pitch`,
+            );
+            if (response.ok) {
+              const pitchData = await response.json();
+              // 듀얼축 차트 클리어 후 참조 데이터 추가
+              dualAxisChart.clearChart();
+
+              // 🎯 시간 정규화: 첫 번째 시간값을 0으로 만들기
+              const firstTime = pitchData.length > 0 ? pitchData[0].time : 0;
+              console.log(
+                `🎯 듀얼차트 시간 정규화: 첫 번째 시간 ${firstTime.toFixed(2)}s를 0s로 조정`,
+              );
+
+              pitchData.forEach((point: any) => {
+                // 시간값 정규화: 첫 번째 시간을 빼서 0부터 시작
+                const normalizedTime = point.time - firstTime;
+                dualAxisChart.addDualAxisData(
+                  point.frequency,
+                  normalizedTime,
+                  "reference",
+                );
+              });
+
+              // 🎯 데이터 로딩 완료 후 Y축 범위 자동 조정
+              if (dualAxisChart.updateYAxisRanges) {
+                dualAxisChart.updateYAxisRanges();
+              }
+
+              console.log(
+                `📊 듀얼축 차트에 참조 데이터 로딩 완료: ${fileId} (${pitchData.length}개 포인트)`,
+              );
+            }
+          } catch (error) {
+            console.warn("⚠️ 듀얼축 차트 참조 데이터 로딩 실패:", error);
+          }
+
+          setStatus(
+            `✅ "${fileId}" 문장이 로드되었습니다. 참조음성 재생 또는 녹음 연습을 시작하세요.`,
+          );
+          console.log("🎯 차트 업데이트 완료!");
+        } else {
+          console.warn("⚠️ pitchChart.loadReferenceData가 없습니다");
+          setStatus("차트 로딩 중 오류가 발생했습니다.");
+        }
+      } catch (error) {
+        console.error("🎯 문장 로딩 오류:", error);
+        setStatus("문장 로딩 중 오류가 발생했습니다.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [learnerInfo.gender, pitchChart, dualAxisChart, API_BASE],
+  );
+
   // 🎯 녹음 제어
   const handleRecording = useCallback(() => {
     if (audioRecording.isRecording) {
       audioRecording.stopRecording();
-      setStatus('녹음이 완료되었습니다.');
+      setStatus("녹음이 완료되었습니다.");
       // 🟢 녹음 중지 시 실시간 가로바 숨김
       if (pitchChart && pitchChart.hideRealtimePitchLine) {
         pitchChart.hideRealtimePitchLine();
       }
     } else {
       audioRecording.startRecording();
-      setStatus('🎤 녹음 중... 말씀해 주세요.');
+      setStatus("🎤 녹음 중... 말씀해 주세요.");
     }
   }, [audioRecording, pitchChart]);
-  
+
   // 🎯 재생 기능
   const handlePlayRecording = useCallback(() => {
     if (audioRecording.recordedBlob) {
       audioRecording.playRecordedAudio();
-      setStatus('🔊 녹음된 음성을 재생합니다.');
+      setStatus("🔊 녹음된 음성을 재생합니다.");
     } else {
-      setStatus('재생할 녹음이 없습니다.');
+      setStatus("재생할 녹음이 없습니다.");
     }
   }, [audioRecording]);
-  
+
   const handlePlayReference = useCallback(() => {
     if (selectedFile) {
-      const audio = new Audio(`${API_BASE}/static/reference_files/${selectedFile}.wav`);
-      
+      const audio = new Audio(
+        `${API_BASE}/static/reference_files/${selectedFile}.wav`,
+      );
+
       // 🎯 공통 재생 동기화 훅 사용
       const cleanup = referencePlaybackSync.setupAudioElement(audio);
-      
+
       // 🎯 추가 이벤트 리스너 (상태 메시지용)
-      audio.addEventListener('ended', () => {
-        setStatus('✅ 참조 음성 재생이 완료되었습니다.');
+      audio.addEventListener("ended", () => {
+        setStatus("✅ 참조 음성 재생이 완료되었습니다.");
         cleanup(); // 정리
       });
-      
-      audio.addEventListener('error', (err) => {
-        console.error('🎵 참조음성 재생 실패:', err);
-        setStatus('❌ 참조 음성 재생 중 오류가 발생했습니다.');
+
+      audio.addEventListener("error", (err) => {
+        console.error("🎵 참조음성 재생 실패:", err);
+        setStatus("❌ 참조 음성 재생 중 오류가 발생했습니다.");
         cleanup(); // 정리
       });
-      
+
       // 재생 시작
-      audio.play().catch(err => {
-        console.error('참조 음성 재생 실패:', err);
-        setStatus('❌ 참조 음성 재생에 실패했습니다.');
+      audio.play().catch((err) => {
+        console.error("참조 음성 재생 실패:", err);
+        setStatus("❌ 참조 음성 재생에 실패했습니다.");
         cleanup(); // 정리
       });
-      
-      setStatus('🔊 참조 음성을 재생합니다.');
+
+      setStatus("🔊 참조 음성을 재생합니다.");
     }
   }, [selectedFile, API_BASE, referencePlaybackSync]);
 
-
   // 🎯 Y축 단위 변경을 두 차트에 전달
   useEffect(() => {
-    console.log(`🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 ${yAxisUnit}, 두 차트에 전달`);
+    console.log(
+      `🎯 VoiceAnalysisApp: Y축 단위 변경 감지됨 ${yAxisUnit}, 두 차트에 전달`,
+    );
     if (pitchChart && pitchChart.setYAxisUnit) {
       pitchChart.setYAxisUnit(yAxisUnit);
     }
@@ -388,70 +453,73 @@ const VoiceAnalysisApp: React.FC = () => {
       dualAxisChart.setYAxisUnit(yAxisUnit);
     }
   }, [yAxisUnit, pitchChart, dualAxisChart]);
-  
+
   // 🎯 성별 선택 모달
   const handleGenderSelection = useCallback((gender: string) => {
     setSelectedGender(gender);
   }, []);
-  
+
   const confirmGenderSelection = useCallback(() => {
     if (selectedGender) {
-      updateLearnerInfo('gender', selectedGender);
+      updateLearnerInfo("gender", selectedGender);
       setShowGenderModal(false);
-      setSelectedGender('');
+      setSelectedGender("");
     }
   }, [selectedGender, updateLearnerInfo]);
 
   // 🎯 파일 업로드 처리
-  const [uploadFiles, setUploadFiles] = React.useState<{wav: File | null, textgrid: File | null}>({
+  const [uploadFiles, setUploadFiles] = React.useState<{
+    wav: File | null;
+    textgrid: File | null;
+  }>({
     wav: null,
-    textgrid: null
+    textgrid: null,
   });
   const [isUploading, setIsUploading] = React.useState(false);
 
   const handleFileUpload = useCallback(async () => {
     if (!uploadFiles.wav || !learnerInfo.gender) {
-      alert('WAV 파일을 선택하고 학습자 성별을 설정해주세요.');
+      alert("WAV 파일을 선택하고 학습자 성별을 설정해주세요.");
       return;
     }
 
     setIsUploading(true);
-    setStatus('파일을 업로드하고 분석 중입니다...');
+    setStatus("파일을 업로드하고 분석 중입니다...");
 
     try {
       const formData = new FormData();
-      formData.append('wav', uploadFiles.wav);
+      formData.append("wav", uploadFiles.wav);
       if (uploadFiles.textgrid) {
-        formData.append('textgrid', uploadFiles.textgrid);
+        formData.append("textgrid", uploadFiles.textgrid);
       }
-      formData.append('learner_gender', learnerInfo.gender);
-      formData.append('learner_name', learnerInfo.name || '사용자');
+      formData.append("learner_gender", learnerInfo.gender);
+      formData.append("learner_name", learnerInfo.name || "사용자");
 
       const response = await fetch(`${API_BASE}/analyze_ref?t=${Date.now()}`, {
-        method: 'POST',
+        method: "POST",
         body: formData,
-        cache: 'no-cache',
+        cache: "no-cache",
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
       });
 
       if (response.ok) {
         const result = await response.json();
-        setStatus('✅ 파일 분석이 완료되었습니다! 차트를 확인해보세요.');
-        console.log('🎯 업로드 분석 결과:', result);
-        
+        setStatus("✅ 파일 분석이 완료되었습니다! 차트를 확인해보세요.");
+        console.log("🎯 업로드 분석 결과:", result);
+
         // 분석 결과를 차트에 반영
         if (pitchChart && result.pitch_data) {
           // TODO: 업로드된 파일 분석 결과를 차트에 표시
         }
       } else {
-        setStatus('파일 업로드 중 오류가 발생했습니다.');
+        setStatus("파일 업로드 중 오류가 발생했습니다.");
       }
     } catch (error) {
-      console.error('파일 업로드 오류:', error);
-      setStatus('파일 업로드 중 오류가 발생했습니다.');
+      console.error("파일 업로드 오류:", error);
+      setStatus("파일 업로드 중 오류가 발생했습니다.");
     } finally {
       setIsUploading(false);
     }
@@ -463,925 +531,1190 @@ const VoiceAnalysisApp: React.FC = () => {
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-lg-10">
-
-
-          {/* 🎯 개인화 코칭 설문 CTA (오리지날 HTML 구조) */}
-          <div className="alert alert-primary d-flex align-items-center mb-4 survey-cta" style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-            border: 'none', 
-            borderRadius: '12px', 
-            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
-          }}>
-            <div className="flex-grow-1 text-white">
-              <div className="d-flex align-items-center mb-2">
-                <i className="fas fa-graduation-cap fa-2x me-3" style={{color: '#ffd700'}}></i>
-                <div>
-                  <h5 className="mb-1 fw-bold">데모학습 후, 더 정확한 개인화 코칭을 위해</h5>
-                  <p className="mb-0 small opacity-90">3분 설문 참여로 서비스 품질 향상에 힘을 보태주세요!</p>
-                </div>
-              </div>
-              <div className="d-flex flex-wrap gap-2 small">
-                <span className="badge bg-warning text-dark">
-                  <i className="fas fa-check me-1"></i>개선 의견 남기기
-                </span>
-                <span className="badge bg-info">
-                  <i className="fas fa-bell me-1"></i>신기능 알림 신청
-                </span>
-                <span className="badge bg-success">
-                  <i className="fas fa-users me-1"></i>파일럿 프로그램 참여
-                </span>
-              </div>
-            </div>
-            <div className="ms-3">
-              <Link 
-                to="/survey" 
-                className="btn btn-warning btn-lg fw-bold px-4 py-2 text-decoration-none" 
-                style={{
-                  borderRadius: '25px', 
-                  boxShadow: '0 3px 10px rgba(255, 193, 7, 0.4)'
-                }}
-              >
-                <i className="fas fa-clipboard-list me-2"></i>3분 설문하기
-              </Link>
-            </div>
-          </div>
-
-          {/* 🎯 휴대폰 가로보기 안내 */}
-          <div className="alert border-0 text-center mb-4 mobile-warning" style={{
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
-            borderRadius: '12px',
-            boxShadow: '0 2px 15px rgba(255, 107, 107, 0.3)'
-          }}>
-            <div className="d-flex align-items-center justify-content-center">
-              <i 
-                className="fas fa-mobile-alt me-2 bounce-animation" 
-                style={{color: 'white', fontSize: '1.2em'}}
-              ></i>
-              <span 
-                className="fw-bold text-white" 
-                style={{
-                  fontSize: '1.1em', 
-                  textShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                }}
-              >
-                📱 휴대폰접속은 "
-                <span style={{
-                  color: '#ffff00', 
-                  fontWeight: 'bold', 
-                  fontSize: '1.3em', 
-                  textShadow: '0 1px 2px rgba(0,0,0,0.7)'
-                }}>
-                  가로보기<span style={{color: '#ffff00'}}>로</span>
-                </span>" !! 📱
-              </span>
-            </div>
-            <div className="mt-2" style={{color: '#ffff00', fontSize: '0.9em', fontWeight: 'normal'}}>
-              (PC & 마이크 사용을 더욱 권장합니다)
-            </div>
-          </div>
-
-          {/* 🎭 프로필 선택 (항상 표시) */}
-          <div className="card mb-4">
-            <div className="card-header">
-              <h5 className="mb-0 fw-bold" style={{color: '#6f42c1'}}>
-                <i className="fas fa-user-circle me-2"></i>프로필 선택
-              </h5>
-            </div>
-            <div className="card-body">
-              <label className="form-label fw-bold">
-                <i className="fas fa-users me-2 text-primary"></i>
-                기존 프로필 불러오기 (선택)
-              </label>
-              <select 
-                className="form-select" 
-                value={selectedProfileId}
-                onChange={(e) => {
-                  const profileId = e.target.value;
-                  setSelectedProfileId(profileId);
-                  
-                  // 선택된 프로필의 정보로 학습자 정보 자동 채움
-                  if (profileId) {
-                    const selectedProfile = availableProfiles.find(p => p.profile_id === profileId);
-                    if (selectedProfile) {
-                      setLearnerInfo({
-                        name: selectedProfile.name || '',
-                        gender: selectedProfile.gender || '',
-                        ageGroup: selectedProfile.age_group || ''
-                      });
-                      setPersonalReferenceFreq(selectedProfile.reference_frequency);
-                      console.log(`🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`);
-                      console.log(`📝 학습자 정보 자동 채움:`, {
-                        name: selectedProfile.name,
-                        gender: selectedProfile.gender,
-                        ageGroup: selectedProfile.age_group
-                      });
-                    }
-                  }
-                }}
-                disabled={isLoadingProfiles}
-              >
-                <option value="">
-                  {isLoadingProfiles ? '프로필 로딩 중...' : '새로 시작하기 (프로필 선택 안함)'}
-                </option>
-                {availableProfiles.map((profile) => (
-                  <option key={profile.profile_id} value={profile.profile_id}>
-                    {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz [ID: {profile.profile_id.split('_').slice(-2).join('-')}]
-                  </option>
-                ))}
-              </select>
-              
-              {availableProfiles.length === 0 && !isLoadingProfiles && (
-                <small className="text-warning mt-1 d-block">
-                  <i className="fas fa-exclamation-triangle me-1"></i>
-                  저장된 프로필이 없습니다. 아래에서 학습자 정보를 입력해주세요.
-                </small>
-              )}
-            </div>
-          </div>
-
-          {/* 🎯 학습자 정보 입력 */}
-          <div className="card mb-4">
-            <div className="card-header">
-              <h5 className="mb-0 fw-bold" style={{color: '#ff6b35'}}>
-                <i className="fas fa-user me-2"></i>학습자 정보
-              </h5>
-            </div>
-            <div className="card-body">
-              <div className="row g-3">
-                <div className="col-md-4">
-                  <label htmlFor="learner-name" className="form-label">이름 (선택)</label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    id="learner-name" 
-                    placeholder="예: 김학습"
-                    value={learnerInfo.name}
-                    onChange={(e) => updateLearnerInfo('name', e.target.value)}
-                  />
-                </div>
-                <div className="col-md-4">
-                  <label htmlFor="learner-gender" className="form-label">
-                    성별 <span className="text-danger">*</span>
-                  </label>
-                  <select 
-                    className="form-select" 
-                    id="learner-gender" 
-                    required
-                    value={learnerInfo.gender}
-                    onChange={(e) => updateLearnerInfo('gender', e.target.value)}
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="male">남성</option>
-                    <option value="female">여성</option>
-                  </select>
-                </div>
-                <div className="col-md-4">
-                  <label htmlFor="learner-level" className="form-label">연령대 (선택)</label>
-                  <select 
-                    className="form-select" 
-                    id="learner-level"
-                    value={learnerInfo.ageGroup}
-                    onChange={(e) => updateLearnerInfo('ageGroup', e.target.value)}
-                  >
-                    <option value="">선택하세요</option>
-                    <option value="10대">10대</option>
-                    <option value="20대">20대</option>
-                    <option value="30대">30대</option>
-                    <option value="40대">40대</option>
-                    <option value="50대">50대</option>
-                    <option value="60대이상">60대이상</option>
-                  </select>
-                </div>
-                
-                {/* 🎯 프로필 생성 버튼 (학습자 정보 입력 후) */}
-                {learnerInfo.name && learnerInfo.gender && (
-                  <div className="row mt-3">
-                    <div className="col-12">
-                      <button 
-                        type="button" 
-                        className="btn btn-outline-primary"
-                        onClick={async () => {
-                          console.log('🎯 수동 프로필 생성 시작');
-                          await createProfileFromLearnerInfo(learnerInfo);
-                        }}
-                      >
-                        <i className="fas fa-plus me-2"></i>
-                        현재 정보로 새 프로필 생성
-                      </button>
-                      <small className="text-muted ms-2">
-                        입력된 정보를 기반으로 새로운 화자 프로필을 생성합니다
-                      </small>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 🎯 화자별 맞춤 기준 주파수 설정 */}
-          <div className="card mb-4">
-            <div className="card-header">
-              <h5 className="mb-0 fw-bold" style={{color: '#17a2b8'}}>
-                <i className="fas fa-user-cog me-2"></i>화자별 맞춤 기준 주파수 설정
-              </h5>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <label className="form-label fw-bold">
-                  <i className="fas fa-cog me-2 text-info"></i>
-                  분석 방식 선택
-                </label>
-                
-                <div className="form-check mb-2">
-                  <input 
-                    className="form-check-input" 
-                    type="radio" 
-                    name="referenceMode" 
-                    id="mode-disabled"
-                    value="disabled"
-                    checked={referenceMode === 'disabled'}
-                    onChange={(e) => setReferenceMode(e.target.value as 'disabled' | 'measurement' | 'adaptive')}
-                  />
-                  <label className="form-check-label" htmlFor="mode-disabled">
-                    <i className="fas fa-lock me-2 text-secondary"></i>
-                    <span className="fw-bold">사용안함</span> - 기준 주파수 200Hz 고정 (일반 분석)
-                  </label>
-                </div>
-                
-                <div className="form-check mb-2">
-                  <input 
-                    className="form-check-input" 
-                    type="radio" 
-                    name="referenceMode" 
-                    id="mode-measurement"
-                    value="measurement"
-                    checked={referenceMode === 'measurement'}
-                    onChange={(e) => setReferenceMode(e.target.value as 'disabled' | 'measurement' | 'adaptive')}
-                    disabled={!learnerInfo.gender && !selectedProfileId}
-                  />
-                  <label className="form-check-label" htmlFor="mode-measurement">
-                    <i className="fas fa-ruler me-2 text-warning"></i>
-                    <span className="fw-bold">측정방식</span> - 수동 측정을 통한 개인 기준 주파수 설정
-                  </label>
-                </div>
-                
-                <div className="form-check mb-2">
-                  <input 
-                    className="form-check-input" 
-                    type="radio" 
-                    name="referenceMode" 
-                    id="mode-adaptive"
-                    value="adaptive"
-                    checked={referenceMode === 'adaptive'}
-                    onChange={(e) => setReferenceMode(e.target.value as 'disabled' | 'measurement' | 'adaptive')}
-                    disabled={!learnerInfo.gender && !selectedProfileId}
-                  />
-                  <label className="form-check-label" htmlFor="mode-adaptive">
-                    <i className="fas fa-brain me-2 text-success"></i>
-                    <span className="fw-bold">적응형</span> - AI가 자동으로 개인 최적 기준 주파수 학습
-                  </label>
-                </div>
-              </div>
-              
-              <small className="text-muted d-block">
-                {referenceMode === 'disabled' ? (
-                  <>
-                    <i className="fas fa-info-circle me-1 text-secondary"></i>
-                    기준 주파수 200Hz로 일반적인 피치 분석을 수행합니다.
-                  </>
-                ) : referenceMode === 'measurement' ? (
-                  <>
-                    <i className="fas fa-info-circle me-1 text-warning"></i>
-                    개인 음성 측정을 통해 정확한 기준 주파수를 설정하여 맞춤형 분석을 제공합니다.
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-info-circle me-1 text-success"></i>
-                    AI가 음성을 학습하여 개인에게 최적화된 기준 주파수를 자동으로 조정합니다.
-                  </>
-                )}
-              </small>
-              
-              {(referenceMode === 'measurement' || referenceMode === 'adaptive') && selectedProfileId && (
-                <div className="alert alert-info mt-3 mb-0">
-                  <i className="fas fa-check-circle me-2"></i>
-                  <strong>현재 기준 주파수:</strong> {personalReferenceFreq.toFixed(1)}Hz
-                  <br />
-                  <small>선택된 프로필: {availableProfiles.find(p => p.profile_id === selectedProfileId)?.name || '알 수 없음'}</small>
-                </div>
-              )}
-              
-              {(referenceMode === 'measurement' || referenceMode === 'adaptive') && (!learnerInfo.gender && !selectedProfileId) && (
-                <div className="alert alert-warning mt-3 mb-0">
-                  <i className="fas fa-exclamation-triangle me-2"></i>
-                  <strong>알림:</strong> 측정방식 또는 적응형 분석을 사용하려면 학습자 정보를 입력하거나 프로필을 선택해주세요.
-                </div>
-              )}
-            </div>
-          </div>
-
-
-          {/* 🎯 학습 방법 선택 */}
-          <div className="card mb-3">
-            <div className="card-header">
-              <h5 className="mb-0 fw-bold" style={{color: '#ff6b35'}}>
-                <i className="fas fa-graduation-cap me-2"></i>학습 방법 선택
-              </h5>
-            </div>
-            <div className="card-body">
-              <div className="row g-2">
-                <div className="col-md-6">
-                  <div 
-                    className={`d-flex align-items-center p-2 border rounded learning-method-toggle ${!learnerInfo.gender ? 'disabled' : ''} ${learningMethod === 'pitch' ? 'border-primary' : ''}`}
-                    style={{cursor: learnerInfo.gender ? 'pointer' : 'not-allowed'}}
-                    onClick={() => handleLearningMethodChange('pitch')}
-                  >
-                    <div className="form-check me-3">
-                      <input 
-                        className="form-check-input" 
-                        type="radio" 
-                        name="learningMethod" 
-                        id="methodPitch" 
-                        value="pitch"
-                        checked={learningMethod === 'pitch'}
-                        disabled={!learnerInfo.gender}
-                        onChange={() => handleLearningMethodChange('pitch')}
-                      />
-                    </div>
-                    <div className="flex-grow-1">
-                      <h6 className="mb-1">
-                        <i className="fas fa-music me-2 text-primary"></i>
-                        음높이 학습 <span className="text-danger fw-bold">(준비중)</span>
-                      </h6>
-                      <small className="text-muted">특정 음높이를 목표로 하여 정확한 높낮이 연습</small>
-                    </div>
-                  </div>
-                  
-                  {showPitchDetails && (
-                    <div className="mt-2">
-                      <div className="ps-4 small">
-                        <div className="alert alert-light border-primary mb-3">
-                          <strong>🎯 학습목표:</strong> 내 목소리 높낮이 변화를 시청각적으로 인지해봅니다.
-                        </div>
-                        
-                        <h6 className="text-primary mb-2">1. 참조선 미정</h6>
-                        <p className="mb-1">
-                          <strong>a.</strong> [녹음] 버튼을 누르고, /아/ 소리를 길게 냅니다. 
-                          하단 그래프 안에 빨간 선이 나타나면 현재 음의 높낮이를 파악합니다.
-                        </p>
-                        <p className="mb-1">
-                          <strong>b.</strong> 현재 음과 높낮이 차이가 점점 커지도록 소리를 번갈아 내보세요.
-                        </p>
-                        <p className="mb-3">
-                          <strong>c.</strong> 이번엔 음높이 차이가 거의 나지 않을 때까지 소리를 번갈아 내보세요.
-                        </p>
-                        
-                        <h6 className="text-primary mb-2">2. 참조선 정하기</h6>
-                        <p className="mb-1">
-                          <strong>a.</strong> 하단 그래프 내 한 지점을 클릭합니다.
-                        </p>
-                        <div className="ps-3 mb-2">
-                          <p className="mb-1 text-muted">- 더블클릭 시, 하나의 참조선 생성</p>
-                          <p className="mb-0 text-muted">- 드래그 시, 범위 지정 가능</p>
-                        </div>
-                        <p className="mb-0">
-                          <strong>b.</strong> [녹음] 버튼을 누르고, 빨간 선이 상한선과 하한선을 
-                          왔다갔다 하도록 높낮이를 번갈아 소리내보세요.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="col-md-6">
-                  <div 
-                    className={`d-flex align-items-center p-2 border rounded learning-method-toggle ${!learnerInfo.gender ? 'disabled' : ''} ${learningMethod === 'sentence' ? 'border-primary' : ''}`}
-                    style={{cursor: learnerInfo.gender ? 'pointer' : 'not-allowed'}}
-                    onClick={() => handleLearningMethodChange('sentence')}
-                  >
-                    <div className="form-check me-3">
-                      <input 
-                        className="form-check-input" 
-                        type="radio" 
-                        name="learningMethod" 
-                        id="methodSentence" 
-                        value="sentence"
-                        checked={learningMethod === 'sentence'}
-                        disabled={!learnerInfo.gender}
-                        onChange={() => handleLearningMethodChange('sentence')}
-                      />
-                    </div>
-                    <div className="flex-grow-1">
-                      <h6 className="mb-1">
-                        <i className="fas fa-wave-square me-2 text-success"></i>참조억양학습
-                      </h6>
-                      <small className="text-muted">참조 음성의 억양 패턴을 따라 자연스럽게 말하기</small>
-                    </div>
-                  </div>
-                  
-                  {showSentenceDetails && (
-                    <div className="mt-2">
-                      <div className="ps-4 small">
-                        <div className="alert alert-light border-success mb-3">
-                          <strong>🎯 학습목표:</strong> 참조 음성의 억양 패턴을 따라 자연스럽게 말하기
-                        </div>
-                        
-                        <p className="mb-2">
-                          <strong>1. 🎯 첫 목표는 참조음성의 
-                          <span style={{
-                            backgroundColor: '#fff3cd', 
-                            color: '#856404', 
-                            padding: '2px 6px', 
-                            borderRadius: '4px', 
-                            fontWeight: 'bold'
-                          }}>음도범위(Pitch range)</span> 
-                          내에서 최대점과 최소점을 비슷하게 만들어보세요.</strong><br />
-                          <small className="text-muted">
-                            *바로 이웃한 두 음의 차이보다는, 하나의 리듬을 만들어내는 
-                            <span style={{color: '#6f42c1', fontWeight: 'bold'}}>[말토막]</span>의 
-                            첫음과 끝음을 목표로 합니다.
-                          </small>
-                        </p>
-                        
-                        <p className="mb-2">
-                          <strong>2. 🎤 [녹음]클릭 후, /아/ 발음을 길게 내면서 나에게 편안한 첫 음을 잡으세요.</strong><br />
-                          <small className="text-muted">
-                            이때 <span style={{color: '#28a745', fontWeight: 'bold'}}>
-                            🟢 초록색 실시간 음도피드백 곡선</span>이 나타납니다. * 
-                            <span style={{color: '#dc3545', fontWeight: 'bold'}}>
-                            ⬆️화살표⬇️를 통해 참조음성의 억양 그래프 위치를 나의 음에 맞춥니다</span>.
-                          </small>
-                        </p>
-                        
-                        <p className="mb-0">
-                          <strong>3. 🎵 점점 서로 가까운 음들과의 
-                          <span style={{
-                            color: '#17a2b8', 
-                            backgroundColor: '#e7f3ff', 
-                            padding: '2px 6px', 
-                            borderRadius: '4px', 
-                            fontWeight: 'bold'
-                          }}>상대적인 차이</span>를 보고 들으며 따라 말해보세요.</strong>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 🎯 연습 문장 선택 및 안내 동영상 (참조억양학습시에만 표시) */}
-          {showAudioAnalysisSection && (
-            <div className="mb-4" style={{marginTop: '1.5rem'}}>
-              <div className="row g-4 w-100">
-                {/* 연습 문장 선택 */}
-                <div className="col-md-7">
-                  <div className="alert alert-info border-0" style={{
-                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', 
-                    borderRadius: '12px'
-                  }}>
-                    <div className="d-flex align-items-center mb-3">
-                      <i className="fas fa-lightbulb me-2 text-primary"></i>
-                      <h6 className="mb-0 fw-bold text-primary">
-                        🎯 미리 준비된 연습 문장으로 바로 시작하세요!
-                      </h6>
-                    </div>
-                    <p className="mb-3 small text-primary opacity-75">
-                      아래에서 연습하고 싶은 문장을 선택하면 바로 억양 학습을 시작할 수 있습니다.
+            {/* 🎯 개인화 코칭 설문 CTA (오리지날 HTML 구조) */}
+            <div
+              className="alert alert-primary d-flex align-items-center mb-4 survey-cta"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                border: "none",
+                borderRadius: "12px",
+                boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
+              }}
+            >
+              <div className="flex-grow-1 text-white">
+                <div className="d-flex align-items-center mb-2">
+                  <i
+                    className="fas fa-graduation-cap fa-2x me-3"
+                    style={{ color: "#ffd700" }}
+                  ></i>
+                  <div>
+                    <h5 className="mb-1 fw-bold">
+                      데모학습 후, 더 정확한 개인화 코칭을 위해
+                    </h5>
+                    <p className="mb-0 small opacity-90">
+                      3분 설문 참여로 서비스 품질 향상에 힘을 보태주세요!
                     </p>
-                    
-                    <div>
-                      <label className="form-label fw-bold text-primary mb-2">
-                        <i className="fas fa-star me-1"></i> 연습 문장 선택
-                      </label>
-                      <select 
-                        className="form-control form-control-sm"
-                        value={selectedFile}
-                        onChange={(e) => {
-          console.log('🎯 드롭다운 변경됨:', e.target.value);
-          handleSentenceSelection(e.target.value);
-        }}
-                      >
-                        <option value="">연습할 문장을 선택하세요...</option>
-                        {referenceFiles.map((file) => (
-                          <option key={file.id} value={file.id}>
-                            {file.title || file.filename} ({file.duration?.toFixed(1) || '0.0'}초)
-                          </option>
-                        ))}
-                      </select>
-                      
-                      {/* 참조 파일 오디오 플레이어 */}
-                      {selectedFile && (
-                        <div className="mt-3 p-2 bg-white rounded border">
-                          <label className="form-label mb-2 small fw-bold text-success">
-                            <i className="fas fa-headphones me-2"></i>참조 음성 듣기
-                          </label>
-                          <audio
-                            controls
-                            className="w-100"
-                            style={{ height: '35px' }}
-                            src={`${API_BASE}/static/reference_files/${selectedFile}.wav`}
-                            onError={() => console.error('참조 파일 로드 실패:', selectedFile)}
-                            onLoadedData={(e) => {
-                              console.log('참조 파일 로드 완료:', selectedFile);
-                              // 🎯 공통 재생 동기화 훅 자동 연결
-                              const audio = e.target as HTMLAudioElement;
-                              referencePlaybackSync.setupAudioElement(audio);
-                            }}
-                          >
-                            브라우저가 오디오 재생을 지원하지 않습니다.
-                          </audio>
-                          <div className="text-muted small mt-1">
-                            <i className="fas fa-file-audio me-1"></i>
-                            {selectedFile}.wav - 이 발음을 목표로 연습해보세요!
-                          </div>
-                        </div>
-                      )}
-                      
-                      <small className="text-primary opacity-75">선택하면 자동으로 분석이 시작됩니다</small>
-                    </div>
                   </div>
                 </div>
-                
-                {/* 안내 동영상 */}
-                <div className="col-md-5">
-                  <div className="alert alert-success border-0" style={{
-                    background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%)', 
-                    borderRadius: '12px'
-                  }}>
-                    <div className="d-flex align-items-center mb-3">
-                      <i className="fas fa-play-circle me-2 text-success"></i>
-                      <h6 className="mb-0 fw-bold text-success">📹 사용법 안내 동영상</h6>
-                    </div>
-                    <p className="mb-3 small text-success opacity-75">
-                      ToneBridge 사용 방법을 영상으로 확인하세요!
-                    </p>
-                    
-                    <div 
-                      className="video-container" 
-                      style={{
-                        position: 'relative', 
-                        width: '100%', 
-                        height: '180px', 
-                        borderRadius: '8px', 
-                        overflow: 'hidden', 
-                        background: '#000'
-                      }}
-                    >
-                      <video 
-                        controls 
-                        style={{width: '100%', height: '100%', objectFit: 'cover'}}
-                        poster="/static/images/video-thumbnail.jpg"
-                      >
-                        <source src="/static/videos/tonebridge_guide.mp4" type="video/mp4" />
-                        <p className="text-muted p-3">죄송합니다. 브라우저에서 동영상을 지원하지 않습니다.</p>
-                      </video>
-                    </div>
-                    <small className="text-success opacity-75 mt-2 d-block">
-                      💡 동영상을 시청하고 효과적으로 학습해보세요
-                    </small>
-                  </div>
+                <div className="d-flex flex-wrap gap-2 small">
+                  <span className="badge bg-warning text-dark">
+                    <i className="fas fa-check me-1"></i>개선 의견 남기기
+                  </span>
+                  <span className="badge bg-info">
+                    <i className="fas fa-bell me-1"></i>신기능 알림 신청
+                  </span>
+                  <span className="badge bg-success">
+                    <i className="fas fa-users me-1"></i>파일럿 프로그램 참여
+                  </span>
                 </div>
               </div>
-            </div>
-          )}
-
-
-          {/* 🎯 상태 메시지 */}
-          <div className="mb-3">
-            {status && <span className="text-muted">{status}</span>}
-          </div>
-
-          {/* 🎯 실시간 학습 분석 차트 */}
-          <div className="card">
-            <div className="card-header">
-              {/* 차트 제목과 통합 제어 버튼들 */}
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <h5 className="mb-0 fw-bold">실시간 학습 분석 차트</h5>
-                <div className="d-flex gap-2">
-                  <button 
-                    className="btn btn-sm btn-outline-primary" 
-                    disabled={!selectedFile}
-                    onClick={handlePlayReference}
-                  >
-                    <i className="fas fa-play me-1"></i> <strong>참조음성</strong>
-                  </button>
-                  <button 
-                    className={`btn btn-sm ${audioRecording.isRecording ? 'btn-danger btn-recording recording-pulse' : ''}`}
-                    disabled={isLoading}
-                    style={{
-                      backgroundColor: audioRecording.isRecording ? '#dc3545' : '#e67e22', 
-                      borderColor: audioRecording.isRecording ? '#dc3545' : '#e67e22', 
-                      color: 'white'
-                    }}
-                    onClick={handleRecording}
-                  >
-                    <i className={`fas ${audioRecording.isRecording ? 'fa-stop' : 'fa-microphone'} me-1`}></i> 
-                    <strong>{audioRecording.isRecording ? '⏸️ 정지' : '🎤 녹음'}</strong>
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-outline-danger" 
-                    disabled={!audioRecording.isRecording}
-                    onClick={() => audioRecording.stopRecording()}
-                  >
-                    <i className="fas fa-stop me-1"></i> <strong>정지</strong>
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-outline-success" 
-                    disabled={!audioRecording.recordedBlob}
-                    onClick={handlePlayRecording}
-                  >
-                    <i className="fas fa-play me-1"></i> <strong>내음성</strong>
-                  </button>
-                </div>
-              </div>
-              
-              {/* Y축 단위 선택 - 차트 로드 후에만 표시 */}
-              {selectedFile && (
-                <div className="d-flex align-items-center justify-content-end">
-                  <div className="d-flex align-items-center gap-2">
-                    <small className="text-muted">Y축 단위:</small>
-                    <div className="btn-group" role="group">
-                      <input 
-                        type="radio" 
-                        className="btn-check" 
-                        name="yAxisUnit" 
-                        id="yAxisSemitone" 
-                        value="semitone" 
-                        checked={yAxisUnit === 'semitone'}
-                        onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
-                      />
-                      <label className="btn btn-outline-primary btn-sm" htmlFor="yAxisSemitone">
-                        Semitone
-                      </label>
-                      
-                      <input 
-                        type="radio" 
-                        className="btn-check" 
-                        name="yAxisUnit" 
-                        id="yAxisQtone" 
-                        value="qtone" 
-                        checked={yAxisUnit === 'qtone'}
-                        onChange={(e) => setYAxisUnit(e.target.value as 'semitone' | 'qtone')}
-                      />
-                      <label className="btn btn-outline-success btn-sm" htmlFor="yAxisQtone">
-                        Q-tone
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="card-body px-2 py-2">
-              <div className="chart-container" style={{position: 'relative', height: '500px'}}>
-                <canvas ref={chartRef}></canvas>
-                
-                {/* 🎯 고정 범례 - 차트 우상단 */}
-                <div 
+              <div className="ms-3">
+                <Link
+                  to="/survey"
+                  className="btn btn-warning btn-lg fw-bold px-4 py-2 text-decoration-none"
                   style={{
-                    position: 'absolute', 
-                    top: '15px', 
-                    right: '15px', 
-                    zIndex: 1000, 
-                    display: selectedFile ? 'block' : 'none',
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    fontSize: '14px',
-                    fontWeight: '500'
+                    borderRadius: "25px",
+                    boxShadow: "0 3px 10px rgba(255, 193, 7, 0.4)",
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px', color: '#ff9f40' }}>
-                    <span style={{ 
-                      width: '12px', 
-                      height: '12px', 
-                      backgroundColor: '#ff9f40', 
-                      borderRadius: '50%', 
-                      display: 'inline-block', 
-                      marginRight: '6px' 
-                    }}></span>
-                    참조 음성
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', color: '#22c55e' }}>
-                    <span style={{ 
-                      width: '12px', 
-                      height: '12px', 
-                      backgroundColor: '#22c55e', 
-                      borderRadius: '50%', 
-                      display: 'inline-block', 
-                      marginRight: '6px' 
-                    }}></span>
-                    실시간 음성
-                  </div>
-                </div>
-                
-                {/* 키 조정 컨트롤 - 차트 내부 우측 하단 */}
-                <div 
-                  id="pitchAdjustmentButtons" 
-                  style={{position: 'absolute', bottom: '10px', right: '10px', zIndex: 1000, display: selectedFile ? 'block' : 'none'}}
-                >
-                  {/* 키 조정 사용법 강조박스 (컴팩트 버전) */}
-                  <div className="p-2" style={{
-                    background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%)', 
-                    border: '2px solid #4caf50', 
-                    borderRadius: '8px', 
-                    fontSize: '0.85em', 
-                    lineHeight: '1.3', 
-                    width: '380px'
-                  }}>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center">
-                        <i className="fas fa-info-circle text-success me-2" style={{fontSize: '1.0em'}}></i>
-                        <span style={{color: '#1b5e20', fontWeight: '500'}}>
-                          <strong>[녹음]</strong> 버튼 클릭후 <strong>/아/</strong> 발성으로 편안한 음도를 찾고, <span style={{color: '#dc3545', fontWeight: 'bold'}}>⬆️<strong>화살표</strong>⬇️를 통해 참조음성의 억양 그래프 위치를 나의 음에 맞춥니다</span>
-                        </span>
-                      </div>
-                      <div className="d-flex gap-1 ms-2">
-                        <button 
-                          className="btn btn-sm btn-outline-success" 
-                          title="그래프를 아래로 이동" 
-                          style={{borderColor: '#4caf50', color: '#4caf50'}}
-                          onClick={() => pitchChart.adjustPitch('down')}
-                        >
-                          <i className="fas fa-arrow-down"></i>
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-outline-success" 
-                          title="그래프를 위로 이동" 
-                          style={{borderColor: '#4caf50', color: '#4caf50'}}
-                          onClick={() => pitchChart.adjustPitch('up')}
-                        >
-                          <i className="fas fa-arrow-up"></i>
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-outline-secondary" 
-                          title="그래프 위치 초기화"
-                          onClick={() => pitchChart.resetView()}
-                        >
-                          <i className="fas fa-undo"></i>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-
-                {/* 초기화 버튼 - 차트 로드 후에만 표시 */}
-                {selectedFile && (
-                  <div style={{position: 'absolute', bottom: '10px', left: '10px', zIndex: 1000}}>
-                    <button 
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => pitchChart.clearChart()}
-                    >
-                      <i className="fas fa-refresh me-1"></i> 초기화
-                    </button>
-                  </div>
-                )}
+                  <i className="fas fa-clipboard-list me-2"></i>3분 설문하기
+                </Link>
               </div>
             </div>
-          </div>
 
-          {/* 🎯 음절별 분석 테이블 */}
-          {showSyllableAnalysis && (
-            <div className="card mt-4" id="syllable-analysis-card">
+            {/* 🎯 휴대폰 가로보기 안내 */}
+            <div
+              className="alert border-0 text-center mb-4 mobile-warning"
+              style={{
+                background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)",
+                borderRadius: "12px",
+                boxShadow: "0 2px 15px rgba(255, 107, 107, 0.3)",
+              }}
+            >
+              <div className="d-flex align-items-center justify-content-center">
+                <i
+                  className="fas fa-mobile-alt me-2 bounce-animation"
+                  style={{ color: "white", fontSize: "1.2em" }}
+                ></i>
+                <span
+                  className="fw-bold text-white"
+                  style={{
+                    fontSize: "1.1em",
+                    textShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  📱 휴대폰접속은 "
+                  <span
+                    style={{
+                      color: "#ffff00",
+                      fontWeight: "bold",
+                      fontSize: "1.3em",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.7)",
+                    }}
+                  >
+                    가로보기<span style={{ color: "#ffff00" }}>로</span>
+                  </span>
+                  " !! 📱
+                </span>
+              </div>
+              <div
+                className="mt-2"
+                style={{
+                  color: "#ffff00",
+                  fontSize: "0.9em",
+                  fontWeight: "normal",
+                }}
+              >
+                (PC & 마이크 사용을 더욱 권장합니다)
+              </div>
+            </div>
+
+            {/* 🎭 프로필 선택 (항상 표시) */}
+            <div className="card mb-4">
               <div className="card-header">
-                <h5 className="mb-0 fw-bold">
-                  <i className="fas fa-table me-2"></i> 음절별 높낮이 분석 결과
+                <h5 className="mb-0 fw-bold" style={{ color: "#6f42c1" }}>
+                  <i className="fas fa-user-circle me-2"></i>프로필 선택
                 </h5>
               </div>
               <div className="card-body">
-                <div className="table-responsive">
-                  <table className="table table-striped table-hover" id="syllable-analysis-table">
-                    <thead>
-                      <tr>
-                        <th>음절</th>
-                        <th>지속시간</th>
-                        <th>평균 높낮이</th>
-                        <th>최대 높낮이</th>
-                        <th>강도</th>
-                        <th>상태</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {syllableData.map((syllable, index) => (
-                        <tr key={index}>
-                          <td>{syllable.label}</td>
-                          <td>{syllable.duration.toFixed(2)}초</td>
-                          <td>{syllable.f0_hz.toFixed(1)}Hz</td>
-                          <td>{syllable.semitone.toFixed(1)}st</td>
-                          <td>-</td>
-                          <td><span className="badge bg-success">분석완료</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
+                <label className="form-label fw-bold">
+                  <i className="fas fa-users me-2 text-primary"></i>
+                  기존 프로필 불러오기 (선택)
+                </label>
+                <select
+                  className="form-select"
+                  value={selectedProfileId}
+                  onChange={(e) => {
+                    const profileId = e.target.value;
+                    setSelectedProfileId(profileId);
 
-          {/* 🎯 화자별 맞춤 기준 주파수 설정 (조건부 렌더링) */}
-          {(referenceMode === 'measurement' || referenceMode === 'adaptive') && (
-            <SpeakerProfileManager 
-              onReferenceFrequencyChange={setPersonalReferenceFreq}
-              currentFrequency={undefined}
-            />
-          )}
+                    // 선택된 프로필의 정보로 학습자 정보 자동 채움
+                    if (profileId) {
+                      const selectedProfile = availableProfiles.find(
+                        (p) => p.profile_id === profileId,
+                      );
+                      if (selectedProfile) {
+                        setLearnerInfo({
+                          name: selectedProfile.name || "",
+                          gender: selectedProfile.gender || "",
+                          ageGroup: selectedProfile.age_group || "",
+                        });
+                        setPersonalReferenceFreq(
+                          selectedProfile.reference_frequency,
+                        );
+                        console.log(
+                          `🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`,
+                        );
+                        console.log(`📝 학습자 정보 자동 채움:`, {
+                          name: selectedProfile.name,
+                          gender: selectedProfile.gender,
+                          ageGroup: selectedProfile.age_group,
+                        });
+                      }
+                    }
+                  }}
+                  disabled={isLoadingProfiles}
+                >
+                  <option value="">
+                    {isLoadingProfiles
+                      ? "프로필 로딩 중..."
+                      : "새로 시작하기 (프로필 선택 안함)"}
+                  </option>
+                  {availableProfiles.map((profile) => (
+                    <option key={profile.profile_id} value={profile.profile_id}>
+                      {profile.name} ({profile.gender},{" "}
+                      {profile.age_group || "연령대 미지정"}) -{" "}
+                      {profile.reference_frequency.toFixed(1)}Hz [ID:{" "}
+                      {profile.profile_id.split("_").slice(-2).join("-")}]
+                    </option>
+                  ))}
+                </select>
 
-          {/* 🎯 듀얼 Y축 비교 차트 */}
-          <div className="card mt-4" id="dual-axis-chart-card">
-            <div className="card-header">
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0 fw-bold">
-                  <i className="fas fa-calculator me-2"></i>🎯 변환 공식 검증 차트
-                </h5>
-                {selectedFile && (
-                  <div className="d-flex align-items-center gap-3">
-                    <small className="text-muted">
-                      <i className="fas fa-info-circle me-1"></i>
-                      실시간 값 검증 - 왼쪽: 주파수(Hz), 오른쪽: {yAxisUnit === 'semitone' ? '세미톤' : '큐톤'} (가로선: 실시간 입력)
-                    </small>
-                  </div>
+                {availableProfiles.length === 0 && !isLoadingProfiles && (
+                  <small className="text-warning mt-1 d-block">
+                    <i className="fas fa-exclamation-triangle me-1"></i>
+                    저장된 프로필이 없습니다. 아래에서 학습자 정보를
+                    입력해주세요.
+                  </small>
                 )}
               </div>
             </div>
-            <div className="card-body">
-              <div style={{position: 'relative', height: '400px'}}>
-                <canvas
-                  ref={dualAxisCanvasRef}
-                  id="dual-axis-chart"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px'
-                  }}
-                ></canvas>
-                
-                {/* 차트 컨트롤 버튼들 - 차트 로드 후에만 표시 */}
-                {selectedFile && (
-                  <div style={{position: 'absolute', top: '10px', right: '10px', zIndex: 1000}}>
-                    <div className="d-flex gap-1">
-                      <button 
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => dualAxisChart.clearChart()}
-                        title="듀얼축 차트 초기화"
+
+            {/* 🎯 학습자 정보 입력 */}
+            <div className="card mb-4">
+              <div className="card-header">
+                <h5 className="mb-0 fw-bold" style={{ color: "#ff6b35" }}>
+                  <i className="fas fa-user me-2"></i>학습자 정보
+                </h5>
+              </div>
+              <div className="card-body">
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label htmlFor="learner-name" className="form-label">
+                      이름 (선택)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="learner-name"
+                      placeholder="예: 김학습"
+                      value={learnerInfo.name}
+                      onChange={(e) =>
+                        updateLearnerInfo("name", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label htmlFor="learner-gender" className="form-label">
+                      성별 <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      id="learner-gender"
+                      required
+                      value={learnerInfo.gender}
+                      onChange={(e) =>
+                        updateLearnerInfo("gender", e.target.value)
+                      }
+                    >
+                      <option value="">선택하세요</option>
+                      <option value="male">남성</option>
+                      <option value="female">여성</option>
+                    </select>
+                  </div>
+                  <div className="col-md-4">
+                    <label htmlFor="learner-level" className="form-label">
+                      연령대 (선택)
+                    </label>
+                    <select
+                      className="form-select"
+                      id="learner-level"
+                      value={learnerInfo.ageGroup}
+                      onChange={(e) =>
+                        updateLearnerInfo("ageGroup", e.target.value)
+                      }
+                    >
+                      <option value="">선택하세요</option>
+                      <option value="10대">10대</option>
+                      <option value="20대">20대</option>
+                      <option value="30대">30대</option>
+                      <option value="40대">40대</option>
+                      <option value="50대">50대</option>
+                      <option value="60대이상">60대이상</option>
+                    </select>
+                  </div>
+
+                  {/* 🎯 프로필 생성 버튼 (학습자 정보 입력 후) */}
+                  {learnerInfo.name && learnerInfo.gender && (
+                    <div className="row mt-3">
+                      <div className="col-12">
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary"
+                          onClick={async () => {
+                            console.log("🎯 수동 프로필 생성 시작");
+                            await createProfileFromLearnerInfo(learnerInfo);
+                          }}
+                        >
+                          <i className="fas fa-plus me-2"></i>새 프로필 생성
+                        </button>
+                        <small className="text-muted ms-2">
+                          입력된 정보를 기반으로 새로운 화자 프로필을 생성합니다
+                        </small>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 🎯 화자별 맞춤 기준 주파수 설정 */}
+            <div className="card mb-4">
+              <div className="card-header">
+                <h5 className="mb-0 fw-bold" style={{ color: "#17a2b8" }}>
+                  <i className="fas fa-user-cog me-2"></i>화자별 맞춤 기준
+                  주파수 설정
+                </h5>
+              </div>
+              <div className="card-body">
+                <div className="mb-3">
+                  <label className="form-label fw-bold">
+                    <i className="fas fa-cog me-2 text-info"></i>
+                    분석 방식 선택
+                  </label>
+
+                  <div className="form-check mb-2">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="referenceMode"
+                      id="mode-disabled"
+                      value="disabled"
+                      checked={referenceMode === "disabled"}
+                      onChange={(e) =>
+                        setReferenceMode(
+                          e.target.value as
+                            | "disabled"
+                            | "measurement"
+                            | "adaptive",
+                        )
+                      }
+                    />
+                    <label className="form-check-label" htmlFor="mode-disabled">
+                      <i className="fas fa-lock me-2 text-secondary"></i>
+                      <span className="fw-bold">사용안함</span> - 기준 주파수
+                      200Hz 고정 (일반 분석)
+                    </label>
+                  </div>
+
+                  <div className="form-check mb-2">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="referenceMode"
+                      id="mode-measurement"
+                      value="measurement"
+                      checked={referenceMode === "measurement"}
+                      onChange={(e) =>
+                        setReferenceMode(
+                          e.target.value as
+                            | "disabled"
+                            | "measurement"
+                            | "adaptive",
+                        )
+                      }
+                      disabled={!learnerInfo.gender && !selectedProfileId}
+                    />
+                    <label
+                      className="form-check-label"
+                      htmlFor="mode-measurement"
+                    >
+                      <i className="fas fa-ruler me-2 text-warning"></i>
+                      <span className="fw-bold">측정방식</span> - 수동 측정을
+                      통한 개인 기준 주파수 설정
+                    </label>
+                  </div>
+
+                  <div className="form-check mb-2">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="referenceMode"
+                      id="mode-adaptive"
+                      value="adaptive"
+                      checked={referenceMode === "adaptive"}
+                      onChange={(e) =>
+                        setReferenceMode(
+                          e.target.value as
+                            | "disabled"
+                            | "measurement"
+                            | "adaptive",
+                        )
+                      }
+                      disabled={!learnerInfo.gender && !selectedProfileId}
+                    />
+                    <label className="form-check-label" htmlFor="mode-adaptive">
+                      <i className="fas fa-brain me-2 text-success"></i>
+                      <span className="fw-bold">적응형</span> - AI가 자동으로
+                      개인 최적 기준 주파수 학습
+                    </label>
+                  </div>
+                </div>
+
+                <small className="text-muted d-block">
+                  {referenceMode === "disabled" ? (
+                    <>
+                      <i className="fas fa-info-circle me-1 text-secondary"></i>
+                      기준 주파수 200Hz로 일반적인 피치 분석을 수행합니다.
+                    </>
+                  ) : referenceMode === "measurement" ? (
+                    <>
+                      <i className="fas fa-info-circle me-1 text-warning"></i>
+                      개인 음성 측정을 통해 정확한 기준 주파수를 설정하여 맞춤형
+                      분석을 제공합니다.
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-info-circle me-1 text-success"></i>
+                      AI가 음성을 학습하여 개인에게 최적화된 기준 주파수를
+                      자동으로 조정합니다.
+                    </>
+                  )}
+                </small>
+
+                {(referenceMode === "measurement" ||
+                  referenceMode === "adaptive") &&
+                  selectedProfileId && (
+                    <div className="alert alert-info mt-3 mb-0">
+                      <i className="fas fa-check-circle me-2"></i>
+                      <strong>현재 기준 주파수:</strong>{" "}
+                      {personalReferenceFreq.toFixed(1)}Hz
+                      <br />
+                      <small>
+                        선택된 프로필:{" "}
+                        {availableProfiles.find(
+                          (p) => p.profile_id === selectedProfileId,
+                        )?.name || "알 수 없음"}
+                      </small>
+                    </div>
+                  )}
+
+                {(referenceMode === "measurement" ||
+                  referenceMode === "adaptive") &&
+                  !learnerInfo.gender &&
+                  !selectedProfileId && (
+                    <div className="alert alert-warning mt-3 mb-0">
+                      <i className="fas fa-exclamation-triangle me-2"></i>
+                      <strong>알림:</strong> 측정방식 또는 적응형 분석을
+                      사용하려면 학습자 정보를 입력하거나 프로필을 선택해주세요.
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {/* 🎯 학습 방법 선택 */}
+            <div className="card mb-3">
+              <div className="card-header">
+                <h5 className="mb-0 fw-bold" style={{ color: "#ff6b35" }}>
+                  <i className="fas fa-graduation-cap me-2"></i>학습 방법 선택
+                </h5>
+              </div>
+              <div className="card-body">
+                <div className="row g-2">
+                  <div className="col-md-6">
+                    <div
+                      className={`d-flex align-items-center p-2 border rounded learning-method-toggle ${!learnerInfo.gender ? "disabled" : ""} ${learningMethod === "pitch" ? "border-primary" : ""}`}
+                      style={{
+                        cursor: learnerInfo.gender ? "pointer" : "not-allowed",
+                      }}
+                      onClick={() => handleLearningMethodChange("pitch")}
+                    >
+                      <div className="form-check me-3">
+                        <input
+                          className="form-check-input"
+                          type="radio"
+                          name="learningMethod"
+                          id="methodPitch"
+                          value="pitch"
+                          checked={learningMethod === "pitch"}
+                          disabled={!learnerInfo.gender}
+                          onChange={() => handleLearningMethodChange("pitch")}
+                        />
+                      </div>
+                      <div className="flex-grow-1">
+                        <h6 className="mb-1">
+                          <i className="fas fa-music me-2 text-primary"></i>
+                          음높이 학습{" "}
+                          <span className="text-danger fw-bold">(준비중)</span>
+                        </h6>
+                        <small className="text-muted">
+                          특정 음높이를 목표로 하여 정확한 높낮이 연습
+                        </small>
+                      </div>
+                    </div>
+
+                    {showPitchDetails && (
+                      <div className="mt-2">
+                        <div className="ps-4 small">
+                          <div className="alert alert-light border-primary mb-3">
+                            <strong>🎯 학습목표:</strong> 내 목소리 높낮이
+                            변화를 시청각적으로 인지해봅니다.
+                          </div>
+
+                          <h6 className="text-primary mb-2">1. 참조선 미정</h6>
+                          <p className="mb-1">
+                            <strong>a.</strong> [녹음] 버튼을 누르고, /아/
+                            소리를 길게 냅니다. 하단 그래프 안에 빨간 선이
+                            나타나면 현재 음의 높낮이를 파악합니다.
+                          </p>
+                          <p className="mb-1">
+                            <strong>b.</strong> 현재 음과 높낮이 차이가 점점
+                            커지도록 소리를 번갈아 내보세요.
+                          </p>
+                          <p className="mb-3">
+                            <strong>c.</strong> 이번엔 음높이 차이가 거의 나지
+                            않을 때까지 소리를 번갈아 내보세요.
+                          </p>
+
+                          <h6 className="text-primary mb-2">
+                            2. 참조선 정하기
+                          </h6>
+                          <p className="mb-1">
+                            <strong>a.</strong> 하단 그래프 내 한 지점을
+                            클릭합니다.
+                          </p>
+                          <div className="ps-3 mb-2">
+                            <p className="mb-1 text-muted">
+                              - 더블클릭 시, 하나의 참조선 생성
+                            </p>
+                            <p className="mb-0 text-muted">
+                              - 드래그 시, 범위 지정 가능
+                            </p>
+                          </div>
+                          <p className="mb-0">
+                            <strong>b.</strong> [녹음] 버튼을 누르고, 빨간 선이
+                            상한선과 하한선을 왔다갔다 하도록 높낮이를 번갈아
+                            소리내보세요.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-md-6">
+                    <div
+                      className={`d-flex align-items-center p-2 border rounded learning-method-toggle ${!learnerInfo.gender ? "disabled" : ""} ${learningMethod === "sentence" ? "border-primary" : ""}`}
+                      style={{
+                        cursor: learnerInfo.gender ? "pointer" : "not-allowed",
+                      }}
+                      onClick={() => handleLearningMethodChange("sentence")}
+                    >
+                      <div className="form-check me-3">
+                        <input
+                          className="form-check-input"
+                          type="radio"
+                          name="learningMethod"
+                          id="methodSentence"
+                          value="sentence"
+                          checked={learningMethod === "sentence"}
+                          disabled={!learnerInfo.gender}
+                          onChange={() =>
+                            handleLearningMethodChange("sentence")
+                          }
+                        />
+                      </div>
+                      <div className="flex-grow-1">
+                        <h6 className="mb-1">
+                          <i className="fas fa-wave-square me-2 text-success"></i>
+                          참조억양학습
+                        </h6>
+                        <small className="text-muted">
+                          참조 음성의 억양 패턴을 따라 자연스럽게 말하기
+                        </small>
+                      </div>
+                    </div>
+
+                    {showSentenceDetails && (
+                      <div className="mt-2">
+                        <div className="ps-4 small">
+                          <div className="alert alert-light border-success mb-3">
+                            <strong>🎯 학습목표:</strong> 참조 음성의 억양
+                            패턴을 따라 자연스럽게 말하기
+                          </div>
+
+                          <p className="mb-2">
+                            <strong>
+                              1. 🎯 첫 목표는 참조음성의
+                              <span
+                                style={{
+                                  backgroundColor: "#fff3cd",
+                                  color: "#856404",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                음도범위(Pitch range)
+                              </span>
+                              내에서 최대점과 최소점을 비슷하게 만들어보세요.
+                            </strong>
+                            <br />
+                            <small className="text-muted">
+                              *바로 이웃한 두 음의 차이보다는, 하나의 리듬을
+                              만들어내는
+                              <span
+                                style={{ color: "#6f42c1", fontWeight: "bold" }}
+                              >
+                                [말토막]
+                              </span>
+                              의 첫음과 끝음을 목표로 합니다.
+                            </small>
+                          </p>
+
+                          <p className="mb-2">
+                            <strong>
+                              2. 🎤 [녹음]클릭 후, /아/ 발음을 길게 내면서
+                              나에게 편안한 첫 음을 잡으세요.
+                            </strong>
+                            <br />
+                            <small className="text-muted">
+                              이때{" "}
+                              <span
+                                style={{ color: "#28a745", fontWeight: "bold" }}
+                              >
+                                🟢 초록색 실시간 음도피드백 곡선
+                              </span>
+                              이 나타납니다. *
+                              <span
+                                style={{ color: "#dc3545", fontWeight: "bold" }}
+                              >
+                                ⬆️화살표⬇️를 통해 참조음성의 억양 그래프 위치를
+                                나의 음에 맞춥니다
+                              </span>
+                              .
+                            </small>
+                          </p>
+
+                          <p className="mb-0">
+                            <strong>
+                              3. 🎵 점점 서로 가까운 음들과의
+                              <span
+                                style={{
+                                  color: "#17a2b8",
+                                  backgroundColor: "#e7f3ff",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                상대적인 차이
+                              </span>
+                              를 보고 들으며 따라 말해보세요.
+                            </strong>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 🎯 연습 문장 선택 및 안내 동영상 (참조억양학습시에만 표시) */}
+            {showAudioAnalysisSection && (
+              <div className="mb-4" style={{ marginTop: "1.5rem" }}>
+                <div className="row g-4 w-100">
+                  {/* 연습 문장 선택 */}
+                  <div className="col-md-7">
+                    <div
+                      className="alert alert-info border-0"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
+                        borderRadius: "12px",
+                      }}
+                    >
+                      <div className="d-flex align-items-center mb-3">
+                        <i className="fas fa-lightbulb me-2 text-primary"></i>
+                        <h6 className="mb-0 fw-bold text-primary">
+                          🎯 미리 준비된 연습 문장으로 바로 시작하세요!
+                        </h6>
+                      </div>
+                      <p className="mb-3 small text-primary opacity-75">
+                        아래에서 연습하고 싶은 문장을 선택하면 바로 억양 학습을
+                        시작할 수 있습니다.
+                      </p>
+
+                      <div>
+                        <label className="form-label fw-bold text-primary mb-2">
+                          <i className="fas fa-star me-1"></i> 연습 문장 선택
+                        </label>
+                        <select
+                          className="form-control form-control-sm"
+                          value={selectedFile}
+                          onChange={(e) => {
+                            console.log("🎯 드롭다운 변경됨:", e.target.value);
+                            handleSentenceSelection(e.target.value);
+                          }}
+                        >
+                          <option value="">연습할 문장을 선택하세요...</option>
+                          {referenceFiles.map((file) => (
+                            <option key={file.id} value={file.id}>
+                              {file.title || file.filename} (
+                              {file.duration?.toFixed(1) || "0.0"}초)
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* 참조 파일 오디오 플레이어 */}
+                        {selectedFile && (
+                          <div className="mt-3 p-2 bg-white rounded border">
+                            <label className="form-label mb-2 small fw-bold text-success">
+                              <i className="fas fa-headphones me-2"></i>참조
+                              음성 듣기
+                            </label>
+                            <audio
+                              controls
+                              className="w-100"
+                              style={{ height: "35px" }}
+                              src={`${API_BASE}/static/reference_files/${selectedFile}.wav`}
+                              onError={() =>
+                                console.error(
+                                  "참조 파일 로드 실패:",
+                                  selectedFile,
+                                )
+                              }
+                              onLoadedData={(e) => {
+                                console.log(
+                                  "참조 파일 로드 완료:",
+                                  selectedFile,
+                                );
+                                // 🎯 공통 재생 동기화 훅 자동 연결
+                                const audio = e.target as HTMLAudioElement;
+                                referencePlaybackSync.setupAudioElement(audio);
+                              }}
+                            >
+                              브라우저가 오디오 재생을 지원하지 않습니다.
+                            </audio>
+                            <div className="text-muted small mt-1">
+                              <i className="fas fa-file-audio me-1"></i>
+                              {selectedFile}.wav - 이 발음을 목표로
+                              연습해보세요!
+                            </div>
+                          </div>
+                        )}
+
+                        <small className="text-primary opacity-75">
+                          선택하면 자동으로 분석이 시작됩니다
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 안내 동영상 */}
+                  <div className="col-md-5">
+                    <div
+                      className="alert alert-success border-0"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%)",
+                        borderRadius: "12px",
+                      }}
+                    >
+                      <div className="d-flex align-items-center mb-3">
+                        <i className="fas fa-play-circle me-2 text-success"></i>
+                        <h6 className="mb-0 fw-bold text-success">
+                          📹 사용법 안내 동영상
+                        </h6>
+                      </div>
+                      <p className="mb-3 small text-success opacity-75">
+                        ToneBridge 사용 방법을 영상으로 확인하세요!
+                      </p>
+
+                      <div
+                        className="video-container"
+                        style={{
+                          position: "relative",
+                          width: "100%",
+                          height: "180px",
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                          background: "#000",
+                        }}
                       >
-                        <i className="fas fa-refresh"></i>
+                        <video
+                          controls
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          poster="/static/images/video-thumbnail.jpg"
+                        >
+                          <source
+                            src="/static/videos/tonebridge_guide.mp4"
+                            type="video/mp4"
+                          />
+                          <p className="text-muted p-3">
+                            죄송합니다. 브라우저에서 동영상을 지원하지 않습니다.
+                          </p>
+                        </video>
+                      </div>
+                      <small className="text-success opacity-75 mt-2 d-block">
+                        💡 동영상을 시청하고 효과적으로 학습해보세요
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 🎯 상태 메시지 */}
+            <div className="mb-3">
+              {status && <span className="text-muted">{status}</span>}
+            </div>
+
+            {/* 🎯 실시간 학습 분석 차트 */}
+            <div className="card">
+              <div className="card-header">
+                {/* 차트 제목과 통합 제어 버튼들 */}
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <h5 className="mb-0 fw-bold">실시간 학습 분석 차트</h5>
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      disabled={!selectedFile}
+                      onClick={handlePlayReference}
+                    >
+                      <i className="fas fa-play me-1"></i>{" "}
+                      <strong>참조음성</strong>
+                    </button>
+                    <button
+                      className={`btn btn-sm ${audioRecording.isRecording ? "btn-danger btn-recording recording-pulse" : ""}`}
+                      disabled={isLoading}
+                      style={{
+                        backgroundColor: audioRecording.isRecording
+                          ? "#dc3545"
+                          : "#e67e22",
+                        borderColor: audioRecording.isRecording
+                          ? "#dc3545"
+                          : "#e67e22",
+                        color: "white",
+                      }}
+                      onClick={handleRecording}
+                    >
+                      <i
+                        className={`fas ${audioRecording.isRecording ? "fa-stop" : "fa-microphone"} me-1`}
+                      ></i>
+                      <strong>
+                        {audioRecording.isRecording ? "⏸️ 정지" : "🎤 녹음"}
+                      </strong>
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      disabled={!audioRecording.isRecording}
+                      onClick={() => audioRecording.stopRecording()}
+                    >
+                      <i className="fas fa-stop me-1"></i> <strong>정지</strong>
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-success"
+                      disabled={!audioRecording.recordedBlob}
+                      onClick={handlePlayRecording}
+                    >
+                      <i className="fas fa-play me-1"></i>{" "}
+                      <strong>내음성</strong>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Y축 단위 선택 - 차트 로드 후에만 표시 */}
+                {selectedFile && (
+                  <div className="d-flex align-items-center justify-content-end">
+                    <div className="d-flex align-items-center gap-2">
+                      <small className="text-muted">Y축 단위:</small>
+                      <div className="btn-group" role="group">
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="yAxisUnit"
+                          id="yAxisSemitone"
+                          value="semitone"
+                          checked={yAxisUnit === "semitone"}
+                          onChange={(e) =>
+                            setYAxisUnit(e.target.value as "semitone" | "qtone")
+                          }
+                        />
+                        <label
+                          className="btn btn-outline-primary btn-sm"
+                          htmlFor="yAxisSemitone"
+                        >
+                          Semitone
+                        </label>
+
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="yAxisUnit"
+                          id="yAxisQtone"
+                          value="qtone"
+                          checked={yAxisUnit === "qtone"}
+                          onChange={(e) =>
+                            setYAxisUnit(e.target.value as "semitone" | "qtone")
+                          }
+                        />
+                        <label
+                          className="btn btn-outline-success btn-sm"
+                          htmlFor="yAxisQtone"
+                        >
+                          Q-tone
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="card-body px-2 py-2">
+                <div
+                  className="chart-container"
+                  style={{ position: "relative", height: "500px" }}
+                >
+                  <canvas ref={chartRef}></canvas>
+
+                  {/* 🎯 고정 범례 - 차트 우상단 */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "15px",
+                      right: "15px",
+                      zIndex: 1000,
+                      display: selectedFile ? "block" : "none",
+                      backgroundColor: "rgba(255, 255, 255, 0.95)",
+                      border: "1px solid #dee2e6",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        marginBottom: "4px",
+                        color: "#ff9f40",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: "#ff9f40",
+                          borderRadius: "50%",
+                          display: "inline-block",
+                          marginRight: "6px",
+                        }}
+                      ></span>
+                      참조 음성
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        color: "#22c55e",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: "#22c55e",
+                          borderRadius: "50%",
+                          display: "inline-block",
+                          marginRight: "6px",
+                        }}
+                      ></span>
+                      실시간 음성
+                    </div>
+                  </div>
+
+                  {/* 키 조정 컨트롤 - 차트 내부 우측 하단 */}
+                  <div
+                    id="pitchAdjustmentButtons"
+                    style={{
+                      position: "absolute",
+                      bottom: "10px",
+                      right: "10px",
+                      zIndex: 1000,
+                      display: selectedFile ? "block" : "none",
+                    }}
+                  >
+                    {/* 키 조정 사용법 강조박스 (컴팩트 버전) */}
+                    <div
+                      className="p-2"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%)",
+                        border: "2px solid #4caf50",
+                        borderRadius: "8px",
+                        fontSize: "0.85em",
+                        lineHeight: "1.3",
+                        width: "380px",
+                      }}
+                    >
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center">
+                          <i
+                            className="fas fa-info-circle text-success me-2"
+                            style={{ fontSize: "1.0em" }}
+                          ></i>
+                          <span style={{ color: "#1b5e20", fontWeight: "500" }}>
+                            <strong>[녹음]</strong> 버튼 클릭후{" "}
+                            <strong>/아/</strong> 발성으로 편안한 음도를 찾고,{" "}
+                            <span
+                              style={{ color: "#dc3545", fontWeight: "bold" }}
+                            >
+                              ⬆️<strong>화살표</strong>⬇️를 통해 참조음성의 억양
+                              그래프 위치를 나의 음에 맞춥니다
+                            </span>
+                          </span>
+                        </div>
+                        <div className="d-flex gap-1 ms-2">
+                          <button
+                            className="btn btn-sm btn-outline-success"
+                            title="그래프를 아래로 이동"
+                            style={{ borderColor: "#4caf50", color: "#4caf50" }}
+                            onClick={() => pitchChart.adjustPitch("down")}
+                          >
+                            <i className="fas fa-arrow-down"></i>
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-success"
+                            title="그래프를 위로 이동"
+                            style={{ borderColor: "#4caf50", color: "#4caf50" }}
+                            onClick={() => pitchChart.adjustPitch("up")}
+                          >
+                            <i className="fas fa-arrow-up"></i>
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-secondary"
+                            title="그래프 위치 초기화"
+                            onClick={() => pitchChart.resetView()}
+                          >
+                            <i className="fas fa-undo"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 초기화 버튼 - 차트 로드 후에만 표시 */}
+                  {selectedFile && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        left: "10px",
+                        zIndex: 1000,
+                      }}
+                    >
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => pitchChart.clearChart()}
+                      >
+                        <i className="fas fa-refresh me-1"></i> 초기화
                       </button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 🎯 하단 연락처 섹션 */}
-          <div className="mt-5 py-4 contact-section" style={{
-            background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
-            borderRadius: '15px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-          }}>
-            <div className="container">
-              <div className="row align-items-center">
-                <div className="col-md-8">
-                  <div className="d-flex align-items-center">
-                    <div className="me-4">
-                      <h6 className="text-white mb-1 fw-bold">THE소리LAB</h6>
-                      <p className="text-light mb-0 small opacity-75">
-                        당신만의 소리를 위해 끊임없이 연구합니다
-                      </p>
+            {/* 🎯 음절별 분석 테이블 */}
+            {showSyllableAnalysis && (
+              <div className="card mt-4" id="syllable-analysis-card">
+                <div className="card-header">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="fas fa-table me-2"></i> 음절별 높낮이 분석
+                    결과
+                  </h5>
+                </div>
+                <div className="card-body">
+                  <div className="table-responsive">
+                    <table
+                      className="table table-striped table-hover"
+                      id="syllable-analysis-table"
+                    >
+                      <thead>
+                        <tr>
+                          <th>음절</th>
+                          <th>지속시간</th>
+                          <th>평균 높낮이</th>
+                          <th>최대 높낮이</th>
+                          <th>강도</th>
+                          <th>상태</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {syllableData.map((syllable, index) => (
+                          <tr key={index}>
+                            <td>{syllable.label}</td>
+                            <td>{syllable.duration.toFixed(2)}초</td>
+                            <td>{syllable.f0_hz.toFixed(1)}Hz</td>
+                            <td>{syllable.semitone.toFixed(1)}st</td>
+                            <td>-</td>
+                            <td>
+                              <span className="badge bg-success">분석완료</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 🎯 화자별 맞춤 기준 주파수 설정 (조건부 렌더링) */}
+            {(referenceMode === "measurement" ||
+              referenceMode === "adaptive") && (
+              <SpeakerProfileManager
+                onReferenceFrequencyChange={setPersonalReferenceFreq}
+                currentFrequency={undefined}
+              />
+            )}
+
+            {/* 🎯 듀얼 Y축 비교 차트 */}
+            <div className="card mt-4" id="dual-axis-chart-card">
+              <div className="card-header">
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="fas fa-calculator me-2"></i>🎯 변환 공식 검증
+                    차트
+                  </h5>
+                  {selectedFile && (
+                    <div className="d-flex align-items-center gap-3">
+                      <small className="text-muted">
+                        <i className="fas fa-info-circle me-1"></i>
+                        실시간 값 검증 - 왼쪽: 주파수(Hz), 오른쪽:{" "}
+                        {yAxisUnit === "semitone" ? "세미톤" : "큐톤"} (가로선:
+                        실시간 입력)
+                      </small>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="card-body">
+                <div style={{ position: "relative", height: "400px" }}>
+                  <canvas
+                    ref={dualAxisCanvasRef}
+                    id="dual-axis-chart"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "1px solid #dee2e6",
+                      borderRadius: "8px",
+                    }}
+                  ></canvas>
+
+                  {/* 차트 컨트롤 버튼들 - 차트 로드 후에만 표시 */}
+                  {selectedFile && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "10px",
+                        right: "10px",
+                        zIndex: 1000,
+                      }}
+                    >
+                      <div className="d-flex gap-1">
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => dualAxisChart.clearChart()}
+                          title="듀얼축 차트 초기화"
+                        >
+                          <i className="fas fa-refresh"></i>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 🎯 하단 연락처 섹션 */}
+            <div
+              className="mt-5 py-4 contact-section"
+              style={{
+                background: "linear-gradient(135deg, #2c3e50 0%, #34495e 100%)",
+                borderRadius: "15px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+              }}
+            >
+              <div className="container">
+                <div className="row align-items-center">
+                  <div className="col-md-8">
+                    <div className="d-flex align-items-center">
+                      <div className="me-4">
+                        <h6 className="text-white mb-1 fw-bold">THE소리LAB</h6>
+                        <p className="text-light mb-0 small opacity-75">
+                          당신만의 소리를 위해 끊임없이 연구합니다
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="col-md-4 text-md-end">
-                  <div className="d-flex align-items-center justify-content-md-end">
-                    <i className="fas fa-envelope me-2" style={{color: '#e67e22'}}></i>
-                    <a 
-                      href="mailto:thesorilab@naver.com" 
-                      className="text-white text-decoration-none fw-medium"
-                    >
-                      thesorilab@naver.com
-                    </a>
+                  <div className="col-md-4 text-md-end">
+                    <div className="d-flex align-items-center justify-content-md-end">
+                      <i
+                        className="fas fa-envelope me-2"
+                        style={{ color: "#e67e22" }}
+                      ></i>
+                      <a
+                        href="mailto:thesorilab@naver.com"
+                        className="text-white text-decoration-none fw-medium"
+                      >
+                        thesorilab@naver.com
+                      </a>
+                    </div>
+                    <small className="text-light opacity-75 d-block mt-1">
+                      문의사항이 있으시면 언제든 연락주세요
+                    </small>
                   </div>
-                  <small className="text-light opacity-75 d-block mt-1">
-                    문의사항이 있으시면 언제든 연락주세요
-                  </small>
                 </div>
               </div>
             </div>
-          </div>
-
           </div>
         </div>
       </div>
 
       {/* 🎯 성별 선택 모달 */}
       {showGenderModal && (
-        <div className="modal fade show" style={{display: 'block'}} tabIndex={-1}>
+        <div
+          className="modal fade show"
+          style={{ display: "block" }}
+          tabIndex={-1}
+        >
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
@@ -1390,23 +1723,26 @@ const VoiceAnalysisApp: React.FC = () => {
                 </h5>
               </div>
               <div className="modal-body">
-                <p className="text-muted mb-3">더 정확한 억양 학습을 위해 성별을 선택해주세요.</p>
-                
+                <p className="text-muted mb-3">
+                  더 정확한 억양 학습을 위해 성별을 선택해주세요.
+                </p>
+
                 <div className="row mb-3">
                   <div className="col-12">
                     <div className="alert alert-info">
                       <i className="fas fa-info-circle me-2"></i>
-                      <strong>학습 효과:</strong> 성별에 맞게 음높이가 자동 조정됩니다.
+                      <strong>학습 효과:</strong> 성별에 맞게 음높이가 자동
+                      조정됩니다.
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="row g-3">
                   <div className="col-6">
-                    <div 
-                      className={`card gender-option ${selectedGender === 'male' ? 'border-primary' : ''}`}
-                      style={{cursor: 'pointer'}}
-                      onClick={() => handleGenderSelection('male')}
+                    <div
+                      className={`card gender-option ${selectedGender === "male" ? "border-primary" : ""}`}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleGenderSelection("male")}
                     >
                       <div className="card-body text-center">
                         <i className="fas fa-mars fa-3x text-primary mb-3"></i>
@@ -1416,10 +1752,10 @@ const VoiceAnalysisApp: React.FC = () => {
                     </div>
                   </div>
                   <div className="col-6">
-                    <div 
-                      className={`card gender-option ${selectedGender === 'female' ? 'border-danger' : ''}`}
-                      style={{cursor: 'pointer'}}
-                      onClick={() => handleGenderSelection('female')}
+                    <div
+                      className={`card gender-option ${selectedGender === "female" ? "border-danger" : ""}`}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleGenderSelection("female")}
                     >
                       <div className="card-body text-center">
                         <i className="fas fa-venus fa-3x text-danger mb-3"></i>
@@ -1431,16 +1767,16 @@ const VoiceAnalysisApp: React.FC = () => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={() => setShowGenderModal(false)}
                 >
                   취소
                 </button>
-                <button 
-                  type="button" 
-                  className="btn btn-primary" 
+                <button
+                  type="button"
+                  className="btn btn-primary"
                   disabled={!selectedGender}
                   onClick={confirmGenderSelection}
                 >
@@ -1459,7 +1795,10 @@ const VoiceAnalysisApp: React.FC = () => {
             <div className="card border-success">
               <div className="card-header bg-success text-white">
                 <h4 className="mb-0">📁 업로드된 파일 테스트</h4>
-                <small>생성된 WAV와 TextGrid 파일을 선택해서 차트로 확인할 수 있습니다</small>
+                <small>
+                  생성된 WAV와 TextGrid 파일을 선택해서 차트로 확인할 수
+                  있습니다
+                </small>
               </div>
               <div className="card-body">
                 <UploadedFileTestSection />
