@@ -38,7 +38,18 @@ The system achieves 99% STT accuracy through multi-engine integration (Whisper, 
 4. **시스템 안정성**:
    - 자동 재시작 및 핫 리로딩 확인
    - 모든 AI 시스템 정상 초기화 (Advanced STT, Ultimate STT, Korean Audio Optimizer)
-   - 10개 참조 파일, 15개 업로드 파일 정상 로드
+   - 10개 참조 파일 정상 로드 및 학습음성 리스트 완전 복구
+
+5. **실시간 피치 분석 정확도 개선**:
+   - ❌ **이전**: 부정확한 `autoCorrelate` 함수 사용으로 부정확한 Hz 값
+   - ✅ **현재**: 고급 `YINPitchDetector` 사용으로 정확한 피치 검출
+   - 신뢰도 기반 필터링 (임계값 0.5) 및 노이즈 제거
+   - Y축 단위별 정확한 변환: Hz → Semitone/Q-tone 실시간 적용
+
+6. **참조 파일 시스템 완전 복구**:
+   - ❌ **이전**: "참조 파일을 로딩 중입니다..." 무한 로딩 상태
+   - ✅ **현재**: 10개 참조 파일 정상 로딩 및 학습음성 리스트 표시
+   - 백엔드 STT 처리 블로킹 문제 해결 및 안정적인 API 응답
 
 ## User Preferences
 
@@ -67,10 +78,10 @@ The audio analysis pipeline consists of several integrated components:
 **TextGrid Generation**: Automated TextGrid creation with multiple tiers (syllables, words, sentences) synchronized with audio timing. The system handles duration adjustments and maintains temporal accuracy across different analysis levels.
 
 ### Real-time Analysis System
-The platform supports real-time voice analysis with live pitch tracking, immediate STT feedback, and dynamic chart updates. The system uses WebAudio API for browser-based recording and Chart.js with annotation plugins for interactive visualization.
+The platform supports real-time voice analysis with **high-precision YINPitchDetector** for accurate Hz measurements, immediate STT feedback, and dynamic chart updates. The system uses WebAudio API for browser-based recording and Chart.js with annotation plugins for interactive visualization. **실시간 피치 값은 Y축 단위 설정에 따라 자동 변환** (Hz/Semitone/Q-tone).
 
 ### Data Visualization
-Dual-axis pitch charts support both Hz and semitone units with dynamic unit conversion. The visualization includes syllable boundary annotations, confidence indicators, and interactive playback controls. Charts feature real-time updates during live recording sessions.
+Dual-axis pitch charts support **Hz, Semitone, Q-tone 단위**와 실시간 동적 단위 변환. 실시간 녹음 시 Y축 단위에 맞춰 피치 값이 정확하게 변환되어 표시됩니다. The visualization includes syllable boundary annotations, confidence indicators, and interactive playback controls. Charts feature real-time updates during live recording sessions with **YINPitchDetector 기반 정확도**.
 
 ## External Dependencies
 
@@ -116,6 +127,9 @@ Dual-axis pitch charts support both Hz and semitone units with dynamic unit conv
 - **API 통신**: ✅ 최적화된 단일 호출 패턴
 - **AI 시스템**: ✅ 모든 모듈 활성화 (Whisper, Korean Optimizer, Ultimate STT)
 - **코드 품질**: ✅ LSP 에러 68% 감소 (16개 → 5개)
+- **참조 파일**: ✅ 10개 학습음성 정상 로딩 및 표시
+- **실시간 분석**: ✅ YINPitchDetector 기반 정확한 피치 검출
+- **단위 변환**: ✅ Hz/Semitone/Q-tone 실시간 자동 변환
 
 ### Architecture Principles
 - **Single Source of Truth**: 각 기능마다 단일 통합 API 엔드포인트
@@ -124,3 +138,32 @@ Dual-axis pitch charts support both Hz and semitone units with dynamic unit conv
 - **Error Consistency**: 표준화된 에러 처리 및 응답 검증
 
 The system is designed to be modular and extensible, allowing for easy integration of additional STT engines or audio processing capabilities. All external dependencies are managed through package managers (pip for Python, npm for Node.js) with version pinning for reproducible builds.
+
+## 📝 최근 기능 개선 및 버그 수정 (2025년 9월 10일)
+
+### ✅ 완료된 핵심 수정 사항
+
+#### 1. **참조 파일 로딩 시스템 복구**
+- **문제**: "참조 파일을 로딩 중입니다..." 무한 로딩
+- **원인**: 백엔드 STT 처리 과부하로 API 블로킹
+- **해결**: 백엔드 워크플로우 재시작 및 API 응답 최적화
+- **결과**: 10개 학습음성 정상 표시 및 선택 가능
+
+#### 2. **실시간 피치 분석 정확도 향상**
+- **문제**: 부정확한 `autoCorrelate` 함수로 인한 잘못된 Hz 값
+- **해결**: **YINPitchDetector** 도입 및 신뢰도 기반 필터링
+- **개선사항**:
+  - 정확한 Hz 단위 피치 검출 (신뢰도 임계값 0.5)
+  - 음성/무음성 자동 구분 및 노이즈 제거
+  - 안정적인 실시간 피치 추적
+
+#### 3. **Y축 단위별 변환 시스템 완전 수정**
+- **문제**: 실시간 녹음 시 Hz 값이 세미톤/큐톤으로 변환되지 않음
+- **원인**: `usePitchChart` 기본값 불일치 (`'hz'` vs `'semitone'`)
+- **해결**: 
+  - 기본값을 `'semitone'`으로 통일
+  - `convertFrequency()` 함수 정상 작동 확인
+  - Y축 단위 변경 시 실시간 데이터 자동 변환
+- **변환 공식**:
+  - **세미톤**: `12 * log₂(frequency / 200Hz)`
+  - **큐톤**: `24 * log₂(frequency / 200Hz)`
