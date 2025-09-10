@@ -6,6 +6,14 @@ ToneBridge is a comprehensive voice analysis platform specifically designed for 
 
 The system achieves 99% STT accuracy through multi-engine integration (Whisper, Google Cloud, Azure, Naver CLOVA) and features Korean-specific syllable segmentation algorithms with phonetic validation. It provides real-time voice processing and visualization using Chart.js for advanced data presentation, along with a fully automated pipeline from STT to segmentation to TextGrid generation to visualization.
 
+## 📖 Documentation Structure
+
+**⚠️ 중요**: `documents/ToneBridge_기술_참조_문서.md`가 **우선 기술 문서**입니다.
+- **Primary**: `documents/ToneBridge_기술_참조_문서.md` (상세 기술 명세)
+- **Secondary**: `replit.md` (프로젝트 개요 및 개발 상태)
+
+**동기화 정책**: 모든 변경사항은 두 문서에 동시 반영됩니다.
+
 ## Recent Changes
 
 **최근 업데이트**: 2025년 9월 10일
