@@ -585,7 +585,7 @@ const VoiceAnalysisApp: React.FC = () => {
                 </option>
                 {availableProfiles.map((profile) => (
                   <option key={profile.profile_id} value={profile.profile_id}>
-                    {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz
+                    {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz [ID: {profile.profile_id.split('_').slice(-2).join('-')}]
                   </option>
                 ))}
               </select>
