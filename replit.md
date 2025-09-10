@@ -64,6 +64,8 @@ Preferred communication style: Simple, everyday language.
     - Syllable annotation visualization on charts (dotted lines, purple labels).
     - Chart controls for pitch adjustment, zoom, scroll, and reset.
     - Integration of multi-engine STT and Korean syllable alignment for improved accuracy.
+    - **Performance Optimization**: Conditional preprocessing to avoid redundant processing on file selection.
+    - **Smart File Management**: Processing status display (✅ processed, ⏳ pending) and manual reprocessing option.
 
 ## External Dependencies
 

@@ -72,6 +72,46 @@ const UploadedFileTestSection: React.FC = () => {
     }
   };
 
+  // 🔄 수동 재처리 함수
+  const handleManualReprocess = async (fileId: string) => {
+    if (!fileId) return;
+    
+    try {
+      setLoading(true);
+      console.log(`🔄 수동 재처리 시작: ${fileId}`);
+      
+      const formData = new FormData();
+      formData.append('file_id', fileId);
+      
+      const optimizeResponse = await fetch(`/api/optimize-uploaded-file`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (optimizeResponse.ok) {
+        const optimizeResult = await optimizeResponse.json();
+        console.log(`✅ 재처리 완료: ${optimizeResult.syllables?.length || 0}개 음절`);
+        
+        // 파일 목록 갱신하여 새로운 처리 상태 반영
+        await loadUploadedFiles();
+        
+        // 현재 선택된 파일이면 차트도 업데이트
+        if (selectedFileId === fileId) {
+          await handleFileSelect(fileId);
+        }
+        
+        console.log('🎉 재처리 및 차트 업데이트 완료');
+      } else {
+        throw new Error('재처리 API 호출 실패');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '파일 재처리 실패');
+      console.error('❌ 파일 재처리 오류:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   // 🎯 음절 클릭 처리 (버튼 클릭 시)
   const handleSyllableClick = (syllableIndex: number) => {
@@ -114,21 +154,34 @@ const UploadedFileTestSection: React.FC = () => {
 
       console.log(`🎯🎯🎯 업로드 파일 분석 시작: ${fileId} 🎯🎯🎯`);
 
-      // 🎯 첫 번째: 자동 최적화 실행 (reference 파일과 동일한 품질 보장)
-      console.log(`🚀 파일 최적화 시작: ${fileId}`);
-      const formData = new FormData();
-      formData.append('file_id', fileId);
+      // 🎯 첫 번째: 전처리 상태 확인 후 조건부 최적화
+      console.log(`🔍 파일 전처리 상태 확인: ${fileId}`);
       
-      const optimizeResponse = await fetch(`/api/optimize-uploaded-file`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (optimizeResponse.ok) {
-        const optimizeResult = await optimizeResponse.json();
-        console.log(`✅ 최적화 완료: ${optimizeResult.syllables?.length || 0}개 음절`);
+      // 선택된 파일의 정보를 찾아서 전처리 상태 확인
+      const selectedFile = uploadedFiles.find(f => f.file_id === fileId);
+      const hasTextGrid = selectedFile?.has_textgrid;
+      
+      if (hasTextGrid) {
+        console.log(`✅ 이미 전처리 완료된 파일: ${fileId} (즉시 로드)`);
       } else {
-        console.warn(`⚠️ 최적화 실패, 기존 데이터로 진행`);
+        console.log(`🚀 전처리 필요한 파일: ${fileId} (최적화 시작)`);
+        const formData = new FormData();
+        formData.append('file_id', fileId);
+        
+        const optimizeResponse = await fetch(`/api/optimize-uploaded-file`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (optimizeResponse.ok) {
+          const optimizeResult = await optimizeResponse.json();
+          console.log(`✅ 최적화 완료: ${optimizeResult.syllables?.length || 0}개 음절`);
+          
+          // 파일 목록 갱신하여 전처리 상태 반영
+          loadUploadedFiles();
+        } else {
+          console.warn(`⚠️ 최적화 실패, 기존 데이터로 진행`);
+        }
       }
 
       // 🎯 이제 최적화된 데이터로 분석 진행
@@ -305,10 +358,11 @@ const UploadedFileTestSection: React.FC = () => {
               const sentence = file.expected_text || parts[3] || '';
               const timestamp = parts[4] || '';
               const displayName = `${learnerName} (${gender}, ${ageGroup}) - ${sentence}`;
+              const processingStatus = file.has_textgrid ? '✅' : '⏳';
               
               return (
                 <option key={file.file_id} value={file.file_id}>
-                  {displayName} {timestamp && `(${timestamp})`}
+                  {processingStatus} {displayName} {timestamp && `(${timestamp})`}
                 </option>
               );
             })}
@@ -320,7 +374,7 @@ const UploadedFileTestSection: React.FC = () => {
             </div>
           )}
         </div>
-        <div className="col-md-4 d-flex align-items-end">
+        <div className="col-md-4 d-flex align-items-end gap-2">
           <button
             className="btn btn-outline-success"
             onClick={loadUploadedFiles}
@@ -328,6 +382,18 @@ const UploadedFileTestSection: React.FC = () => {
           >
             <i className="fas fa-sync-alt me-2"></i>새로고침
           </button>
+          
+          {/* 수동 재처리 버튼 */}
+          {selectedFileId && (
+            <button
+              className="btn btn-outline-warning"
+              onClick={() => handleManualReprocess(selectedFileId)}
+              disabled={loading}
+              title="선택된 파일을 다시 전처리합니다"
+            >
+              <i className="fas fa-redo me-2"></i>재처리
+            </button>
+          )}
         </div>
       </div>
 
