@@ -18,9 +18,9 @@ from typing import List, Optional
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse  # HTMLResponse 제거됨
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+# from fastapi.templating import Jinja2Templates  # 제거됨: React 앱 사용
 from pydantic import BaseModel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -66,7 +66,7 @@ app = FastAPI(title="ToneBridge Praat Analysis API")
 
 # 마이크로서비스 아키텍처: 백엔드는 순수 API만 제공
 app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# templates = Jinja2Templates(directory="templates")  # 제거됨: React 앱 사용
 
 # Database setup
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///tonebridge.db")
@@ -1169,17 +1169,15 @@ def extract_ref_praat_implementation(
         },
     }
 
-@app.get("/", response_class=HTMLResponse)
-async def get_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+# HTML 템플릿 라우트 제거됨: React 앱이 모든 UI 담당
+# @app.get("/", response_class=HTMLResponse)
+# async def get_index(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get("/react-demo", response_class=HTMLResponse)
-async def react_demo(request: Request):
-    """React migration demo using voice-analysis-demo directory contents only"""
-    # Use voice-analysis-demo directory templates and static files
-    from fastapi.templating import Jinja2Templates
-    demo_templates = Jinja2Templates(directory="voice-analysis-demo/templates")
-    return demo_templates.TemplateResponse("index.html", {"request": request})
+# React demo 라우트 제거됨: 메인 React 앱 사용
+# @app.get("/react-demo", response_class=HTMLResponse)
+# async def react_demo(request: Request):
+#     return redirect to main React app at port 5000
 
 @app.post("/analyze_ref", response_model=RefAnalysis)
 async def analyze_ref(
@@ -2286,16 +2284,9 @@ async def analyze_live_audio(audio: UploadFile = File(...)):
         print(f"🔥 실시간 Praat 분석 오류: {e}")
         return {"success": False, "error": str(e)}
 
-# Flask-style routes for survey
-@app.get("/survey", response_class=HTMLResponse)
-async def survey_page(request: Request):
-    """Survey selection page"""
-    return templates.TemplateResponse("survey.html", {"request": request})
-
-@app.get("/", response_class=HTMLResponse)
-async def main_page(request: Request):
-    """Main prosody analysis interface"""
-    return templates.TemplateResponse("index.html", {"request": request})
+# HTML 템플릿 라우트들 제거됨: React 앱이 모든 UI 담당
+# 모든 페이지는 포트 5000의 React 앱에서 처리됨
+# Survey 페이지도 React 앱에 통합 가능
 
 # 🎯 새로운 syllables API 엔드포인트 추가
 @app.get("/api/reference_files/{file_id}/syllables")
