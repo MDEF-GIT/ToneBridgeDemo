@@ -537,6 +537,65 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           </div>
 
+          {/* 🎭 프로필 선택 (항상 표시) */}
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0 fw-bold" style={{color: '#6f42c1'}}>
+                <i className="fas fa-user-circle me-2"></i>프로필 선택
+              </h5>
+            </div>
+            <div className="card-body">
+              <label className="form-label fw-bold">
+                <i className="fas fa-users me-2 text-primary"></i>
+                기존 프로필 불러오기 (선택)
+              </label>
+              <select 
+                className="form-select" 
+                value={selectedProfileId}
+                onChange={(e) => {
+                  const profileId = e.target.value;
+                  setSelectedProfileId(profileId);
+                  
+                  // 선택된 프로필의 정보로 학습자 정보 자동 채움
+                  if (profileId) {
+                    const selectedProfile = availableProfiles.find(p => p.profile_id === profileId);
+                    if (selectedProfile) {
+                      setLearnerInfo({
+                        name: selectedProfile.name || '',
+                        gender: selectedProfile.gender || '',
+                        ageGroup: selectedProfile.age_group || ''
+                      });
+                      setPersonalReferenceFreq(selectedProfile.reference_frequency);
+                      console.log(`🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`);
+                      console.log(`📝 학습자 정보 자동 채움:`, {
+                        name: selectedProfile.name,
+                        gender: selectedProfile.gender,
+                        ageGroup: selectedProfile.age_group
+                      });
+                    }
+                  }
+                }}
+                disabled={isLoadingProfiles}
+              >
+                <option value="">
+                  {isLoadingProfiles ? '프로필 로딩 중...' : '새로 시작하기 (프로필 선택 안함)'}
+                </option>
+                {availableProfiles.map((profile) => (
+                  <option key={profile.profile_id} value={profile.profile_id}>
+                    {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz
+                  </option>
+                ))}
+              </select>
+              
+              {availableProfiles.length === 0 && !isLoadingProfiles && (
+                <small className="text-warning mt-1 d-block">
+                  <i className="fas fa-exclamation-triangle me-1"></i>
+                  저장된 프로필이 없습니다. 아래에서 학습자 정보를 입력해주세요.
+                </small>
+              )}
+            </div>
+          </div>
+
           {/* 🎯 학습자 정보 입력 */}
           <div className="card mb-4">
             <div className="card-header">
@@ -590,6 +649,28 @@ const VoiceAnalysisApp: React.FC = () => {
                     <option value="60대이상">60대이상</option>
                   </select>
                 </div>
+                
+                {/* 🎯 프로필 생성 버튼 (학습자 정보 입력 후) */}
+                {learnerInfo.name && learnerInfo.gender && (
+                  <div className="row mt-3">
+                    <div className="col-12">
+                      <button 
+                        type="button" 
+                        className="btn btn-outline-primary"
+                        onClick={async () => {
+                          console.log('🎯 수동 프로필 생성 시작');
+                          await createProfileFromLearnerInfo(learnerInfo);
+                        }}
+                      >
+                        <i className="fas fa-plus me-2"></i>
+                        현재 정보로 새 프로필 생성
+                      </button>
+                      <small className="text-muted ms-2">
+                        입력된 정보를 기반으로 새로운 화자 프로필을 생성합니다
+                      </small>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -602,39 +683,99 @@ const VoiceAnalysisApp: React.FC = () => {
               </h5>
             </div>
             <div className="card-body">
-              <div className="form-check form-switch">
-                <input 
-                  className="form-check-input" 
-                  type="checkbox" 
-                  id="usePersonalizedReference"
-                  checked={usePersonalizedReference}
-                  onChange={(e) => setUsePersonalizedReference(e.target.checked)}
-                />
-                <label className="form-check-label fw-bold" htmlFor="usePersonalizedReference">
-                  <i className="fas fa-toggle-on me-2 text-info"></i>
-                  개인화된 기준 주파수 사용
+              <div className="mb-3">
+                <label className="form-label fw-bold">
+                  <i className="fas fa-cog me-2 text-info"></i>
+                  분석 방식 선택
                 </label>
+                
+                <div className="form-check mb-2">
+                  <input 
+                    className="form-check-input" 
+                    type="radio" 
+                    name="referenceMode" 
+                    id="mode-disabled"
+                    value="disabled"
+                    checked={referenceMode === 'disabled'}
+                    onChange={(e) => setReferenceMode(e.target.value as 'disabled' | 'measurement' | 'adaptive')}
+                  />
+                  <label className="form-check-label" htmlFor="mode-disabled">
+                    <i className="fas fa-lock me-2 text-secondary"></i>
+                    <span className="fw-bold">사용안함</span> - 기준 주파수 200Hz 고정 (일반 분석)
+                  </label>
+                </div>
+                
+                <div className="form-check mb-2">
+                  <input 
+                    className="form-check-input" 
+                    type="radio" 
+                    name="referenceMode" 
+                    id="mode-measurement"
+                    value="measurement"
+                    checked={referenceMode === 'measurement'}
+                    onChange={(e) => setReferenceMode(e.target.value as 'disabled' | 'measurement' | 'adaptive')}
+                    disabled={!learnerInfo.gender && !selectedProfileId}
+                  />
+                  <label className="form-check-label" htmlFor="mode-measurement">
+                    <i className="fas fa-ruler me-2 text-warning"></i>
+                    <span className="fw-bold">측정방식</span> - 수동 측정을 통한 개인 기준 주파수 설정
+                  </label>
+                </div>
+                
+                <div className="form-check mb-2">
+                  <input 
+                    className="form-check-input" 
+                    type="radio" 
+                    name="referenceMode" 
+                    id="mode-adaptive"
+                    value="adaptive"
+                    checked={referenceMode === 'adaptive'}
+                    onChange={(e) => setReferenceMode(e.target.value as 'disabled' | 'measurement' | 'adaptive')}
+                    disabled={!learnerInfo.gender && !selectedProfileId}
+                  />
+                  <label className="form-check-label" htmlFor="mode-adaptive">
+                    <i className="fas fa-brain me-2 text-success"></i>
+                    <span className="fw-bold">적응형</span> - AI가 자동으로 개인 최적 기준 주파수 학습
+                  </label>
+                </div>
               </div>
-              <small className="text-muted mt-2 d-block">
-                {usePersonalizedReference ? (
+              
+              <small className="text-muted d-block">
+                {referenceMode === 'disabled' ? (
                   <>
-                    <i className="fas fa-info-circle me-1 text-info"></i>
-                    개인 음성 특성에 맞춘 정확한 피치 분석을 제공합니다. (기본: 200Hz → 개인 최적값)
+                    <i className="fas fa-info-circle me-1 text-secondary"></i>
+                    기준 주파수 200Hz로 일반적인 피치 분석을 수행합니다.
+                  </>
+                ) : referenceMode === 'measurement' ? (
+                  <>
+                    <i className="fas fa-info-circle me-1 text-warning"></i>
+                    개인 음성 측정을 통해 정확한 기준 주파수를 설정하여 맞춤형 분석을 제공합니다.
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-lock me-1 text-secondary"></i>
-                    기준 주파수 200Hz 고정값을 사용합니다. (일반적인 분석 모드)
+                    <i className="fas fa-info-circle me-1 text-success"></i>
+                    AI가 음성을 학습하여 개인에게 최적화된 기준 주파수를 자동으로 조정합니다.
                   </>
                 )}
               </small>
               
-              {/* 🎭 프로필 선택 UI (개인화 모드 활성화 시에만 표시) */}
-              {usePersonalizedReference && (
-                <div className="mt-3">
-                  <label className="form-label fw-bold">
-                    <i className="fas fa-user-circle me-2 text-primary"></i>
-                    화자 프로필 선택
+              {(referenceMode === 'measurement' || referenceMode === 'adaptive') && selectedProfileId && (
+                <div className="alert alert-info mt-3 mb-0">
+                  <i className="fas fa-check-circle me-2"></i>
+                  <strong>현재 기준 주파수:</strong> {personalReferenceFreq.toFixed(1)}Hz
+                  <br />
+                  <small>선택된 프로필: {availableProfiles.find(p => p.profile_id === selectedProfileId)?.name || '알 수 없음'}</small>
+                </div>
+              )}
+              
+              {(referenceMode === 'measurement' || referenceMode === 'adaptive') && (!learnerInfo.gender && !selectedProfileId) && (
+                <div className="alert alert-warning mt-3 mb-0">
+                  <i className="fas fa-exclamation-triangle me-2"></i>
+                  <strong>알림:</strong> 측정방식 또는 적응형 분석을 사용하려면 학습자 정보를 입력하거나 프로필을 선택해주세요.
+                </div>
+              )}
+            </div>
+          </div>
                   </label>
                   <select 
                     className="form-select" 
@@ -1186,7 +1327,7 @@ const VoiceAnalysisApp: React.FC = () => {
           )}
 
           {/* 🎯 화자별 맞춤 기준 주파수 설정 (조건부 렌더링) */}
-          {usePersonalizedReference && (
+          {(referenceMode === 'measurement' || referenceMode === 'adaptive') && (
             <SpeakerProfileManager 
               onReferenceFrequencyChange={setPersonalReferenceFreq}
               currentFrequency={undefined}
