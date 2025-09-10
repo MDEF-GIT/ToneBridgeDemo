@@ -1,6 +1,18 @@
-[project]
-name = "repl-nix-workspace"
+[tool.poetry]
+name = "tonebridge"
 version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.11"
-dependencies = []
+description = ""
+authors = ["Your Name"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+numpy = "^1.24.3"
+librosa = "^0.10.1"
+soundfile = "^0.12.1"
+pydub = "^0.25.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
