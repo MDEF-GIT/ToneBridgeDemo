@@ -16,7 +16,10 @@ from enum import Enum
 # 오디오 처리
 import librosa
 import soundfile as sf
-import parselmouth
+try:
+    import parselmouth
+except ImportError:
+    parselmouth = None
 from pydub import AudioSegment
 
 # 한국어 처리

@@ -17,7 +17,10 @@ import json
 # 오디오 처리
 import librosa
 import soundfile as sf
-import parselmouth
+try:
+    import parselmouth
+except ImportError:
+    parselmouth = None
 from scipy import signal
 from scipy.stats import pearsonr
 

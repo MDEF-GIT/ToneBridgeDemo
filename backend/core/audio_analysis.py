@@ -16,8 +16,15 @@ from enum import Enum
 # 오디오 처리
 import librosa
 import soundfile as sf
-import parselmouth
-from parselmouth.praat import call
+try:
+    import parselmouth
+    from parselmouth.praat import call
+    PARSELMOUTH_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Parselmouth 라이브러리 로딩 실패: {e}")
+    parselmouth = None
+    call = None
+    PARSELMOUTH_AVAILABLE = False
 
 # 음성 분석
 import webrtcvad

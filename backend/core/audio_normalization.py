@@ -16,7 +16,13 @@ import librosa
 import soundfile as sf
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
-import parselmouth
+try:
+    import parselmouth
+    PARSELMOUTH_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Parselmouth 라이브러리 로딩 실패: {e}")
+    parselmouth = None
+    PARSELMOUTH_AVAILABLE = False
 import textgrid as tg
 
 # 프로젝트 모듈

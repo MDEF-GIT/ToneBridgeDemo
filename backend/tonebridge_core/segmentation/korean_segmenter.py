@@ -19,7 +19,10 @@ import librosa
 import soundfile as sf
 from scipy import signal
 from scipy.signal import find_peaks
-import parselmouth
+try:
+    import parselmouth
+except ImportError:
+    parselmouth = None
 import webrtcvad
 
 # 한국어 처리
@@ -516,7 +519,10 @@ class KoreanSegmenter:
 
         # 피치 (Parselmouth 사용)
         try:
-            import parselmouth
+            try:
+    import parselmouth
+except ImportError:
+    parselmouth = None
             sound = parselmouth.Sound(segment_audio, sr)
             pitch = sound.to_pitch()
 
