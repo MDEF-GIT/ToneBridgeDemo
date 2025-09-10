@@ -118,6 +118,8 @@ if KOREAN_OPTIMIZER_AVAILABLE:
     except Exception as e:
         print(f"❌ Korean Optimizer 초기화 실패: {e}")
         global_ai_instances['korean_optimizer'] = None
+else:
+    global_ai_instances['korean_optimizer'] = None
 
 print("🎯 ToneBridge AI 시스템 초기화 완료!")
 print(f"   활성 시스템: {list(global_ai_instances.keys())}")
@@ -2836,43 +2838,7 @@ async def test_ultimate_stt_on_uploaded_file(file_id: str = Form(...), expected_
                 "result_message": "🚨 테스트 실행 중 오류 발생"
             }
 
-@app.get("/api/uploaded_files")
-async def get_uploaded_files():
-    """
-    업로드된 파일 목록 조회 (Ultimate STT 테스트용)
-    """
-    try:
-        files = []
-        for wav_file in UPLOAD_DIR.glob("*.wav"):
-            file_id = wav_file.stem
-            textgrid_file = UPLOAD_DIR / f"{file_id}.TextGrid"
-            
-            # 파일 정보 추출
-            parts = file_id.split('_')
-            expected_text = parts[3] if len(parts) >= 4 else "알 수 없음"
-            
-            file_info = {
-                "file_id": file_id,
-                "filename": wav_file.name,
-                "expected_text": expected_text,
-                "has_textgrid": textgrid_file.exists(),
-                "file_size": wav_file.stat().st_size,
-                "modified_time": wav_file.stat().st_mtime
-            }
-            files.append(file_info)
-        
-        # 수정 시간 역순으로 정렬 (최신 파일 먼저)
-        files.sort(key=lambda x: x['modified_time'], reverse=True)
-        
-        return {
-            "success": True,
-            "files": files,
-            "total_count": len(files)
-        }
-        
-    except Exception as e:
-        print(f"❌ 업로드 파일 목록 조회 오류: {e}")
-        raise HTTPException(status_code=500, detail=f"파일 목록 조회 실패: {e}")
+# 첫 번째 중복 함수 제거됨 - 통합된 버전이 아래에 있음
 
 @app.post("/api/auto-process")
 async def auto_process_audio(
@@ -3250,44 +3216,84 @@ async def syllable_alignment_analysis(file: UploadFile = File(...),
 
 @app.get("/api/uploaded_files")
 async def get_uploaded_files():
-    """업로드된 파일 목록 조회 (wav + TextGrid 쌍)"""
+    """업로드된 파일 목록 조회 - 통합된 버전 (Ultimate STT + 상세 정보)"""
     try:
         uploaded_files = []
         
         # uploads 디렉토리의 모든 wav 파일 찾기
         for file_path in UPLOAD_DIR.glob("*.wav"):
             wav_file = file_path.name
+            file_id = file_path.stem
             textgrid_file = wav_file.replace('.wav', '.TextGrid')
             textgrid_path = UPLOAD_DIR / textgrid_file
             
-            if textgrid_path.exists():
-                # 파일명에서 정보 추출
-                parts = wav_file.replace('.wav', '').split('_')
-                if len(parts) >= 5:
-                    name = parts[0] if parts[0] else "이름없음"
-                    gender = parts[1] if parts[1] else "성별없음"
-                    age_group = parts[2] if parts[2] else "연령없음"
-                    sentence = parts[3] if parts[3] else "문장없음"
-                    timestamp = '_'.join(parts[4:]) if len(parts) > 4 else "시간없음"
+            # 파일명에서 정보 추출
+            parts = file_id.split('_')
+            
+            # Ultimate STT 테스트용 기본 정보
+            expected_text = parts[3] if len(parts) >= 4 else "알 수 없음"
+            
+            # 상세 정보 파싱 (5개 이상 부분이 있는 경우)
+            if len(parts) >= 5 and textgrid_path.exists():
+                name = parts[0] if parts[0] else "이름없음"
+                gender = parts[1] if parts[1] else "성별없음"
+                age_group = parts[2] if parts[2] else "연령없음"
+                sentence = parts[3] if parts[3] else "문장없음"
+                timestamp = '_'.join(parts[4:]) if len(parts) > 4 else "시간없음"
+                
+                file_info = {
+                    # Ultimate STT 호환 필드들
+                    "file_id": file_id,
+                    "filename": wav_file,
+                    "expected_text": expected_text,
+                    "has_textgrid": textgrid_path.exists(),
+                    "file_size": file_path.stat().st_size,
+                    "modified_time": file_path.stat().st_mtime,
                     
-                    file_info = {
-                        "id": wav_file.replace('.wav', ''),
-                        "wav_file": wav_file,
-                        "textgrid_file": textgrid_file,
-                        "name": name,
-                        "gender": gender,
-                        "age_group": age_group,
-                        "sentence": sentence,
-                        "timestamp": timestamp,
-                        "display_name": f"{name} ({gender}, {age_group}) - {sentence}"
-                    }
-                    uploaded_files.append(file_info)
+                    # 상세 정보 필드들
+                    "id": file_id,
+                    "wav_file": wav_file,
+                    "textgrid_file": textgrid_file,
+                    "name": name,
+                    "gender": gender,
+                    "age_group": age_group,
+                    "sentence": sentence,
+                    "timestamp": timestamp,
+                    "display_name": f"{name} ({gender}, {age_group}) - {sentence}"
+                }
+            else:
+                # TextGrid가 없거나 파싱할 수 없는 경우 기본 정보만
+                file_info = {
+                    "file_id": file_id,
+                    "filename": wav_file,
+                    "expected_text": expected_text,
+                    "has_textgrid": textgrid_path.exists(),
+                    "file_size": file_path.stat().st_size,
+                    "modified_time": file_path.stat().st_mtime,
+                    
+                    # 기본 상세 정보
+                    "id": file_id,
+                    "wav_file": wav_file,
+                    "textgrid_file": textgrid_file,
+                    "name": expected_text,
+                    "gender": "알 수 없음",
+                    "age_group": "알 수 없음",
+                    "sentence": expected_text,
+                    "timestamp": str(file_path.stat().st_mtime),
+                    "display_name": f"{expected_text} (파일명: {wav_file})"
+                }
+            
+            uploaded_files.append(file_info)
         
-        # 타임스탬프 기준 최신 순 정렬
-        uploaded_files.sort(key=lambda x: x['timestamp'], reverse=True)
+        # 수정 시간 기준 최신 순 정렬
+        uploaded_files.sort(key=lambda x: x['modified_time'], reverse=True)
         
         print(f"🗂️ 업로드된 파일 {len(uploaded_files)}개 찾음")
-        return {"files": uploaded_files}
+        return {
+            "success": True,
+            "files": uploaded_files,
+            "total_count": len(uploaded_files)
+        }
         
     except Exception as e:
         print(f"❌ 업로드 파일 목록 조회 오류: {e}")
