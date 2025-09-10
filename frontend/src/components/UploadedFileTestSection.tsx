@@ -209,64 +209,43 @@ const UploadedFileTestSection: React.FC = () => {
       }
       console.log(`✅ 음절 피치 데이터 로드: ${syllablePitch.length}개 음절`);
 
-      // 3. 음절 구간 정보 로드
+      // 3. 음절 구간 정보 로드 (참고용, syllablePitch에 이미 모든 정보 포함)
       console.log(`🔍 음절 구간 데이터 요청: ${fileId}`);
       const syllablesResponse = await fetch(`/api/uploaded_files/${fileId}/syllables`);
       let syllables = [];
       if (syllablesResponse.ok) {
         syllables = await syllablesResponse.json();
-        console.log(`✅ 음절 구간 데이터 로드: ${syllables.length}개`);
+        console.log(`✅ 음절 문자열 배열 로드: ${syllables.length}개 - ${JSON.stringify(syllables)}`);
       } else {
-        console.warn('⚠️ 음절 구간 데이터 로드 실패, 빈 배열로 진행');
+        console.warn('⚠️ 음절 구간 데이터 로드 실패, syllablePitch만으로 진행');
       }
 
-      // 4. 음절 포인트 데이터 구성
+      // 4. 음절 포인트 데이터 구성 (syllablePitch에 모든 정보가 포함되어 있음)
       console.log(`🔄 음절 포인트 데이터 구성 시작`);
       console.log(`🔍 syllablePitch 구조:`, syllablePitch);
       console.log(`🔍 syllables 구조:`, syllables);
       
       const points: SyllablePoint[] = [];
       
-      // 🎯 두 가지 데이터 소스를 결합하여 완전한 음절 정보 구성
-      if (syllablePitch.length > 0 && syllables.length > 0) {
-        // syllables에서 시간 구간, syllablePitch에서 주파수 정보 가져오기
-        for (let i = 0; i < Math.min(syllablePitch.length, syllables.length); i++) {
-          const pitchInfo = syllablePitch[i];
-          const syllableInfo = syllables[i];
-          
-          if (typeof pitchInfo.frequency === 'number' && typeof syllableInfo === 'string') {
-            // syllables는 단순 문자열 배열인 경우
-            points.push({
-              syllable: syllableInfo,
-              start: pitchInfo.time - 0.1, // 임시로 시간 중심에서 ±0.1초
-              end: pitchInfo.time + 0.1,
-              frequency: pitchInfo.frequency,
-              time: pitchInfo.time
-            });
-          } else if (typeof pitchInfo.frequency === 'number' && syllableInfo.start !== undefined) {
-            // syllables가 객체 배열인 경우
-            points.push({
-              syllable: pitchInfo.syllable || syllableInfo.syllable || `음절${i + 1}`,
-              start: syllableInfo.start,
-              end: syllableInfo.end,
-              frequency: pitchInfo.frequency,
-              time: pitchInfo.time || (syllableInfo.start + syllableInfo.end) / 2
-            });
-          }
-        }
-      } else if (syllablePitch.length > 0) {
-        // syllablePitch만 있는 경우 (fallback)
+      // 🎯 syllablePitch 데이터만으로 완전한 음절 정보 구성 (시간 구간은 임시로 ±0.1초)
+      if (syllablePitch.length > 0) {
         syllablePitch.forEach((sp: any, index: number) => {
-          if (typeof sp.frequency === 'number') {
+          if (typeof sp.frequency === 'number' && sp.syllable) {
+            const duration = 0.2; // 음절당 기본 0.2초 (±0.1초)
             points.push({
-              syllable: sp.syllable || `음절${index + 1}`,
-              start: sp.time - 0.1,
-              end: sp.time + 0.1,
+              syllable: sp.syllable,
+              start: sp.time - (duration / 2),
+              end: sp.time + (duration / 2),
               frequency: sp.frequency,
               time: sp.time
             });
+            console.log(`📊 음절 ${index + 1}: "${sp.syllable}" [${sp.time - (duration / 2)}s - ${sp.time + (duration / 2)}s] ${sp.frequency.toFixed(1)}Hz`);
+          } else {
+            console.warn(`⚠️ 잘못된 음절 피치 데이터 [${index}]:`, sp);
           }
         });
+      } else {
+        console.warn('⚠️ 음절 피치 데이터가 없습니다');
       }
 
       console.log(`✅ 음절 포인트 데이터 구성 완료: ${points.length}개`);
