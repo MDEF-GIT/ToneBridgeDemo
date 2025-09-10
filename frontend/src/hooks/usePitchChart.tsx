@@ -46,6 +46,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const startTimeRef = useRef<number>(0);
   const realtimeLineRef = useRef<number | null>(null); // 🎯 실시간 수직선 위치 추적
   const playbackLineRef = useRef<number | null>(null); // 🎯 참조음성 재생 진행 표시선
+  const isRealtimeRecording = useRef<boolean>(false); // 🎯 실시간 녹음 상태 추적
   const [yAxisUnit, setYAxisUnitInternal] = React.useState<'hz' | 'semitone' | 'qtone'>('semitone');
 
   // 🎯 외부에서 Y축 단위를 설정하는 함수
@@ -118,8 +119,8 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
             display: true,
             text: '시간 (초)'
           },
-          min: 0,
-          max: 10
+          min: -0.5,
+          max: 5.0 // 🎯 실시간 녹음용 고정 시간 윈도우 (5초)
         },
         y: {
           title: {
