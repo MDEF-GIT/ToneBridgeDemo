@@ -309,6 +309,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
         startTimeRef.current = timestamp;
       }
       relativeTime = (timestamp - startTimeRef.current) / 1000;
+      
+      // 🎯 실시간 녹음 상태 플래그 설정
+      isRealtimeRecording.current = true;
     }
     
     const newData: PitchData = {
@@ -395,20 +398,21 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     pitchDataRef.current = [];
     startTimeRef.current = 0;
     realtimeLineRef.current = null;
+    isRealtimeRecording.current = false; // 🎯 실시간 녹음 상태 초기화
 
     // 🎯 실시간 데이터 제거
     if (chartRef.current.options.plugins?.annotation?.annotations) {
       delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue;
     }
 
-    // 🎯 X축 및 Y축 범위 초기화
+    // 🎯 X축 및 Y축 범위 초기화 (실시간 녹음용 고정 윈도우)
     if (chartRef.current.options.scales) {
       const xScale = chartRef.current.options.scales.x as any;
       const yScale = chartRef.current.options.scales.y as any;
       
       if (xScale) {
-        xScale.min = -0.2; // 0.2초 마진으로 시작
-        xScale.max = 5; // 기본 5초 범위
+        xScale.min = -0.5; // 🎯 실시간 녹음용 고정 윈도우
+        xScale.max = 5.0;   // 🎯 5초 고정 윈도우
       }
       if (yScale) {
         yScale.min = yAxisUnit === 'qtone' ? -20 : -10;
@@ -424,6 +428,9 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const hideRealtimePitchLine = useCallback(() => {
     if (!chartRef.current) return;
     
+    // 🎯 실시간 녹음 상태 종료
+    isRealtimeRecording.current = false;
+    
     // 실시간 데이터셋 클리어
     chartRef.current.data.datasets[1].data = [];
     
@@ -431,13 +438,16 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     if (chartRef.current.options.plugins?.annotation?.annotations) {
       delete (chartRef.current.options.plugins.annotation.annotations as any).realtimeValue;
       chartRef.current.update('none');
-      console.log('🎯 실시간 데이터 숨김');
+      console.log('🎯 실시간 데이터 숨김 및 녹음 상태 종료');
     }
   }, []);
 
   // 🎯 실시간 데이터 업데이트 (녹음 중)
   const updateRealtimePitchLine = useCallback((time: number, value: number) => {
     if (!chartRef.current) return;
+    
+    // 🎯 실시간 녹음 상태 설정
+    isRealtimeRecording.current = true;
     
     // Y축 단위에 맞게 값 변환
     const convertedValue = convertFrequency(value); // value는 이미 Hz 값
@@ -541,13 +551,15 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           console.log(`📊 Y축 범위 자동 조정: ${yScale.min} ~ ${yScale.max} (데이터 범위: ${minValue.toFixed(1)} ~ ${maxValue.toFixed(1)})`);
         }
         
-        // 실제 오디오 길이에 맞게 x축 범위 조정 (0.2초 마진)
-        if (chartRef.current?.options?.scales?.x && maxTime > 0) {
+        // 🎯 실시간 녹음 중이 아닐 때만 x축 범위 조정
+        if (chartRef.current?.options?.scales?.x && maxTime > 0 && !isRealtimeRecording.current) {
           const timeMargin = 0.2; // 0.2초 마진
           chartRef.current.options.scales.x.min = -timeMargin; // 0으로 제한하지 않고 음수 허용
           chartRef.current.options.scales.x.max = maxTime + timeMargin;
           console.log(`📊 피치차트 X축 범위: ${chartRef.current.options.scales.x.min.toFixed(1)}s ~ ${chartRef.current.options.scales.x.max.toFixed(1)}s (마진: ${timeMargin}s)`);
           chartRef.current.update('none');
+        } else if (isRealtimeRecording.current) {
+          console.log(`🎤 실시간 녹음 중 - X축 범위 고정 유지`);
         }
         
         // ✅ 음절 annotation 추가 (pitchData에서 직접 추출)
