@@ -591,93 +591,94 @@ const VoiceAnalysisApp: React.FC = () => {
                   </select>
                 </div>
               </div>
-              
-              {/* 🎯 화자별 맞춤 기준 주파수 설정 옵션 */}
-              <div className="row mt-3">
-                <div className="col-12">
-                  <div className="card border-info">
-                    <div className="card-body">
-                      <div className="form-check form-switch">
-                        <input 
-                          className="form-check-input" 
-                          type="checkbox" 
-                          id="usePersonalizedReference"
-                          checked={usePersonalizedReference}
-                          onChange={(e) => setUsePersonalizedReference(e.target.checked)}
-                        />
-                        <label className="form-check-label fw-bold" htmlFor="usePersonalizedReference">
-                          <i className="fas fa-user-cog me-2 text-info"></i>
-                          화자별 맞춤 기준 주파수 설정 사용
-                        </label>
-                      </div>
-                      <small className="text-muted mt-2 d-block">
-                        {usePersonalizedReference ? (
-                          <>
-                            <i className="fas fa-info-circle me-1 text-info"></i>
-                            개인 음성 특성에 맞춘 정확한 피치 분석을 제공합니다. (기본: 200Hz → 개인 최적값)
-                          </>
-                        ) : (
-                          <>
-                            <i className="fas fa-lock me-1 text-secondary"></i>
-                            기준 주파수 200Hz 고정값을 사용합니다. (일반적인 분석 모드)
-                          </>
-                        )}
-                      </small>
-                      
-                      {/* 🎭 프로필 선택 UI (개인화 모드 활성화 시에만 표시) */}
-                      {usePersonalizedReference && (
-                        <div className="mt-3">
-                          <label className="form-label fw-bold">
-                            <i className="fas fa-user-circle me-2 text-primary"></i>
-                            화자 프로필 선택
-                          </label>
-                          <select 
-                            className="form-select" 
-                            value={selectedProfileId}
-                            onChange={(e) => {
-                              const profileId = e.target.value;
-                              setSelectedProfileId(profileId);
-                              
-                              // 선택된 프로필의 기준 주파수 적용
-                              if (profileId) {
-                                const selectedProfile = availableProfiles.find(p => p.profile_id === profileId);
-                                if (selectedProfile) {
-                                  setPersonalReferenceFreq(selectedProfile.reference_frequency);
-                                  console.log(`🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`);
-                                }
-                              }
-                            }}
-                            disabled={isLoadingProfiles}
-                          >
-                            <option value="">
-                              {isLoadingProfiles ? '프로필 로딩 중...' : '프로필을 선택하세요'}
-                            </option>
-                            {availableProfiles.map((profile) => (
-                              <option key={profile.profile_id} value={profile.profile_id}>
-                                {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz
-                              </option>
-                            ))}
-                          </select>
-                          
-                          {availableProfiles.length === 0 && !isLoadingProfiles && (
-                            <small className="text-warning mt-1 d-block">
-                              <i className="fas fa-exclamation-triangle me-1"></i>
-                              저장된 프로필이 없습니다. 학습자 정보를 입력하면 자동으로 프로필이 생성됩니다.
-                            </small>
-                          )}
-                          
-                          {selectedProfileId && (
-                            <small className="text-success mt-1 d-block">
-                              <i className="fas fa-check-circle me-1"></i>
-                              현재 기준 주파수: {personalReferenceFreq.toFixed(1)}Hz
-                            </small>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            </div>
+          </div>
+
+          {/* 🎯 화자별 맞춤 기준 주파수 설정 */}
+          <div className="card mb-4">
+            <div className="card-header">
+              <h5 className="mb-0 fw-bold" style={{color: '#17a2b8'}}>
+                <i className="fas fa-user-cog me-2"></i>화자별 맞춤 기준 주파수 설정
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="form-check form-switch">
+                <input 
+                  className="form-check-input" 
+                  type="checkbox" 
+                  id="usePersonalizedReference"
+                  checked={usePersonalizedReference}
+                  onChange={(e) => setUsePersonalizedReference(e.target.checked)}
+                />
+                <label className="form-check-label fw-bold" htmlFor="usePersonalizedReference">
+                  <i className="fas fa-toggle-on me-2 text-info"></i>
+                  개인화된 기준 주파수 사용
+                </label>
               </div>
+              <small className="text-muted mt-2 d-block">
+                {usePersonalizedReference ? (
+                  <>
+                    <i className="fas fa-info-circle me-1 text-info"></i>
+                    개인 음성 특성에 맞춘 정확한 피치 분석을 제공합니다. (기본: 200Hz → 개인 최적값)
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-lock me-1 text-secondary"></i>
+                    기준 주파수 200Hz 고정값을 사용합니다. (일반적인 분석 모드)
+                  </>
+                )}
+              </small>
+              
+              {/* 🎭 프로필 선택 UI (개인화 모드 활성화 시에만 표시) */}
+              {usePersonalizedReference && (
+                <div className="mt-3">
+                  <label className="form-label fw-bold">
+                    <i className="fas fa-user-circle me-2 text-primary"></i>
+                    화자 프로필 선택
+                  </label>
+                  <select 
+                    className="form-select" 
+                    value={selectedProfileId}
+                    onChange={(e) => {
+                      const profileId = e.target.value;
+                      setSelectedProfileId(profileId);
+                      
+                      // 선택된 프로필의 기준 주파수 적용
+                      if (profileId) {
+                        const selectedProfile = availableProfiles.find(p => p.profile_id === profileId);
+                        if (selectedProfile) {
+                          setPersonalReferenceFreq(selectedProfile.reference_frequency);
+                          console.log(`🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`);
+                        }
+                      }
+                    }}
+                    disabled={isLoadingProfiles}
+                  >
+                    <option value="">
+                      {isLoadingProfiles ? '프로필 로딩 중...' : '프로필을 선택하세요'}
+                    </option>
+                    {availableProfiles.map((profile) => (
+                      <option key={profile.profile_id} value={profile.profile_id}>
+                        {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {availableProfiles.length === 0 && !isLoadingProfiles && (
+                    <small className="text-warning mt-1 d-block">
+                      <i className="fas fa-exclamation-triangle me-1"></i>
+                      저장된 프로필이 없습니다. 학습자 정보를 입력하면 자동으로 프로필이 생성됩니다.
+                    </small>
+                  )}
+                  
+                  {selectedProfileId && (
+                    <small className="text-success mt-1 d-block">
+                      <i className="fas fa-check-circle me-1"></i>
+                      현재 기준 주파수: {personalReferenceFreq.toFixed(1)}Hz
+                    </small>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
