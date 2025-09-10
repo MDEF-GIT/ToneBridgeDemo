@@ -44,6 +44,9 @@ args = "cd temp-frontend && npm start"
 waitForPort = 5000
 
 [[ports]]
+localPort = 3000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
@@ -53,4 +56,14 @@ externalPort = 8000
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg", "ffmpeg-full", "libsndfile", "libxcrypt", "pkg-config", "xsimd", "vim-full", "tree", "sapling"]
+packages = [
+  "ffmpeg",
+  "ffmpeg-full",
+  "libsndfile",
+  "libxcrypt",
+  "pkg-config",
+  "xsimd",
+  "vim-full",
+  "tree",
+  "sapling",
+]
