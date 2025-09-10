@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDualAxisChart } from '../hooks/useDualAxisChart';
+import { tonebridgeApi, UploadedFile } from '../utils/tonebridgeApi';
 
-interface UploadedFile {
-  file_id: string;
-  filename: string;
-  expected_text: string;
-  has_textgrid: boolean;
-  file_size: number;
-  modified_time: number;
-}
+// UploadedFile 타입은 tonebridgeApi에서 import
 
 interface SyllablePoint {
   syllable: string;
@@ -44,13 +38,14 @@ const UploadedFileTestSection: React.FC = () => {
   const loadUploadedFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/uploaded_files');
-      if (!response.ok) throw new Error('파일 목록 조회 실패');
+      const response = await tonebridgeApi.uploadedFiles.getList();
       
-      const data = await response.json();
+      if (!response.success) {
+        throw new Error(response.error || '파일 목록 조회 실패');
+      }
       
       // 🎯 개선된 파일만 필터링 (TextGrid가 있고, _original/_trimmed가 아닌 파일)
-      const processedFiles = (data.files || []).filter((file: UploadedFile) => {
+      const processedFiles = (response.data || []).filter((file: UploadedFile) => {
         // TextGrid가 있는 파일만
         if (!file.has_textgrid) return false;
         
@@ -63,10 +58,8 @@ const UploadedFileTestSection: React.FC = () => {
       });
       
       setUploadedFiles(processedFiles);
-      console.log(`📁 개선된 업로드 파일 ${processedFiles.length}개 로드됨 (전체 ${data.files?.length || 0}개 중 필터링)`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '파일 목록 조회 실패');
-      console.error('❌ 업로드 파일 목록 조회 오류:', err);
     } finally {
       setLoading(false);
     }
@@ -78,35 +71,22 @@ const UploadedFileTestSection: React.FC = () => {
     
     try {
       setLoading(true);
-      console.log(`🔄 수동 재처리 시작: ${fileId}`);
+      const response = await tonebridgeApi.uploadedFiles.optimize(fileId);
       
-      const formData = new FormData();
-      formData.append('file_id', fileId);
-      
-      const optimizeResponse = await fetch(`/api/optimize-uploaded-file`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (optimizeResponse.ok) {
-        const optimizeResult = await optimizeResponse.json();
-        console.log(`✅ 재처리 완료: ${optimizeResult.syllables?.length || 0}개 음절`);
-        
-        // 파일 목록 갱신하여 새로운 처리 상태 반영
-        await loadUploadedFiles();
-        
-        // 현재 선택된 파일이면 차트도 업데이트
-        if (selectedFileId === fileId) {
-          await handleFileSelect(fileId);
-        }
-        
-        console.log('🎉 재처리 및 차트 업데이트 완료');
-      } else {
-        throw new Error('재처리 API 호출 실패');
+      if (!response.success) {
+        throw new Error(response.error || '재처리 API 호출 실패');
       }
+      
+      // 파일 목록 갱신하여 새로운 처리 상태 반영
+      await loadUploadedFiles();
+      
+      // 현재 선택된 파일이면 차트도 업데이트
+      if (selectedFileId === fileId) {
+        await handleFileSelect(fileId);
+      }
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : '파일 재처리 실패');
-      console.error('❌ 파일 재처리 오류:', err);
     } finally {
       setLoading(false);
     }
@@ -186,20 +166,15 @@ const UploadedFileTestSection: React.FC = () => {
 
       // 🎯 최적화: 단일 API 호출로 모든 데이터 로드
       // syllable_only=true가 음절 정보와 피치 데이터를 모두 포함
-      console.log(`🔍 통합 음절 피치 데이터 요청: ${fileId}`);
-      const syllablePitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch?syllable_only=true`);
-      if (!syllablePitchResponse.ok) throw new Error(`음절 피치 데이터 조회 실패: ${syllablePitchResponse.status}`);
-      const syllablePitch = await syllablePitchResponse.json();
+      const pitchResponse = await tonebridgeApi.uploadedFiles.getPitchData(fileId);
       
-      // 🛡️ 음절 피치 데이터 검증
-      if (!Array.isArray(syllablePitch)) {
-        throw new Error('음절 피치 데이터가 배열이 아닙니다');
+      if (!pitchResponse.success) {
+        throw new Error(pitchResponse.error || '음절 피치 데이터 조회 실패');
       }
-      console.log(`✅ 통합 음절 피치 데이터 로드: ${syllablePitch.length}개 음절 (중복 API 호출 제거됨)`);
+      
+      const syllablePitch = pitchResponse.data || [];
 
       // 🔄 음절 포인트 데이터 구성 (syllablePitch에 모든 정보가 포함되어 있음)
-      console.log(`🔄 음절 포인트 데이터 구성 시작`);
-      console.log(`🔍 syllablePitch 구조 (${syllablePitch.length}개):`, syllablePitch.slice(0, 2));
       
       const points: SyllablePoint[] = [];
       
@@ -217,7 +192,10 @@ const UploadedFileTestSection: React.FC = () => {
               frequency: sp.frequency,
               time: sp.time
             });
-            console.log(`📊 음절 ${index + 1}: "${sp.syllable}" [${startTime}s - ${endTime}s] ${sp.frequency.toFixed(1)}Hz`);
+            // 로깅 최소화: 첫 번째와 마지막만
+            if (index === 0 || index === syllablePitch.length - 1) {
+              console.log(`📊 음절 ${index + 1}: "${sp.syllable}" [${startTime}s - ${endTime}s] ${sp.frequency.toFixed(1)}Hz`);
+            }
           } else {
             console.warn(`⚠️ 잘못된 음절 피치 데이터 [${index}]:`, sp);
           }
@@ -226,36 +204,18 @@ const UploadedFileTestSection: React.FC = () => {
         console.warn('⚠️ 음절 피치 데이터가 없습니다');
       }
 
-      console.log(`✅ 음절 포인트 데이터 구성 완료: ${points.length}개`);
-      console.log(`🎯 설정된 음절 포인트:`, points);
       setSyllablePoints(points);
-      console.log(`🔄 syllablePoints 상태 업데이트 완료: ${points.length}개`);
+      console.log(`✅ 음절 포인트 구성 완료: ${points.length}개 음절`);
 
-      // 5. 차트 클리어 후 데이터 추가
-      try {
-        console.log('🎯 차트 클리어 시작');
-        testDualAxisChart.clearChart();
-        console.log('✅ 차트 클리어 완료');
-      } catch (clearError) {
-        console.error('❌ 차트 클리어 오류:', clearError);
-        throw new Error(`차트 클리어 실패: ${clearError}`);
-      }
+      // 차트 클리어 후 데이터 추가
+      testDualAxisChart.clearChart();
       
-      // 6. 전체 피치 데이터를 듀얼축 차트에 추가
-      try {
-        console.log(`🎯 음절 피치 데이터로 차트 구성: ${syllablePitch.length}개 포인트`);
-        syllablePitch.forEach((point: any, index: number) => {
-          if (point && typeof point.frequency === 'number' && typeof point.time === 'number') {
-            testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
-          } else {
-            console.warn(`⚠️ 잘못된 피치 데이터 [${index}]:`, point);
-          }
-        });
-        console.log('✅ 피치 데이터 추가 완료');
-      } catch (pitchError) {
-        console.error('❌ 피치 데이터 추가 오류:', pitchError);
-        throw new Error(`피치 데이터 추가 실패: ${pitchError}`);
-      }
+      // 음절 피치 데이터를 듀얼축 차트에 추가
+      syllablePitch.forEach((point: any) => {
+        if (point && typeof point.frequency === 'number' && typeof point.time === 'number') {
+          testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
+        }
+      });
 
       // 7. 음절 annotation 추가
       try {
