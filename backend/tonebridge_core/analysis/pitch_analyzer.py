@@ -21,8 +21,11 @@ try:
 except ImportError:
     parselmouth = None
 from parselmouth.praat import call
-from scipy import signal, stats
-from scipy.interpolate import interp1d
+try:
+    from scipy import signal, stats
+    from scipy.interpolate import interp1d
+except ImportError:
+    signal = stats = interp1d = None
 
 # 프로젝트 모듈
 from config import settings

@@ -17,8 +17,12 @@ import json
 # 오디오 처리
 import librosa
 import soundfile as sf
-from scipy import signal
-from scipy.signal import find_peaks
+try:
+    from scipy import signal
+    from scipy.signal import find_peaks
+except ImportError:
+    signal = None
+    find_peaks = None
 import parselmouth
 import webrtcvad
 

@@ -28,8 +28,14 @@ except ImportError as e:
 
 # 음성 분석
 import webrtcvad
-from scipy import signal
-from scipy.interpolate import interp1d
+try:
+    from scipy import signal
+except ImportError:
+    signal = None
+try:
+    from scipy.interpolate import interp1d
+except ImportError:
+    interp1d = None
 
 # 프로젝트 모듈
 from config import settings

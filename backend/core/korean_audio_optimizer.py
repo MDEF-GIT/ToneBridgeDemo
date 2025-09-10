@@ -24,7 +24,10 @@ from pydub import AudioSegment
 
 # 한국어 처리
 import jamo
-from konlpy.tag import Okt, Komoran
+try:
+    from konlpy.tag import Okt, Komoran
+except ImportError:
+    Okt = Komoran = None
 
 # 텍스트 처리
 import unicodedata

@@ -20,8 +20,14 @@ import soundfile as sf
 from pydub import AudioSegment
 
 # Whisper STT
-import whisper
-import torch
+try:
+    import whisper
+except ImportError:
+    whisper = None
+try:
+    import torch
+except ImportError:
+    torch = None
 
 # 텍스트 처리
 import re

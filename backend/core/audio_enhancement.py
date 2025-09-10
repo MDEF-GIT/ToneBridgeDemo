@@ -10,13 +10,20 @@ warnings.filterwarnings('ignore')
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, Union
 import numpy as np
-from scipy import signal
-from scipy.signal import butter, filtfilt, sosfilt
+try:
+    from scipy import signal
+    from scipy.signal import butter, filtfilt, sosfilt
+except ImportError:
+    signal = None
+    butter = filtfilt = sosfilt = None
 
 # 오디오 처리
 import librosa
 import soundfile as sf
-import noisereduce as nr
+try:
+    import noisereduce as nr
+except ImportError:
+    nr = None
 from pydub import AudioSegment
 from pydub.effects import normalize, compress_dynamic_range
 

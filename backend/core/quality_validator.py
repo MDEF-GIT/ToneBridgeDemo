@@ -21,8 +21,12 @@ try:
     import parselmouth
 except ImportError:
     parselmouth = None
-from scipy import signal
-from scipy.stats import pearsonr
+try:
+    from scipy import signal
+    from scipy.stats import pearsonr
+except ImportError:
+    signal = None
+    pearsonr = None
 
 # 텍스트 처리
 from difflib import SequenceMatcher
