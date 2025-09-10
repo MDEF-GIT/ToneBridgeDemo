@@ -933,6 +933,15 @@ const VoiceAnalysisApp: React.FC = () => {
               </div>
             </div>
 
+            {/* 🎯 화자별 맞춤 기준 주파수 설정 (조건부 렌더링) */}
+            {(referenceMode === "measurement" ||
+              referenceMode === "adaptive") && (
+              <SpeakerProfileManager
+                onReferenceFrequencyChange={setPersonalReferenceFreq}
+                currentFrequency={undefined}
+              />
+            )}
+
             {/* 🎯 학습 방법 선택 */}
             <div className="card mb-3">
               <div className="card-header">
@@ -1597,15 +1606,6 @@ const VoiceAnalysisApp: React.FC = () => {
               </div>
             )}
 
-            {/* 🎯 화자별 맞춤 기준 주파수 설정 (조건부 렌더링) */}
-            {(referenceMode === "measurement" ||
-              referenceMode === "adaptive") && (
-              <SpeakerProfileManager
-                onReferenceFrequencyChange={setPersonalReferenceFreq}
-                currentFrequency={undefined}
-              />
-            )}
-
             {/* 🎯 듀얼 Y축 비교 차트 */}
             <div className="card mt-4" id="dual-axis-chart-card">
               <div className="card-header">
@@ -1660,6 +1660,26 @@ const VoiceAnalysisApp: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* 📁 업로드 파일 테스트 섹션 */}
+            <div className="container-fluid px-2 mt-5">
+              <div className="row">
+                <div className="col-12">
+                  <div className="card border-success">
+                    <div className="card-header bg-success text-white">
+                      <h4 className="mb-0">📁 업로드된 파일 테스트</h4>
+                      <small>
+                        생성된 WAV와 TextGrid 파일을 선택해서 차트로 확인할 수
+                        있습니다
+                      </small>
+                    </div>
+                    <div className="card-body">
+                      <UploadedFileTestSection />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1788,26 +1808,6 @@ const VoiceAnalysisApp: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* 📁 업로드 파일 테스트 섹션 */}
-      <div className="container-fluid px-2 mt-5">
-        <div className="row">
-          <div className="col-12">
-            <div className="card border-success">
-              <div className="card-header bg-success text-white">
-                <h4 className="mb-0">📁 업로드된 파일 테스트</h4>
-                <small>
-                  생성된 WAV와 TextGrid 파일을 선택해서 차트로 확인할 수
-                  있습니다
-                </small>
-              </div>
-              <div className="card-body">
-                <UploadedFileTestSection />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 🎯 푸터 (base.html 구조 준수) */}
       <footer className="border-top py-3 mt-5">
