@@ -44,6 +44,7 @@ const VoiceAnalysisApp: React.FC = () => {
   const [yAxisUnit, setYAxisUnit] = useState<'semitone' | 'qtone'>('semitone');
   
   // 🎯 화자별 기준 주파수 관리
+  const [usePersonalizedReference, setUsePersonalizedReference] = useState<boolean>(false);
   const [personalReferenceFreq, setPersonalReferenceFreq] = useState<number>(200);
   
   // 🎯 API Base URL
@@ -516,6 +517,42 @@ const VoiceAnalysisApp: React.FC = () => {
                     <option value="50대">50대</option>
                     <option value="60대이상">60대이상</option>
                   </select>
+                </div>
+              </div>
+              
+              {/* 🎯 화자별 맞춤 기준 주파수 설정 옵션 */}
+              <div className="row mt-3">
+                <div className="col-12">
+                  <div className="card border-info">
+                    <div className="card-body">
+                      <div className="form-check form-switch">
+                        <input 
+                          className="form-check-input" 
+                          type="checkbox" 
+                          id="usePersonalizedReference"
+                          checked={usePersonalizedReference}
+                          onChange={(e) => setUsePersonalizedReference(e.target.checked)}
+                        />
+                        <label className="form-check-label fw-bold" htmlFor="usePersonalizedReference">
+                          <i className="fas fa-user-cog me-2 text-info"></i>
+                          화자별 맞춤 기준 주파수 설정 사용
+                        </label>
+                      </div>
+                      <small className="text-muted mt-2 d-block">
+                        {usePersonalizedReference ? (
+                          <>
+                            <i className="fas fa-info-circle me-1 text-info"></i>
+                            개인 음성 특성에 맞춘 정확한 피치 분석을 제공합니다. (기본: 200Hz → 개인 최적값)
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-lock me-1 text-secondary"></i>
+                            기준 주파수 200Hz 고정값을 사용합니다. (일반적인 분석 모드)
+                          </>
+                        )}
+                      </small>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1024,11 +1061,13 @@ const VoiceAnalysisApp: React.FC = () => {
             </div>
           )}
 
-          {/* 🎯 화자별 맞춤 기준 주파수 설정 */}
-          <SpeakerProfileManager 
-            onReferenceFrequencyChange={setPersonalReferenceFreq}
-            currentFrequency={undefined}
-          />
+          {/* 🎯 화자별 맞춤 기준 주파수 설정 (조건부 렌더링) */}
+          {usePersonalizedReference && (
+            <SpeakerProfileManager 
+              onReferenceFrequencyChange={setPersonalReferenceFreq}
+              currentFrequency={undefined}
+            />
+          )}
 
           {/* 🎯 듀얼 Y축 비교 차트 */}
           <div className="card mt-4" id="dual-axis-chart-card">
