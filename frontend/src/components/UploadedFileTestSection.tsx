@@ -19,6 +19,8 @@ const UploadedFileTestSection: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [syllablePoints, setSyllablePoints] = useState<SyllablePoint[]>([]);
   const [currentPlayingSyllable, setCurrentPlayingSyllable] = useState<number>(-1);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string>('');
   
   const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -90,6 +92,53 @@ const UploadedFileTestSection: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 삭제 확인 다이얼로그 표시
+  const handleDeleteClick = (fileId: string) => {
+    setFileToDelete(fileId);
+    setShowDeleteConfirm(true);
+  };
+
+  // 파일 삭제 실행
+  const handleDeleteConfirm = async () => {
+    if (!fileToDelete) return;
+    
+    console.log(`🗑️ Delete requested for file: ${fileToDelete}`);
+    setLoading(true);
+    setError('');
+    setShowDeleteConfirm(false);
+    
+    try {
+      const response = await tonebridgeApi.uploadedFiles.delete(fileToDelete);
+      
+      if (response.success) {
+        console.log('✅ File deleted successfully:', response.data);
+        setError('');
+        
+        // 삭제된 파일이 현재 선택된 파일이면 선택 해제
+        if (selectedFileId === fileToDelete) {
+          setSelectedFileId('');
+        }
+        
+        // 삭제 완료 후 파일 목록 새로고침
+        await loadUploadedFiles();
+      } else {
+        throw new Error(response.error || 'File deletion failed');
+      }
+    } catch (err) {
+      console.error('❌ File deletion error:', err);
+      setError(err instanceof Error ? err.message : 'File deletion failed');
+    } finally {
+      setLoading(false);
+      setFileToDelete('');
+    }
+  };
+
+  // 삭제 취소
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setFileToDelete('');
   };
 
 
@@ -309,6 +358,18 @@ const UploadedFileTestSection: React.FC = () => {
               title="선택된 파일을 다시 전처리합니다"
             >
               <i className="fas fa-redo me-2"></i>재처리
+            </button>
+          )}
+          
+          {/* 파일 삭제 버튼 */}
+          {selectedFileId && (
+            <button
+              className="btn btn-outline-danger"
+              onClick={() => handleDeleteClick(selectedFileId)}
+              disabled={loading}
+              title="선택된 파일을 완전히 삭제합니다"
+            >
+              <i className="fas fa-trash me-2"></i>삭제
             </button>
           )}
         </div>
@@ -668,6 +729,62 @@ const UploadedFileTestSection: React.FC = () => {
               <small className="text-muted">
                 총 {syllablePoints.length}개 음절 분석 완료
               </small>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteConfirm && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="fas fa-exclamation-triangle text-warning me-2"></i>
+                  파일 삭제 확인
+                </h5>
+              </div>
+              <div className="modal-body">
+                <p className="mb-2">
+                  정말로 다음 파일을 삭제하시겠습니까?
+                </p>
+                <div className="alert alert-warning">
+                  <strong>{(() => {
+                    const file = uploadedFiles.find(f => f.file_id === fileToDelete);
+                    if (!file) return fileToDelete;
+                    const parts = file.file_id.split('_');
+                    const learnerName = parts[0] || '익명';
+                    const sentence = file.expected_text || parts[3] || '';
+                    return `${learnerName} - ${sentence}`;
+                  })()}</strong>
+                  <br />
+                  <small className="text-muted">파일명: {fileToDelete}.wav</small>
+                </div>
+                <p className="text-danger small mb-0">
+                  <i className="fas fa-warning me-1"></i>
+                  이 작업은 되돌릴 수 없습니다. WAV 파일과 TextGrid 파일이 모두 삭제됩니다.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleDeleteCancel}
+                  disabled={loading}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleDeleteConfirm}
+                  disabled={loading}
+                >
+                  <i className="fas fa-trash me-2"></i>
+                  {loading ? '삭제 중...' : '삭제'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

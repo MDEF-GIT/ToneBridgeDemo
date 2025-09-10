@@ -2173,6 +2173,53 @@ async def delete_reference_file(file_id: int, db: Session = Depends(get_db)):
         print(f"Delete reference file error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/uploaded_files/{file_id}")
+async def delete_uploaded_file(file_id: str):
+    """업로드된 파일 삭제 (WAV + TextGrid)"""
+    try:
+        # 파일 ID 검증
+        if not file_id or file_id.strip() == '':
+            raise HTTPException(status_code=400, detail="파일 ID가 필요합니다")
+        
+        # 파일 경로 생성
+        wav_path = UPLOAD_DIR / f"{file_id}.wav"
+        textgrid_path = UPLOAD_DIR / f"{file_id}.TextGrid"
+        
+        deleted_files = []
+        
+        # WAV 파일 삭제
+        if wav_path.exists():
+            wav_path.unlink()
+            deleted_files.append("WAV")
+            print(f"🗑️ Deleted uploaded WAV file: {wav_path}")
+        else:
+            print(f"⚠️ Upload WAV file not found: {wav_path}")
+        
+        # TextGrid 파일 삭제
+        if textgrid_path.exists():
+            textgrid_path.unlink()
+            deleted_files.append("TextGrid")
+            print(f"🗑️ Deleted uploaded TextGrid file: {textgrid_path}")
+        else:
+            print(f"⚠️ Upload TextGrid file not found: {textgrid_path}")
+        
+        if not deleted_files:
+            raise HTTPException(status_code=404, detail="삭제할 파일을 찾을 수 없습니다")
+        
+        print(f"🗑️ Successfully deleted uploaded file {file_id}: {', '.join(deleted_files)} files")
+        
+        return JSONResponse({
+            "status": "success",
+            "message": f"업로드 파일 '{file_id}'이 성공적으로 삭제되었습니다.",
+            "deleted_files": deleted_files
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Delete uploaded file error: {e}")
+        raise HTTPException(status_code=500, detail=f"파일 삭제 실패: {str(e)}")
+
 @app.post("/analyze_live_audio")
 async def analyze_live_audio(audio: UploadFile = File(...)):
     """🎯 실시간 오디오 청크를 Praat 알고리즘으로 분석하여 정확한 피치 데이터 반환"""

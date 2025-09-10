@@ -121,6 +121,19 @@ export const uploadedFilesApi = {
   },
 
   /**
+   * 업로드된 파일 삭제 (WAV + TextGrid)
+   */
+  async delete(fileId: string): Promise<ApiResponse<any>> {
+    const endpoint = `/api/uploaded_files/${encodeURIComponent(fileId)}`;
+    
+    return apiClient.fetch(endpoint, {
+      method: 'DELETE',
+      logRequest: true,
+      logResponse: true
+    });
+  },
+
+  /**
    * 업로드 파일 WAV URL 생성
    */
   getWavUrl(fileId: string): string {
