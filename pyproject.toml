@@ -12,6 +12,7 @@ numpy = "^1.24.3"
 librosa = "^0.10.1"
 soundfile = "^0.12.1"
 pydub = "^0.25.1"
+scipy = "^1.16.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

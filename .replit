@@ -56,4 +56,4 @@ externalPort = 8000
 
 [nix]
 channel = "stable-25_05"
-packages = ["ffmpeg", "ffmpeg-full", "libsndfile", "libxcrypt", "pkg-config", "xsimd", "vim-full", "tree", "sapling", "gcc", "blas", "lapack", "zlib"]
+packages = ["blas", "ffmpeg", "ffmpeg-full", "gcc", "lapack", "libsndfile", "libxcrypt", "pkg-config", "sapling", "tree", "vim-full", "xsimd", "zlib"]
