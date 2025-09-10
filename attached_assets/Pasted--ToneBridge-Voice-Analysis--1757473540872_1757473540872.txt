@@ -1,0 +1,249 @@
+🎯 ToneBridge Voice Analysis - 전체 소스 레벨 구조 정밀 분석
+📐 전체 아키텍처 개요
+마이크로서비스 구조
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│   Client Proxy  │──────▶│   Backend API   │──────▶│   File Storage  │
+│   (Express.js)  │       │    (FastAPI)    │       │   (Static/DB)   │
+│    Port: 5000   │       │    Port: 8000   │       │                 │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
+          │                         │                          │
+          ▼                         ▼                          ▼
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│   React Frontend│       │  Praat Analysis │       │  Audio/TextGrid │
+│  (TypeScript)   │       │    Pipeline     │       │     Files      │
+│   Build: CRA    │       │   (Parselmouth) │       │                 │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
+🖥️ 백엔드 (Backend) 구조 분석
+핵심 디렉토리 구조
+backend/
+├── backend_server.py           # FastAPI 메인 서버 (3,559줄)
+├── tonebridge_core/           # 핵심 AI 모듈
+│   ├── analysis/              # 피치 분석 엔진
+│   ├── pipeline/              # 음성 처리 파이프라인
+│   ├── segmentation/          # 한국어 분절 알고리즘
+│   ├── stt/                   # 다중 STT 엔진
+│   ├── textgrid/              # TextGrid 생성기
+│   └── models.py              # 공통 데이터 모델
+├── static/                    # 정적 파일 저장
+│   ├── reference_files/       # 참조 음성 (10개 문장)
+│   ├── uploads/               # 업로드된 사용자 음성
+│   └── images/               # 미디어 리소스
+├── templates/                 # Jinja2 템플릿
+└── [개별 AI 모듈들]           # 18개 전문 처리 시스템
+25개 API 엔드포인트 목록
+🎯 핵심 음성 분석 API
+POST /analyze_ref - 참조 음성 분석
+POST /api/record_realtime - 실시간 녹음/분석
+GET /api/reference_files/{file_id}/pitch - 피치 데이터 추출
+GET /api/reference_files/{file_id}/textgrid - TextGrid 읽기
+GET /api/reference_files/{file_id}/syllables - 음절 분절 데이터
+📁 파일 관리 API
+GET /api/reference_files - 참조 파일 목록
+GET /api/uploaded_files - 업로드 파일 목록
+GET /api/reference_files/{file_id}/wav - 음성 파일 스트리밍
+DELETE /api/reference_files/{file_id} - 파일 삭제
+POST /api/save_reference - 참조 파일 저장
+🚀 고급 STT/처리 API
+POST /api/auto-process - 완전 자동화 처리
+POST /api/test-ultimate-stt - Ultimate STT 시스템
+POST /api/advanced-stt - 고급 STT 처리
+POST /api/multi-engine-comparison - 다중 엔진 비교
+POST /api/syllable-alignment-analysis - 음절 정렬 분석
+🛠️ 데이터 최적화 API
+POST /api/normalize_reference_files - 참조 파일 정규화
+POST /api/optimize-uploaded-file - 업로드 파일 최적화
+POST /api/optimize-textgrid/{file_id} - TextGrid 최적화
+POST /api/update-all-textgrids - 전체 TextGrid 업데이트
+📊 상태/분석 API
+GET /api/stt-status - STT 시스템 상태
+GET /api/syllable_pitch_analysis - 음절 피치 분석
+POST /analyze_live_audio - 실시간 오디오 분석
+POST /api/save_session - 세션 저장
+🌐 UI 지원 API
+GET / - 메인 페이지 (HTML)
+GET /survey - 설문 페이지 (HTML)
+핵심 AI/음성 처리 시스템
+1. Praat 분석 엔진 (Parselmouth)
+# 정확한 F0 추출 및 한국어 운율 분석
+import parselmouth as pm
+sound = pm.Sound(audio_file)
+pitch = sound.to_pitch(time_step=0.01, pitch_floor=75, pitch_ceiling=600)
+2. 다중 STT 엔진 통합
+Whisper (OpenAI)
+Google Cloud STT
+Azure Speech
+Naver CLOVA
+3. 한국어 음절 분절 알고리즘
+# 한국어 특화 분절 with 자모 분해
+from tonebridge_core.segmentation.korean_segmenter import KoreanSegmenter
+segments = segmenter.segment_korean_syllables(audio, text)
+🎨 프론트엔드 (Frontend) 구조 분석
+핵심 디렉토리 구조
+frontend/src/
+├── VoiceAnalysisApp.tsx       # 메인 앱 컴포넌트 (1,207줄)
+├── components/               # React 컴포넌트
+│   ├── UploadedFileTestSection.tsx  # 파일 테스트 UI (741줄)
+│   └── SurveyForm.tsx        # 설문 폼
+├── hooks/                    # React 커스텀 훅
+│   ├── usePitchChart.tsx     # 피치 차트 관리 (917줄)
+│   ├── useAudioRecording.tsx # 녹음 기능 (417줄)
+│   ├── useDualAxisChart.tsx  # 듀얼축 차트
+│   └── useAudioPlaybackSync.tsx # 재생 동기화
+├── types/                    # TypeScript 타입 정의
+│   └── api.ts                # API 인터페이스
+├── utils/                    # 유틸리티 함수
+│   ├── audioUtils.ts         # 오디오 처리
+│   └── pitchAnalysis.ts      # 피치 분석 (YIN 알고리즘)
+└── pages/                    # 페이지 컴포넌트
+    └── SurveyPage.tsx        # 설문 페이지
+핵심 React 컴포넌트 기능
+1. VoiceAnalysisApp (메인)
+학습자 정보 관리 (LearnerInfo)
+학습 방법 선택 (pitch | sentence)
+실시간 녹음/분석 통합
+차트 시각화 통합
+2. 커스텀 훅 아키텍처
+usePitchChart (917줄)
+
+// Chart.js 기반 피치 시각화
+// 실시간 라인 렌더링 + 음절 annotation
+const pitchChart = usePitchChart(canvasRef, API_BASE);
+useAudioRecording (417줄)
+
+// MediaRecorder API + YIN 피치 분석
+// 자동 처리 API 호출 통합
+const recording = useAudioRecording(learnerInfo, selectedFile, chartInstance);
+3. 타입 시스템
+// API 응답 타입 정의
+interface ReferenceFile {
+  id: string;
+  title: string;
+  sentence_text: string;
+  duration: number;
+  detected_gender: string;
+  average_f0: number;
+}
+interface SyllableData {
+  label: string;
+  start_time: number;
+  end_time: number;
+  f0_hz: number;
+  semitone: number;
+}
+🔄 Client Proxy (Express.js) 구조
+프록시 서버 역할
+// temp-frontend/server.js (303줄)
+app.use('/api', createProxyMiddleware({
+  target: 'http://localhost:8000',  // Backend API
+  changeOrigin: true
+}));
+app.get('/tonebridge-app', (req, res) => {
+  res.sendFile('../frontend/build/index.html'); // React 앱 서빙
+});
+서비스 통합 플로우
+React 빌드 → frontend/build/
+Express 서버 → React 정적 파일 서빙
+API 프록시 → /api/* → localhost:8000
+캐시 무효화 → 개발 환경 최적화
+🌐 API 상호작용 플로우
+1. 참조 파일 로드 플로우
+Frontend Request                Backend Processing
+─────────────────              ──────────────────
+GET /api/reference_files   →   📁 static/reference_files 스캔
+                          ←   🎵 WAV 메타데이터 + TextGrid 분석
+                              📊 평균 F0, 성별, 길이 계산
+                          ←   JSON 응답: [{id, title, duration...}]
+2. 실시간 녹음/분석 플로우
+Frontend                       Backend
+────────                      ─────────
+MediaRecorder Start       →   
+YIN 피치 추출 (실시간)      →   
+WebM Blob 생성             →   POST /api/auto-process
+                          ←   🎤 WebM → WAV 변환 (FFmpeg)
+                          ←   🤖 STT 다중 엔진 실행
+                          ←   🎯 한국어 음절 분절
+                          ←   📄 TextGrid 자동 생성
+                          ←   JSON: {transcription, syllables[]}
+Chart.js 업데이트         ←
+3. 파일 피치 분석 플로우
+Frontend Request                     Backend Processing
+─────────────────                   ──────────────────
+GET /api/reference_files/반가워요/pitch?syllable_only=true
+                                →   🎵 Parselmouth Sound 로드
+                                ←   📊 F0 추출 (75-600Hz, 0.01s step)
+                                ←   📄 TextGrid 음절 매핑
+                                ←   🎯 대표 피치값 계산
+                                ←   JSON: [{time, frequency, syllable, start, end}]
+📊 데이터 플로우 & 동기화
+음절 분절 동기화 (최근 해결)
+이전 문제점:
+Frontend → /pitch + /syllables (두 개 API 병렬 호출)
+         ← 서로 다른 데이터 소스 → 타이밍 불일치
+현재 해결책:
+Frontend → /pitch?syllable_only=true (단일 API)
+         ← 완전한 데이터 {time, frequency, syllable, start, end}
+         → 차트/재생 완벽 동기화 ✅
+실시간 차트 동기화
+Audio Playback              Chart Visualization
+──────────────             ───────────────────
+currentTime: 1.25s    →    updatePlaybackProgress(1.25)
+                      →    수직선 이동: x=1.25
+                      →    활성 음절 하이라이트
+                      →    부드러운 애니메이션
+🏗️ 핵심 기능별 구현 현황
+✅ 완료된 핵심 기능
+다중 STT 엔진 - Whisper, Google, Azure, Naver
+한국어 음절 분절 - 자모 분해 + 시간 정렬
+Praat 피치 분석 - 정확한 F0 추출
+실시간 녹음 - MediaRecorder + YIN 피치 분석
+자동 처리 파이프라인 - STT → 분절 → TextGrid
+Chart.js 시각화 - 피치 곡선 + 음절 annotation
+파일 관리 시스템 - 참조/업로드 파일 처리
+Audio 동기화 - 재생과 차트 완벽 동기화
+🎯 특징적 기술 구현
+1. 고급 오디오 처리
+FFmpeg 통합: WebM → WAV 변환
+무음 제거: 자동 트리밍
+볼륨 정규화: 일관된 분석
+2. 한국어 특화 알고리즘
+자모 분해: ㄱ, ㄴ, ㄷ 레벨 분석
+음절 경계 최적화: 에너지 + 피치 변화 기반
+발음 변이 처리: 한국어 음성학 규칙
+3. TypeScript 타입 안전성
+완전한 API 타입 정의
+React 컴포넌트 타입 검증
+데이터 플로우 타입 보장
+🎭 독립 실행 기능들
+백엔드 독립 기능
+Praat CLI 도구 - 독립적 음성 분석
+TextGrid 생성기 - 자동 annotation
+STT 엔진 벤치마크 - 성능 비교
+오디오 정규화 - 배치 처리
+프론트엔드 독립 기능
+YIN 피치 분석 - 브라우저 내 실시간 처리
+Chart.js 커스텀 - 음성 특화 시각화
+React 모듈 시스템 - 재사용 가능한 컴포넌트
+TypeScript 유틸리티 - 오디오 처리 함수
+🎯 성능 최적화 현황
+백엔드 최적화
+AI 인스턴스 미리 로딩 - 서버 시작 시 초기화
+지연 로딩 - Ultimate STT (첫 사용시 로딩)
+파일 캐싱 - 중복 처리 방지
+비동기 처리 - FastAPI 비동기 엔드포인트
+프론트엔드 최적화
+React 메모이제이션 - 불필요한 리렌더링 방지
+Chart.js 최적화 - 실시간 업데이트 성능
+오디오 스트리밍 - 대용량 파일 처리
+TypeScript 컴파일 - 런타임 에러 사전 방지
+📈 확장성 & 유지보수성
+모듈화 설계
+마이크로서비스 - Backend/Frontend/Proxy 분리
+플러그인 아키텍처 - STT 엔진 추가 가능
+타입 시스템 - 안전한 API 변경
+설정 기반 - 환경별 구성 분리
+개발 도구 통합
+Hot Reloading - 개발 중 실시간 업데이트
+LSP 지원 - TypeScript 에러 감지
+자동 빌드 - React → Express 통합
+로깅 시스템 - 디버깅 및 모니터링
+이상으로 ToneBridge Voice Analysis 프로젝트의 전체 소스 레벨 구조 정밀 분석을 완료했습니다. 마이크로서비스 아키텍처를 통해 백엔드 AI 엔진, 프론트엔드 UI, 프록시 서버가 완벽히 분리되어 독립적으로 동작하면서도 통합된 사용자 경험을 제공하는 구조입니다.
