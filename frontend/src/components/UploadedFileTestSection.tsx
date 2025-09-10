@@ -184,21 +184,9 @@ const UploadedFileTestSection: React.FC = () => {
         }
       }
 
-      // 🎯 이제 최적화된 데이터로 분석 진행
-      // 1. 전체 피치 데이터 로드
-      console.log(`🔍 피치 데이터 요청: ${fileId}`);
-      const pitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch`);
-      if (!pitchResponse.ok) throw new Error(`피치 데이터 조회 실패: ${pitchResponse.status}`);
-      const pitchData = await pitchResponse.json();
-      
-      // 🛡️ 피치 데이터 검증
-      if (!Array.isArray(pitchData)) {
-        throw new Error('피치 데이터가 배열이 아닙니다');
-      }
-      console.log(`✅ 피치 데이터 로드: ${pitchData.length}개 포인트`);
-
-      // 2. 음절별 대표 피치 로드 (음절 정보 포함)
-      console.log(`🔍 음절 피치 데이터 요청: ${fileId}`);
+      // 🎯 최적화: 단일 API 호출로 모든 데이터 로드
+      // syllable_only=true가 음절 정보와 피치 데이터를 모두 포함
+      console.log(`🔍 통합 음절 피치 데이터 요청: ${fileId}`);
       const syllablePitchResponse = await fetch(`/api/uploaded_files/${fileId}/pitch?syllable_only=true`);
       if (!syllablePitchResponse.ok) throw new Error(`음절 피치 데이터 조회 실패: ${syllablePitchResponse.status}`);
       const syllablePitch = await syllablePitchResponse.json();
@@ -207,39 +195,29 @@ const UploadedFileTestSection: React.FC = () => {
       if (!Array.isArray(syllablePitch)) {
         throw new Error('음절 피치 데이터가 배열이 아닙니다');
       }
-      console.log(`✅ 음절 피치 데이터 로드: ${syllablePitch.length}개 음절`);
+      console.log(`✅ 통합 음절 피치 데이터 로드: ${syllablePitch.length}개 음절 (중복 API 호출 제거됨)`);
 
-      // 3. 음절 구간 정보 로드 (참고용, syllablePitch에 이미 모든 정보 포함)
-      console.log(`🔍 음절 구간 데이터 요청: ${fileId}`);
-      const syllablesResponse = await fetch(`/api/uploaded_files/${fileId}/syllables`);
-      let syllables = [];
-      if (syllablesResponse.ok) {
-        syllables = await syllablesResponse.json();
-        console.log(`✅ 음절 문자열 배열 로드: ${syllables.length}개 - ${JSON.stringify(syllables)}`);
-      } else {
-        console.warn('⚠️ 음절 구간 데이터 로드 실패, syllablePitch만으로 진행');
-      }
-
-      // 4. 음절 포인트 데이터 구성 (syllablePitch에 모든 정보가 포함되어 있음)
+      // 🔄 음절 포인트 데이터 구성 (syllablePitch에 모든 정보가 포함되어 있음)
       console.log(`🔄 음절 포인트 데이터 구성 시작`);
-      console.log(`🔍 syllablePitch 구조:`, syllablePitch);
-      console.log(`🔍 syllables 구조:`, syllables);
+      console.log(`🔍 syllablePitch 구조 (${syllablePitch.length}개):`, syllablePitch.slice(0, 2));
       
       const points: SyllablePoint[] = [];
       
-      // 🎯 syllablePitch 데이터만으로 완전한 음절 정보 구성 (시간 구간은 임시로 ±0.1초)
+      // 🎯 syllablePitch 데이터만으로 완전한 음절 정보 구성
       if (syllablePitch.length > 0) {
         syllablePitch.forEach((sp: any, index: number) => {
           if (typeof sp.frequency === 'number' && sp.syllable) {
-            const duration = 0.2; // 음절당 기본 0.2초 (±0.1초)
+            // start/end가 있으면 사용, 없으면 기본 구간 생성
+            const startTime = sp.start !== undefined ? sp.start : sp.time - 0.1;
+            const endTime = sp.end !== undefined ? sp.end : sp.time + 0.1;
             points.push({
               syllable: sp.syllable,
-              start: sp.time - (duration / 2),
-              end: sp.time + (duration / 2),
+              start: startTime,
+              end: endTime,
               frequency: sp.frequency,
               time: sp.time
             });
-            console.log(`📊 음절 ${index + 1}: "${sp.syllable}" [${sp.time - (duration / 2)}s - ${sp.time + (duration / 2)}s] ${sp.frequency.toFixed(1)}Hz`);
+            console.log(`📊 음절 ${index + 1}: "${sp.syllable}" [${startTime}s - ${endTime}s] ${sp.frequency.toFixed(1)}Hz`);
           } else {
             console.warn(`⚠️ 잘못된 음절 피치 데이터 [${index}]:`, sp);
           }
@@ -265,8 +243,8 @@ const UploadedFileTestSection: React.FC = () => {
       
       // 6. 전체 피치 데이터를 듀얼축 차트에 추가
       try {
-        console.log(`🎯 피치 데이터 추가 시작: ${pitchData.length}개 포인트`);
-        pitchData.forEach((point: any, index: number) => {
+        console.log(`🎯 음절 피치 데이터로 차트 구성: ${syllablePitch.length}개 포인트`);
+        syllablePitch.forEach((point: any, index: number) => {
           if (point && typeof point.frequency === 'number' && typeof point.time === 'number') {
             testDualAxisChart.addDualAxisData(point.frequency, point.time, 'reference');
           } else {
@@ -302,7 +280,7 @@ const UploadedFileTestSection: React.FC = () => {
         console.warn('⚠️ annotation 추가 실패했지만 차트는 표시됩니다');
       }
 
-      console.log(`✅ 업로드 파일 분석 완료: ${pitchData.length}개 피치 포인트, ${points.length}개 음절`);
+      console.log(`✅ 업로드 파일 분석 완료: ${syllablePitch.length}개 피치 포인트, ${points.length}개 음절`);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : '파일 분석 실패');
