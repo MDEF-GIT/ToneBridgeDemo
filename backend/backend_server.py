@@ -4149,8 +4149,10 @@ async def create_speaker_profile(profile_data: dict):
         import uuid
         from datetime import datetime
         
-        # 프로필 ID 생성 (이름 기반)
-        profile_id = f"{profile_data['name']}_{profile_data['gender']}_{profile_data.get('age_group', 'unknown')}"
+        # 고유 프로필 ID 생성 (UUID + 타임스탬프)
+        unique_id = str(uuid.uuid4())[:8]  # UUID의 첫 8자리
+        timestamp_id = str(int(datetime.now().timestamp()))[-6:]  # 타임스탬프 마지막 6자리
+        profile_id = f"{profile_data['name']}_{profile_data['gender']}_{unique_id}_{timestamp_id}"
         
         # 프로필 데이터 구조화
         profile = {

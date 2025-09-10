@@ -212,15 +212,18 @@ const VoiceAnalysisApp: React.FC = () => {
         newLearnerInfo.gender && 
         (field === 'name' || field === 'gender')) {
       
-      // 기존 프로필이 있는지 확인
-      const profileId = `${newLearnerInfo.name}_${newLearnerInfo.gender}_${newLearnerInfo.ageGroup || 'unknown'}`;
-      const existingProfile = availableProfiles.find(p => p.profile_id === profileId);
+      // 동일한 이름과 성별을 가진 기존 프로필이 있는지 확인 (단순 참고용)
+      const similarProfiles = availableProfiles.filter(p => 
+        p.name === newLearnerInfo.name && 
+        p.gender === newLearnerInfo.gender
+      );
       
-      if (!existingProfile) {
-        console.log('🎯 학습자 정보 변경 감지 → 자동 프로필 생성 시작');
+      if (similarProfiles.length === 0) {
+        console.log('🎯 학습자 정보 변경 감지 → 새 고유 프로필 생성 시작');
         await createProfileFromLearnerInfo(newLearnerInfo);
       } else {
-        console.log('📋 기존 프로필 발견:', existingProfile.name);
+        console.log(`📋 유사한 프로필 ${similarProfiles.length}개 발견 → 새 고유 프로필 생성 시작`);
+        await createProfileFromLearnerInfo(newLearnerInfo);
       }
     }
   }, [learnerInfo, referenceMode, availableProfiles, createProfileFromLearnerInfo]);
