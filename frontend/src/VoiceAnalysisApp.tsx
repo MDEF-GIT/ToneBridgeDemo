@@ -776,52 +776,6 @@ const VoiceAnalysisApp: React.FC = () => {
               )}
             </div>
           </div>
-                  </label>
-                  <select 
-                    className="form-select" 
-                    value={selectedProfileId}
-                    onChange={(e) => {
-                      const profileId = e.target.value;
-                      setSelectedProfileId(profileId);
-                      
-                      // 선택된 프로필의 기준 주파수 적용
-                      if (profileId) {
-                        const selectedProfile = availableProfiles.find(p => p.profile_id === profileId);
-                        if (selectedProfile) {
-                          setPersonalReferenceFreq(selectedProfile.reference_frequency);
-                          console.log(`🎯 프로필 선택: ${selectedProfile.name} (${selectedProfile.reference_frequency}Hz)`);
-                        }
-                      }
-                    }}
-                    disabled={isLoadingProfiles}
-                  >
-                    <option value="">
-                      {isLoadingProfiles ? '프로필 로딩 중...' : '프로필을 선택하세요'}
-                    </option>
-                    {availableProfiles.map((profile) => (
-                      <option key={profile.profile_id} value={profile.profile_id}>
-                        {profile.name} ({profile.gender}, {profile.age_group || '연령대 미지정'}) - {profile.reference_frequency.toFixed(1)}Hz
-                      </option>
-                    ))}
-                  </select>
-                  
-                  {availableProfiles.length === 0 && !isLoadingProfiles && (
-                    <small className="text-warning mt-1 d-block">
-                      <i className="fas fa-exclamation-triangle me-1"></i>
-                      저장된 프로필이 없습니다. 학습자 정보를 입력하면 자동으로 프로필이 생성됩니다.
-                    </small>
-                  )}
-                  
-                  {selectedProfileId && (
-                    <small className="text-success mt-1 d-block">
-                      <i className="fas fa-check-circle me-1"></i>
-                      현재 기준 주파수: {personalReferenceFreq.toFixed(1)}Hz
-                    </small>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
 
 
           {/* 🎯 학습 방법 선택 */}
