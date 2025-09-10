@@ -46,7 +46,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
   const startTimeRef = useRef<number>(0);
   const realtimeLineRef = useRef<number | null>(null); // 🎯 실시간 수직선 위치 추적
   const playbackLineRef = useRef<number | null>(null); // 🎯 참조음성 재생 진행 표시선
-  const [yAxisUnit, setYAxisUnitInternal] = React.useState<'hz' | 'semitone' | 'qtone'>('hz');
+  const [yAxisUnit, setYAxisUnitInternal] = React.useState<'hz' | 'semitone' | 'qtone'>('semitone');
 
   // 🎯 외부에서 Y축 단위를 설정하는 함수
   const setYAxisUnit = useCallback((newUnit: 'hz' | 'semitone' | 'qtone') => {
@@ -138,7 +138,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
           intersect: false,
           callbacks: {
             label: function(context) {
-              const unit = yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone';
+              const unit = yAxisUnit === 'hz' ? 'Hz' : yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone';
               return `${context.dataset.label}: ${context.parsed.y.toFixed(1)} ${unit}`;
             }
           }
@@ -194,7 +194,7 @@ export const usePitchChart = (canvasRef: React.RefObject<HTMLCanvasElement | nul
     }
     
     const chart = chartRef.current;
-    const yAxisTitle = yAxisUnit === 'hz' ? 'Frequency (Hz)' : yAxisUnit === 'qtone' ? 'Q-tone' : 'Semitone (세미톤)';
+    const yAxisTitle = yAxisUnit === 'hz' ? 'Frequency (Hz)' : yAxisUnit === 'qtone' ? 'Q-tone (큐톤)' : 'Semitone (세미톤)';
     console.log(`🔄 Y축 단위 변경됨: ${yAxisUnit}, 기존 데이터 ${pitchDataRef.current.length}개 재변환 중...`);
     
     // Y축 제목 및 범위 강제 업데이트
