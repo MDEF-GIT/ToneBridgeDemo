@@ -2001,7 +2001,10 @@ async def get_syllable_representative_pitch(file_id: str, wav_path: str, tg_path
             syllable_pitch_points.append({
                 "time": float(center_t),  # 음절 중심 시간
                 "frequency": representative_f0,
-                "syllable": label
+                "syllable": label,
+                "start": float(start_t),  # ✅ 실제 시작 시간 추가
+                "end": float(end_t),      # ✅ 실제 끝 시간 추가
+                "duration": float(end_t - start_t)  # ✅ 지속 시간 추가
             })
         
         print(f"🎯 Returning {len(syllable_pitch_points)} syllable representative points")
