@@ -412,12 +412,12 @@ export const useDualAxisChart = (
         }
       };
       
-      // 음절 라벨 박스
-      const labelY = syllable.frequency || 200; // 기본값 200Hz
+      // 음절 라벨 박스 (고정 위치로 표시)
+      const chartY = 400; // 고정 주파수 위치
       annotations[`syllable-label-${index}`] = {
         type: 'label',
         xValue: (syllableStart + syllableEnd) / 2,
-        yValue: labelY + 30, // 피치 위쪽에 표시
+        yValue: chartY, // 고정 위치에 표시
         backgroundColor: 'rgba(138, 43, 226, 0.9)',
         borderColor: 'rgba(138, 43, 226, 1)',
         borderRadius: 4,
@@ -425,24 +425,30 @@ export const useDualAxisChart = (
         color: 'white',
         content: syllable.label || syllable.syllable || `음절${index + 1}`,
         font: {
-          size: 12,
+          size: 14,
           weight: 'bold'
         },
         padding: {
-          x: 6,
-          y: 4
+          x: 8,
+          y: 6
         }
       };
+      
+      console.log(`🎯 음절 ${index + 1}: '${syllable.label || syllable.syllable}' x=${((syllableStart + syllableEnd) / 2).toFixed(3)}s y=${chartY}Hz`);
     });
 
-    // Chart.js annotation 플러그인에 annotation 추가
-    if (chartRef.current.options.plugins?.annotation) {
-      chartRef.current.options.plugins.annotation.annotations = annotations;
-      chartRef.current.update();
-      console.log(`🎯 듀얼축 차트: ${syllableData.length}개 음절 annotation 추가 완료`);
-    } else {
-      console.log('⚠️ 듀얼축 차트: annotation 플러그인이 활성화되지 않음');
+    // Chart.js annotation 플러그인에 annotation 추가 (강제 초기화)
+    if (!chartRef.current.options.plugins) {
+      chartRef.current.options.plugins = {};
     }
+    if (!chartRef.current.options.plugins.annotation) {
+      chartRef.current.options.plugins.annotation = { annotations: {} };
+    }
+    
+    chartRef.current.options.plugins.annotation.annotations = annotations;
+    chartRef.current.update('resize'); // 강제 업데이트
+    console.log(`🎯 듀얼축 차트: ${syllableData.length}개 음절 annotation 추가 완료`);
+    console.log(`🎯 생성된 annotation:`, Object.keys(annotations));
   }, []);
 
   // 🎯 재생 진행 상황 업데이트 - 실제 구현
