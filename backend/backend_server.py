@@ -22,7 +22,8 @@ from pydantic import BaseModel, Field
 from config import settings, print_settings
 from utils import (get_logger, ErrorHandler, http_exception_handler,
                    validation_exception_handler, general_exception_handler,
-                   audit_logger, performance_logger, cleanup_old_logs)
+                   audit_logger, performance_logger, cleanup_old_logs,
+                   log_environment, get_environment)
 
 # Core 모듈
 from core import (AudioNormalizer, AudioQualityEnhancer, KoreanAudioOptimizer,
@@ -650,6 +651,11 @@ if __name__ == "__main__":
     try:
         init_db()
         logger.info("데이터베이스 초기화 완료")
+        
+        # 환경 정보 로깅
+        environment = get_environment()
+        logger.info(f"감지된 환경: {environment}")
+        log_environment()
     except Exception as e:
         logger.error(f"데이터베이스 초기화 실패: {e}")
     

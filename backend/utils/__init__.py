@@ -64,6 +64,17 @@ from .logger import (
     log_api_response,
     cleanup_old_logs)
 
+# 환경 감지
+from .environment import (
+    env_detector,
+    get_environment,
+    is_pure_nix,
+    is_ubuntu,
+    get_library_strategy,
+    get_stt_config,
+    log_environment
+)
+
 __version__ = "1.0.0"
 
 __all__ = [
@@ -109,7 +120,16 @@ __all__ = [
     "log_exception",
     "log_api_request",
     "log_api_response",
-    "cleanup_old_logs"
+    "cleanup_old_logs",
+
+    # 환경 감지
+    "env_detector",
+    "get_environment", 
+    "is_pure_nix",
+    "is_ubuntu",
+    "get_library_strategy",
+    "get_stt_config",
+    "log_environment"
 ]
 
 # 모듈 초기화 시 로깅

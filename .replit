@@ -54,10 +54,6 @@ externalPort = 80
 localPort = 8000
 externalPort = 8000
 
-[[ports]]
-localPort = 45545
-externalPort = 3000
-
 [nix]
 channel = "stable-25_05"
 packages = ["blas", "ffmpeg", "ffmpeg-full", "gcc", "glibc", "lapack", "libcxx", "libsndfile", "libxcrypt", "openjdk17", "openssl", "pkg-config", "portaudio", "postgresql", "rapidfuzz-cpp", "sapling", "taskflow", "tree", "vim-full", "xsimd", "zlib", "gcc-unwrapped"]

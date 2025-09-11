@@ -19,17 +19,45 @@ import librosa
 import soundfile as sf
 from pydub import AudioSegment
 
-# Faster Whisper STT (Pure Nix compatible)
+# Environment-aware STT import strategy
 try:
-    from faster_whisper import WhisperModel
-    faster_whisper = True
+    from utils import get_stt_config, get_environment
+    env_config = get_stt_config()
+    current_env = get_environment()
 except ImportError:
+    # Fallback for environments without utils
+    env_config = {'prefer_faster_whisper': True}
+    current_env = 'unknown'
+
+# Dynamic STT engine selection based on environment
+faster_whisper_available = False
+openai_whisper_available = False
+
+if env_config.get('prefer_faster_whisper', True):
+    # Try faster-whisper first (preferred for Pure Nix)
+    try:
+        from faster_whisper import WhisperModel
+        faster_whisper_available = True
+        print(f"✅ faster-whisper loaded (환경: {current_env})")
+    except ImportError:
+        pass
+
+if not faster_whisper_available or env_config.get('fallback_to_openai_whisper', True):
+    # Try openai-whisper as fallback (or primary for Ubuntu)
     try:
         import whisper
-        faster_whisper = False
+        openai_whisper_available = True
+        print(f"✅ openai-whisper loaded (환경: {current_env})")
     except ImportError:
-        whisper = None
-        faster_whisper = False
+        pass
+
+# Final status
+if not faster_whisper_available and not openai_whisper_available:
+    print(f"❌ STT 엔진을 찾을 수 없습니다 (환경: {current_env})")
+    whisper = None
+    faster_whisper = False
+else:
+    faster_whisper = faster_whisper_available
 
 # Torch for device detection
 try:
