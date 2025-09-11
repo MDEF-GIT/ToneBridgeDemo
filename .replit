@@ -28,7 +28,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend && poetry run uvicorn backend_server:app --host 0.0.0.0 --port 8000 --reload"
+args = "cd backend && ./run_server.sh"
 waitForPort = 8000
 
 [[workflows.workflow]]
@@ -56,4 +56,4 @@ externalPort = 8000
 
 [nix]
 channel = "stable-25_05"
-packages = ["blas", "ffmpeg", "ffmpeg-full", "gcc", "glibc", "lapack", "libcxx", "libsndfile", "libxcrypt", "openjdk17", "openssl", "pkg-config", "portaudio", "postgresql", "rapidfuzz-cpp", "sapling", "taskflow", "tree", "vim-full", "xsimd", "zlib"]
+packages = ["blas", "ffmpeg", "ffmpeg-full", "gcc", "glibc", "lapack", "libcxx", "libsndfile", "libxcrypt", "openjdk17", "openssl", "pkg-config", "portaudio", "postgresql", "rapidfuzz-cpp", "sapling", "taskflow", "tree", "vim-full", "xsimd", "zlib", "gcc-unwrapped"]

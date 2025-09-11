@@ -19,11 +19,19 @@ import librosa
 import soundfile as sf
 from pydub import AudioSegment
 
-# Whisper STT
+# Faster Whisper STT (Pure Nix compatible)
 try:
-    import whisper
+    from faster_whisper import WhisperModel
+    faster_whisper = True
 except ImportError:
-    whisper = None
+    try:
+        import whisper
+        faster_whisper = False
+    except ImportError:
+        whisper = None
+        faster_whisper = False
+
+# Torch for device detection
 try:
     import torch
 except ImportError:
@@ -150,25 +158,46 @@ class WhisperProcessor:
 
     @handle_errors(context="load_whisper_model")
     def _load_model(self):
-        """Whisper 모델 로드"""
-        if whisper is None:
+        """Whisper 모델 로드 - faster-whisper 우선 사용"""
+        global faster_whisper
+        
+        if faster_whisper:
+            try:
+                logger.info(f"Faster Whisper 모델 로딩 중: {self.model_size}")
+                
+                # Faster Whisper 모델 로드 (Pure Nix 호환)
+                self.model = WhisperModel(
+                    self.model_size, 
+                    device=self.device,
+                    download_root=self.download_root,
+                    compute_type="int8" if self.device == "cpu" else "float16"
+                )
+                
+                logger.info("Faster Whisper 모델 로드 완료")
+                return
+                
+            except Exception as e:
+                logger.warning(f"Faster Whisper 모델 로드 실패: {str(e)}")
+                faster_whisper = False
+        
+        # 폴백: 기존 openai-whisper 사용
+        if whisper is not None:
+            try:
+                logger.info(f"OpenAI Whisper 모델 로딩 중: {self.model_size}")
+
+                self.model = whisper.load_model(
+                    self.model_size,
+                    device=self.device,
+                    download_root=self.download_root
+                )
+
+                logger.info("OpenAI Whisper 모델 로드 완료")
+
+            except Exception as e:
+                logger.warning(f"OpenAI Whisper 모델 로드 실패: {str(e)}. STT 기능 제한됨.")
+                self.model = None
+        else:
             logger.warning("Whisper 라이브러리가 설치되지 않음. STT 기능 제한됨.")
-            self.model = None
-            return
-            
-        try:
-            logger.info(f"Whisper 모델 로딩 중: {self.model_size}")
-
-            self.model = whisper.load_model(
-                self.model_size,
-                device=self.device,
-                download_root=self.download_root
-            )
-
-            logger.info("Whisper 모델 로드 완료")
-
-        except Exception as e:
-            logger.warning(f"Whisper 모델 로드 실패: {str(e)}. STT 기능 제한됨.")
             self.model = None
 
     @handle_errors(context="transcribe_audio")
@@ -208,18 +237,70 @@ class WhisperProcessor:
             language = language or settings.WHISPER_LANGUAGE
             task = task or settings.WHISPER_TASK
 
-            # 전사 실행
-            result = self.model.transcribe(
-                str(audio_path),
-                language=language,
-                task=task,
-                initial_prompt=initial_prompt,
-                temperature=temperature,
-                verbose=verbose,
-                word_timestamps=True,  # 단어 타임스탬프 활성화
-                condition_on_previous_text=True,
-                fp16=self.device != "cpu"
-            )
+            # 전사 실행 - faster-whisper vs openai-whisper 호환성 처리
+            global faster_whisper
+            if faster_whisper and hasattr(self.model, 'transcribe') and 'WhisperModel' in str(type(self.model)):
+                # Faster Whisper API
+                segments, info = self.model.transcribe(
+                    str(audio_path),
+                    language=language,
+                    task=task,
+                    initial_prompt=initial_prompt,
+                    temperature=temperature,
+                    word_timestamps=True,
+                    condition_on_previous_text=True
+                )
+                
+                # Faster Whisper 결과를 OpenAI Whisper 형식으로 변환
+                result = {
+                    'text': '',
+                    'segments': [],
+                    'language': info.language if hasattr(info, 'language') else language
+                }
+                
+                segment_list = []
+                full_text_parts = []
+                
+                for i, segment in enumerate(segments):
+                    seg_dict = {
+                        'id': i,
+                        'start': segment.start,
+                        'end': segment.end,
+                        'text': segment.text,
+                        'confidence': getattr(segment, 'avg_logprob', 0.0),
+                        'words': []
+                    }
+                    
+                    # 단어별 정보 추가
+                    if hasattr(segment, 'words') and segment.words:
+                        for word in segment.words:
+                            word_dict = {
+                                'start': word.start,
+                                'end': word.end,
+                                'word': word.word,
+                                'probability': getattr(word, 'probability', 0.0)
+                            }
+                            seg_dict['words'].append(word_dict)
+                    
+                    segment_list.append(seg_dict)
+                    full_text_parts.append(segment.text)
+                
+                result['segments'] = segment_list
+                result['text'] = ''.join(full_text_parts)
+                
+            else:
+                # OpenAI Whisper API (기존)
+                result = self.model.transcribe(
+                    str(audio_path),
+                    language=language,
+                    task=task,
+                    initial_prompt=initial_prompt,
+                    temperature=temperature,
+                    verbose=verbose,
+                    word_timestamps=True,
+                    condition_on_previous_text=True,
+                    fp16=self.device != "cpu"
+                )
 
             # 결과 파싱
             transcription = self._parse_transcription_result(result)

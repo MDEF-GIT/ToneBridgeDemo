@@ -640,10 +640,28 @@ async def shutdown_event():
 # ========== 메인 실행 ==========
 
 if __name__ == "__main__":
+    """Pure Nix 환경에서 직접 서버 시작"""
     import uvicorn
-
-    uvicorn.run("backend_server:app",
-                host=settings.HOST,
-                port=settings.PORT,
-                reload=settings.DEBUG,
-                log_level=settings.LOG_LEVEL.lower())
+    
+    # 설정 출력
+    print_settings()
+    
+    # 데이터베이스 초기화
+    try:
+        init_db()
+        logger.info("데이터베이스 초기화 완료")
+    except Exception as e:
+        logger.error(f"데이터베이스 초기화 실패: {e}")
+    
+    # Pure Nix 환경 설정 로그
+    logger.info("Pure Nix 환경에서 ToneBridge 백엔드 서버 시작")
+    
+    # 서버 시작
+    uvicorn.run(
+        "backend_server:app",
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG,
+        log_level=settings.LOG_LEVEL.lower(),
+        access_log=True
+    )

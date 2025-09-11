@@ -23,8 +23,21 @@ try:
 except ImportError:
     signal = None
     find_peaks = None
-import parselmouth
-import webrtcvad
+# Optional parselmouth import (Pure Nix compatibility)
+try:
+    import parselmouth
+    HAS_PARSELMOUTH = True
+except ImportError:
+    parselmouth = None
+    HAS_PARSELMOUTH = False
+
+# Optional webrtcvad import (Pure Nix compatibility)
+try:
+    import webrtcvad
+    HAS_WEBRTCVAD = True
+except ImportError:
+    webrtcvad = None
+    HAS_WEBRTCVAD = False
 
 # 한국어 처리
 import jamo
@@ -242,7 +255,12 @@ class SyllableBoundaryDetector:
 
     def __init__(self):
         """초기화"""
-        self.vad = webrtcvad.Vad(2)  # 중간 감도
+        # WebRTC VAD 초기화 (Pure Nix 호환)
+        if HAS_WEBRTCVAD:
+            self.vad = webrtcvad.Vad(2)  # 중간 감도
+        else:
+            self.vad = None
+            logger.warning("WebRTC VAD가 사용 불가능합니다. 경계 감지 기능이 제한됩니다.")
         logger.info("SyllableBoundaryDetector 초기화 완료")
 
     @handle_errors(context="detect_boundaries_energy")

@@ -16,11 +16,15 @@ import json
 # 오디오 처리
 import librosa
 import soundfile as sf
+# Optional parselmouth import (Pure Nix compatibility)
 try:
     import parselmouth
+    from parselmouth.praat import call
+    HAS_PARSELMOUTH = True
 except ImportError:
     parselmouth = None
-from parselmouth.praat import call
+    call = None
+    HAS_PARSELMOUTH = False
 try:
     from scipy import signal, stats
     from scipy.interpolate import interp1d
@@ -239,7 +243,7 @@ class PitchAnalyzer:
                                    shimmer=shimmer,
                                    hnr=hnr)
 
-    def _extract_pitch(self, sound: parselmouth.Sound):
+    def _extract_pitch(self, sound: "parselmouth.Sound"):
         """Praat 피치 추출"""
         return sound.to_pitch_ac(
             time_step=self.config.time_step,
@@ -324,7 +328,7 @@ class PitchAnalyzer:
         else:
             return Gender.FEMALE  # 높은 피치는 일반적으로 여성
 
-    def _calculate_jitter(self, sound: parselmouth.Sound) -> float:
+    def _calculate_jitter(self, sound: "parselmouth.Sound") -> float:
         """지터 계산 (pitch perturbation)"""
         try:
             point_process = call(sound, "To PointProcess (periodic, cc)",
@@ -336,7 +340,7 @@ class PitchAnalyzer:
         except:
             return 0.0
 
-    def _calculate_shimmer(self, sound: parselmouth.Sound) -> float:
+    def _calculate_shimmer(self, sound: "parselmouth.Sound") -> float:
         """쉬머 계산 (amplitude perturbation)"""
         try:
             point_process = call(sound, "To PointProcess (periodic, cc)",
@@ -348,7 +352,7 @@ class PitchAnalyzer:
         except:
             return 0.0
 
-    def _calculate_hnr(self, sound: parselmouth.Sound) -> float:
+    def _calculate_hnr(self, sound: "parselmouth.Sound") -> float:
         """HNR 계산 (Harmonics-to-Noise Ratio)"""
         try:
             harmonicity = call(sound, "To Harmonicity (cc)", 0.01,

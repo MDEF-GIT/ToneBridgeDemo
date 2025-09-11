@@ -23,7 +23,13 @@ except ImportError as e:
     print(f"⚠️ Parselmouth 라이브러리 로딩 실패: {e}")
     parselmouth = None
     PARSELMOUTH_AVAILABLE = False
-import textgrid as tg
+# Optional textgrid import (Pure Nix compatibility)
+try:
+    import textgrid as tg
+    HAS_TEXTGRID = True
+except ImportError:
+    tg = None
+    HAS_TEXTGRID = False
 
 # 프로젝트 모듈
 from config import settings

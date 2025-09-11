@@ -25,7 +25,13 @@ import soundfile as sf
 
 # 텍스트 처리
 from difflib import SequenceMatcher
-import Levenshtein
+# Optional Levenshtein import (Pure Nix compatibility)
+try:
+    import Levenshtein
+    HAS_LEVENSHTEIN = True
+except ImportError:
+    Levenshtein = None
+    HAS_LEVENSHTEIN = False
 import re
 
 # 프로젝트 모듈

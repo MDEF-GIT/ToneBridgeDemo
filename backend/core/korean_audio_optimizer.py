@@ -16,10 +16,13 @@ from enum import Enum
 # 오디오 처리
 import librosa
 import soundfile as sf
+# Optional parselmouth import (Pure Nix compatibility)
 try:
     import parselmouth
+    HAS_PARSELMOUTH = True
 except ImportError:
     parselmouth = None
+    HAS_PARSELMOUTH = False
 from pydub import AudioSegment
 
 # 한국어 처리

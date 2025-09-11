@@ -27,7 +27,13 @@ except ImportError as e:
     PARSELMOUTH_AVAILABLE = False
 
 # 음성 분석
-import webrtcvad
+# Optional webrtcvad import (Pure Nix compatibility)
+try:
+    import webrtcvad
+    HAS_WEBRTCVAD = True
+except ImportError:
+    webrtcvad = None
+    HAS_WEBRTCVAD = False
 try:
     from scipy import signal
 except ImportError:
@@ -424,7 +430,12 @@ class SyllableSegmenter:
 
     def __init__(self):
         """초기화"""
-        self.vad = webrtcvad.Vad(2)  # 중간 공격성
+        # WebRTC VAD 초기화 (Pure Nix 호환)
+        if HAS_WEBRTCVAD:
+            self.vad = webrtcvad.Vad(2)  # 중간 공격성
+        else:
+            self.vad = None
+            logger.warning("WebRTC VAD가 사용 불가능합니다. VAD 기능이 제한됩니다.")
         logger.info("SyllableSegmenter 초기화 완료")
 
     @handle_errors(context="segment_by_energy")

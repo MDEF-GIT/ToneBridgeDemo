@@ -19,8 +19,10 @@ import librosa
 import soundfile as sf
 try:
     import parselmouth
+    HAS_PARSELMOUTH = True
 except ImportError:
     parselmouth = None
+    HAS_PARSELMOUTH = False
 try:
     from scipy import signal
     from scipy.stats import pearsonr
