@@ -323,7 +323,10 @@ const UploadedFileTestSection: React.FC = () => {
               const ageGroup = parts[2] || '';
               const sentence = file.expected_text || parts[3] || '';
               const timestamp = parts[4] || '';
-              const displayName = `${learnerName} (${gender}, ${ageGroup}) - ${sentence}`;
+              
+              // 성별과 연령대 정보가 있을 때만 괄호 표시
+              const userInfo = gender && ageGroup ? ` (${gender}, ${ageGroup})` : '';
+              const displayName = `${learnerName}${userInfo} - ${sentence}`;
               const processingStatus = file.has_textgrid ? '✅' : '⏳';
               
               return (
