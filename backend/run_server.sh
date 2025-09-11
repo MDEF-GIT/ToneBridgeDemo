@@ -1,28 +1,33 @@
 #!/bin/bash
+set -euo pipefail
 cd /home/runner/workspace/backend
 
-# ⚡ Fast Pure Nix Environment Setup (No Slow Searches)
-echo "🚀 Setting up Pure Nix environment..."
+echo "🚀 Starting ToneBridge backend with Pure Nix environment..."
 
-# 🎯 Use standard system library paths (much faster)
-export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+# 🧹 Clear all contaminating environment variables that cause glibc conflicts
+unset LD_LIBRARY_PATH 2>/dev/null || true
+unset LD_PRELOAD 2>/dev/null || true
+unset LD_AUDIT 2>/dev/null || true
+unset LD_ASSUME_KERNEL 2>/dev/null || true
+unset GLIBC_TUNABLES 2>/dev/null || true
 
-# 🔧 Add essential Nix lib paths directly (no searching)
-NIX_PYTHON_LIB=$(dirname $(dirname $(which python)))/lib
-if [ -d "$NIX_PYTHON_LIB" ]; then
-    export LD_LIBRARY_PATH="$NIX_PYTHON_LIB:$LD_LIBRARY_PATH"
-    echo "✅ Added Python lib: $NIX_PYTHON_LIB"
-fi
+echo "✅ Cleared contaminating environment variables"
 
-# 🌟 Set Python environment
+# 🐍 Safe Pure Nix Python execution with RPATH-based library detection
+echo "🔍 Locating Python interpreter..."
+PY=$(command -v python)
+echo "📍 Found Python at: $PY"
+
+echo "🧪 Running Python sanity check..."
+$PY -c 'import sys; print(f"✅ Python {sys.version} OK")'
+
+# 🌟 Set clean Python environment
 export PYTHONUNBUFFERED=1
-export PYTHONPATH="/home/runner/workspace/backend:$PYTHONPATH"
-
-echo "✅ Library paths configured:"
-echo "   /usr/lib/x86_64-linux-gnu (system libstdc++)"
-echo "   $NIX_PYTHON_LIB (Nix Python)"
+export PYTHONPATH="/home/runner/workspace/backend:${PYTHONPATH:-}"
 
 echo "🎯 Starting ToneBridge backend server..."
+echo "📂 Working directory: $(pwd)"
+echo "🐍 Python executable: $PY"
 
-# 🐍 Direct Python execution (Pure Nix)
-python backend_server.py
+# 🚀 Execute with pure Nix closure (RPATH handles all libraries automatically)
+exec $PY backend_server.py
