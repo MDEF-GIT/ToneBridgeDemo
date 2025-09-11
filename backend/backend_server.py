@@ -532,7 +532,7 @@ async def get_reference_files():
     """참조 파일 목록 가져오기"""
     try:
         # 참조 파일 디렉토리에서 파일 목록 반환
-        reference_dir = settings.STATIC_DIR / "audio" / "reference"
+        reference_dir = settings.STATIC_DIR / "reference_files"
         files = []
         
         if reference_dir.exists():
@@ -540,10 +540,12 @@ async def get_reference_files():
                 files.append({
                     "id": file_path.stem,
                     "name": file_path.name,
-                    "path": f"/static/audio/reference/{file_path.name}",
-                    "size": file_path.stat().st_size if file_path.exists() else 0
+                    "path": f"/static/reference_files/{file_path.name}",
+                    "size": file_path.stat().st_size if file_path.exists() else 0,
+                    "text": file_path.stem  # 연습 문장으로 사용할 파일명
                 })
         
+        logger.info(f"참조 파일 {len(files)}개 로드됨")
         return {"success": True, "files": files}
     except Exception as e:
         logger.error(f"참조 파일 목록 가져오기 실패: {e}")
