@@ -524,6 +524,85 @@ async def generate_textgrid(file_id: str):
 # ========== 참조 파일 ==========
 
 
+# ========== 누락된 API 엔드포인트들 ==========
+
+@app.get("/api/reference_files", tags=["Files"])
+async def get_reference_files():
+    """참조 파일 목록 가져오기"""
+    try:
+        # 참조 파일 디렉토리에서 파일 목록 반환
+        reference_dir = settings.STATIC_DIR / "audio" / "reference"
+        files = []
+        
+        if reference_dir.exists():
+            for file_path in reference_dir.glob("*.wav"):
+                files.append({
+                    "id": file_path.stem,
+                    "name": file_path.name,
+                    "path": f"/static/audio/reference/{file_path.name}",
+                    "size": file_path.stat().st_size if file_path.exists() else 0
+                })
+        
+        return {"success": True, "files": files}
+    except Exception as e:
+        logger.error(f"참조 파일 목록 가져오기 실패: {e}")
+        return {"success": False, "files": [], "error": str(e)}
+
+
+@app.get("/api/uploaded_files", tags=["Files"])
+async def get_uploaded_files():
+    """업로드된 파일 목록 가져오기"""
+    try:
+        files = []
+        upload_dir = settings.UPLOAD_FILES_PATH
+        
+        if upload_dir.exists():
+            for file_path in upload_dir.glob("*.wav"):
+                files.append({
+                    "id": file_path.stem,
+                    "name": file_path.name,
+                    "path": f"/uploads/{file_path.name}",
+                    "size": file_path.stat().st_size,
+                    "uploaded_at": file_path.stat().st_mtime
+                })
+        
+        return {"success": True, "files": files}
+    except Exception as e:
+        logger.error(f"업로드 파일 목록 가져오기 실패: {e}")
+        return {"success": False, "files": [], "error": str(e)}
+
+
+@app.get("/api/speaker-profiles", tags=["Profiles"])
+async def get_speaker_profiles():
+    """스피커 프로필 목록 가져오기"""
+    try:
+        # 현재는 빈 목록 반환 (향후 데이터베이스에서 가져오도록 확장)
+        profiles = []
+        return {"success": True, "profiles": profiles}
+    except Exception as e:
+        logger.error(f"스피커 프로필 목록 가져오기 실패: {e}")
+        return {"success": False, "profiles": [], "error": str(e)}
+
+
+@app.post("/api/speaker-profile", tags=["Profiles"])
+async def create_speaker_profile(profile_data: dict):
+    """새 스피커 프로필 생성"""
+    try:
+        # 현재는 성공 응답만 반환 (향후 데이터베이스 저장 추가)
+        logger.info(f"스피커 프로필 생성 요청: {profile_data}")
+        
+        profile_id = profile_data.get("name", "unknown") + "_" + str(int(time.time()))
+        
+        return {
+            "success": True, 
+            "profile_id": profile_id,
+            "message": "스피커 프로필이 생성되었습니다."
+        }
+    except Exception as e:
+        logger.error(f"스피커 프로필 생성 실패: {e}")
+        return {"success": False, "error": str(e)}
+
+
 @app.get("/api/reference/list", tags=["Reference"])
 async def list_reference_files():
     """

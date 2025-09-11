@@ -51,13 +51,18 @@ if not faster_whisper_available or env_config.get('fallback_to_openai_whisper', 
     except ImportError:
         pass
 
-# Final status
-if not faster_whisper_available and not openai_whisper_available:
+# Final status  
+if faster_whisper_available:
+    print(f"✅ faster-whisper 활성화 (환경: {current_env})")
+    faster_whisper = True
+    whisper = None  # faster-whisper만 사용
+elif openai_whisper_available:
+    print(f"✅ openai-whisper 활성화 (환경: {current_env})")
+    faster_whisper = False
+else:
     print(f"❌ STT 엔진을 찾을 수 없습니다 (환경: {current_env})")
     whisper = None
     faster_whisper = False
-else:
-    faster_whisper = faster_whisper_available
 
 # Torch for device detection
 try:
