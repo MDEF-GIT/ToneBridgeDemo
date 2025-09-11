@@ -139,6 +139,8 @@ class WhisperProcessor:
 
     def _get_device(self) -> str:
         """사용 가능한 장치 감지"""
+        if torch is None:
+            return "cpu"
         if torch.cuda.is_available():
             return "cuda"
         elif torch.backends.mps.is_available():
@@ -149,6 +151,11 @@ class WhisperProcessor:
     @handle_errors(context="load_whisper_model")
     def _load_model(self):
         """Whisper 모델 로드"""
+        if whisper is None:
+            logger.warning("Whisper 라이브러리가 설치되지 않음. STT 기능 제한됨.")
+            self.model = None
+            return
+            
         try:
             logger.info(f"Whisper 모델 로딩 중: {self.model_size}")
 
@@ -161,7 +168,8 @@ class WhisperProcessor:
             logger.info("Whisper 모델 로드 완료")
 
         except Exception as e:
-            raise STTError("whisper", f"모델 로드 실패: {str(e)}")
+            logger.warning(f"Whisper 모델 로드 실패: {str(e)}. STT 기능 제한됨.")
+            self.model = None
 
     @handle_errors(context="transcribe_audio")
     @log_execution_time
