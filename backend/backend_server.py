@@ -5,6 +5,7 @@ FastAPI 기반 REST API 서버
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
