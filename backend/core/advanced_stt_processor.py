@@ -86,6 +86,15 @@ from utils import (
     ErrorRecovery
 )
 
+# GPU Manager import 추가
+try:
+    from .gpu_manager import gpu_manager
+except ImportError:
+    try:
+        from gpu_manager import gpu_manager
+    except:
+        gpu_manager = None
+
 logger = get_logger(__name__)
 
 
@@ -907,7 +916,119 @@ class AdvancedSTTProcessor:
 
         return results
 
-
+class DualGPUProcessor:
+    """듀얼 GPU를 활용한 Whisper 처리"""
+    
+    def __init__(self):
+        """각 GPU에 서로 다른 모델 초기화"""
+        self.processors = {}
+        self._init_processors()
+    
+    def _init_processors(self):
+        """GPU별 프로세서 초기화"""
+        # GPU 0: large-v3
+        try:
+            logger.info("GPU 0에 large-v3 모델 로딩 중...")
+            self.processors[0] = WhisperProcessor(
+                model_size="large-v3",
+                device="cuda:0"
+            )
+            logger.info("✅ GPU 0: large-v3 준비 완료")
+        except Exception as e:
+            logger.error(f"❌ GPU 0 초기화 실패: {e}")
+        
+        # GPU 1: medium
+        try:
+            logger.info("GPU 1에 medium 모델 로딩 중...")
+            self.processors[1] = WhisperProcessor(
+                model_size="medium",
+                device="cuda:1"
+            )
+            logger.info("✅ GPU 1: medium 준비 완료")
+        except Exception as e:
+            logger.error(f"❌ GPU 1 초기화 실패: {e}")
+    
+    def transcribe_high_quality(self, audio_path: Union[str, Path], **kwargs) -> Dict[str, Any]:
+        """고품질 전사 (GPU 0 - large-v3 사용)"""
+        if 0 in self.processors:
+            result = self.processors[0].transcribe(audio_path, **kwargs)
+            return {
+                'success': True,
+                'gpu': 0,
+                'model': 'large-v3',
+                'transcription': result.to_dict()
+            }
+        elif 1 in self.processors:
+            logger.warning("GPU 0 사용 불가, GPU 1로 대체")
+            result = self.processors[1].transcribe(audio_path, **kwargs)
+            return {
+                'success': True,
+                'gpu': 1,
+                'model': 'medium',
+                'transcription': result.to_dict()
+            }
+        return {'success': False, 'error': '사용 가능한 GPU 없음'}
+    
+    def transcribe_fast(self, audio_path: Union[str, Path], **kwargs) -> Dict[str, Any]:
+        """빠른 전사 (GPU 1 - medium 사용)"""
+        if 1 in self.processors:
+            result = self.processors[1].transcribe(audio_path, **kwargs)
+            return {
+                'success': True,
+                'gpu': 1,
+                'model': 'medium',
+                'transcription': result.to_dict()
+            }
+        elif 0 in self.processors:
+            logger.warning("GPU 1 사용 불가, GPU 0로 대체")
+            result = self.processors[0].transcribe(audio_path, **kwargs)
+            return {
+                'success': True,
+                'gpu': 0,
+                'model': 'large-v3',
+                'transcription': result.to_dict()
+            }
+        return {'success': False, 'error': '사용 가능한 GPU 없음'}
+    
+    def transcribe_parallel(self, audio_files: List[Union[str, Path]]) -> List[Dict]:
+        """여러 파일을 두 GPU에서 병렬 처리"""
+        from concurrent.futures import ThreadPoolExecutor
+        results = []
+        
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = []
+            
+            for i, audio_file in enumerate(audio_files):
+                # 파일을 번갈아가며 GPU에 할당
+                gpu_id = i % 2
+                if gpu_id in self.processors:
+                    if gpu_id == 0:
+                        future = executor.submit(self.transcribe_high_quality, audio_file)
+                    else:
+                        future = executor.submit(self.transcribe_fast, audio_file)
+                    futures.append(future)
+            
+            # 결과 수집
+            for future in futures:
+                try:
+                    result = future.result(timeout=60)
+                    results.append(result)
+                except Exception as e:
+                    logger.error(f"병렬 처리 오류: {e}")
+                    results.append({'success': False, 'error': str(e)})
+        
+        return results
+    
+    def get_status(self) -> Dict:
+        """GPU 상태 확인"""
+        status = {
+            'gpu_0': {'available': 0 in self.processors, 'model': 'large-v3'},
+            'gpu_1': {'available': 1 in self.processors, 'model': 'medium'}
+        }
+        if gpu_manager:
+            status['stats'] = gpu_manager.get_stats()
+        return status
+        
 # 메인 실행 코드
 if __name__ == "__main__":
     # 테스트

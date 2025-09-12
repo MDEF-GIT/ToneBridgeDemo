@@ -787,7 +787,6 @@ class UltimateSTTSystem:
 
         logger.debug(f"결과 저장: {output_file}")
 
-
 # 메인 실행 코드
 if __name__ == "__main__":
     # 테스트

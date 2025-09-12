@@ -29,7 +29,7 @@ from utils import (get_logger, ErrorHandler, http_exception_handler,
 # Core 모듈
 from core import (AudioNormalizer, AudioQualityEnhancer, KoreanAudioOptimizer,
                   VoiceAnalyzer, AdvancedSTTProcessor, MultiEngineSTT,
-                  UltimateSTTSystem, QualityValidator)
+                  UltimateSTTSystem, QualityValidator, DualGPUProcessor, gpu_manager)
 
 # ToneBridge Core 모듈
 from tonebridge_core import (VoiceProcessor, ProcessingPipeline,
@@ -41,6 +41,8 @@ from models import init_db, get_db, AudioFile, ProcessingResult, UserProfile
 
 logger = get_logger(__name__)
 
+
+dual_gpu_processor = None
 # ========== FastAPI 앱 초기화 ==========
 
 app = FastAPI(title="ToneBridge API",
@@ -782,7 +784,46 @@ async def list_reference_files():
         logger.error(f"참조 파일 목록 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/transcribe-hq")
+async def transcribe_high_quality(file: UploadFile = File(...)):
+    """고품질 전사 - GPU 0 (large-v3)"""
+    if not dual_gpu_processor:
+        raise HTTPException(status_code=503, detail="듀얼 GPU 모드 비활성화")
+    
+    file_id = str(uuid.uuid4())
+    file_path = save_upload_file(file, file_id)
+    
+    result = dual_gpu_processor.transcribe_high_quality(file_path, language="ko")
+    
+    if result['success']:
+        return result
+    else:
+        raise HTTPException(status_code=500, detail=result.get('error'))
 
+@app.post("/api/transcribe-fast")
+async def transcribe_fast(file: UploadFile = File(...)):
+    """빠른 전사 - GPU 1 (medium)"""
+    if not dual_gpu_processor:
+        raise HTTPException(status_code=503, detail="듀얼 GPU 모드 비활성화")
+    
+    file_id = str(uuid.uuid4())
+    file_path = save_upload_file(file, file_id)
+    
+    result = dual_gpu_processor.transcribe_fast(file_path, language="ko")
+    
+    if result['success']:
+        return result
+    else:
+        raise HTTPException(status_code=500, detail=result.get('error'))
+
+@app.get("/api/gpu-status")
+async def gpu_status():
+    """GPU 상태 확인"""
+    if dual_gpu_processor:
+        return dual_gpu_processor.get_status()
+    return {"status": "듀얼 GPU 모드 비활성화"}
+    
+    
 # ========== 백그라운드 태스크 ==========
 
 
@@ -834,12 +875,29 @@ async def startup_event():
     logger.info("ToneBridge 서버 시작")
     logger.info("=" * 50)
 
+    """서버 시작 시 초기화"""
+    global dual_gpu_processor
+    
     # 설정 출력
     print_settings()
 
     # DB 초기화
     init_db()
-
+    
+    # .env 파일 확인
+    use_dual_gpu = os.getenv('USE_DUAL_GPU', 'false').lower() == 'true'
+    
+    if use_dual_gpu:
+        logger.info("듀얼 GPU 모드 초기화 중...")
+        try:
+            dual_gpu_processor = DualGPUProcessor()
+            logger.info("✅ 듀얼 GPU 모드 활성화")
+        except Exception as e:
+            logger.error(f"❌ 듀얼 GPU 초기화 실패: {e}")
+    
+    # 디렉토리 생성
+    settings.UPLOAD_FILES_PATH.mkdir(parents=True, exist_ok=True)
+    settings.TEMP_DIR.mkdir(parents=True, exist_ok=True)
     # 디렉토리 생성
     settings.UPLOAD_FILES_PATH.mkdir(parents=True, exist_ok=True)
     settings.TEMP_DIR.mkdir(parents=True, exist_ok=True)

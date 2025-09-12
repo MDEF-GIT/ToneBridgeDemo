@@ -56,9 +56,10 @@ install_system_dependencies() {
                 liblapack-dev \
                 gfortran \
                 openjdk-17-jdk \
+		ffmeg \
                 curl \
                 wget \
-                git
+                git\
             
             # Java 환경 설정
             export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64

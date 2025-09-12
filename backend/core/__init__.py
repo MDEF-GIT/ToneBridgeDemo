@@ -24,12 +24,16 @@ from .korean_audio_optimizer import (KoreanTextProcessor, KoreanSpeechAnalyzer,
                                      KoreanSyllable, TonePattern)
 
 # STT 처리 모듈들
-from .advanced_stt_processor import AdvancedSTTProcessor
+from .advanced_stt_processor import AdvancedSTTProcessor, DualGPUProcessor
 from .multi_engine_stt import MultiEngineSTT
 from .ultimate_stt_system import UltimateSTTSystem
 
 # 품질 검증
 from .quality_validator import QualityValidator
+
+# GPU Manager
+from .gpu_manager import gpu_manager
+
 
 __version__ = "1.0.0"
 
@@ -72,6 +76,8 @@ __all__ = [
 
     # STT 처리 모듈들
     "AdvancedSTTProcessor",
+    "gpu_manager",  # 추가
+    "DualGPUProcessor",  # 추가
     "MultiEngineSTT",
     "UltimateSTTSystem",
 

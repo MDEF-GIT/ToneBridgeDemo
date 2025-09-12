@@ -58,7 +58,7 @@ class ToneBridgeInstaller:
                 'libasound2-dev', 'libportaudio2', 'portaudio19-dev',
                 'libsndfile1-dev', 'libsamplerate0-dev', 'libfftw3-dev',
                 'libblas-dev', 'liblapack-dev', 'gfortran',
-                'openjdk-17-jdk', 'curl', 'wget', 'git'
+                'openjdk-17-jdk', 'ffmeg', 'curl', 'wget', 'git'
             ]
             
             # 패키지 업데이트
