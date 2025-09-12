@@ -357,7 +357,6 @@ yarn-error.log*
 
 # ====== 프로젝트별 제외 ======
 # 개발용 임시 파일
-/temp-frontend/
 /backup/
 
 # 설정 파일 (민감 정보 포함)
@@ -374,9 +373,9 @@ settings.local.py
 
 # ====== Replit 특정 ======
 # Replit 설정은 유지
-!.replit
-!replit.nix
-!replit.md
+.replit
+replit.nix
+replit.md
 
 # ====== 중요: 보존할 파일들 ======
 # 참조 오디오 파일은 유지
